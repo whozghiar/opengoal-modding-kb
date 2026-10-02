@@ -473,11 +473,43 @@ Object"). A DGO is loaded as one unit:
   leaving. Code and assets here exist only while that level is loaded.
 
 Which `.o` files go into which DGO is declared in the game's `.gd` files
-(`goal_src/<game>/dgos/*.gd`). New `.gc` source files are also registered
-in the project file `.gp` (`goal_src/<game>/<game>.gp`). If your code is
-spawned by an always-running system (traffic, a global manager) but
-*defined* in a level DGO, it will be missing or dangling the moment that
-level is not loaded.
+(`goal_src/<game>/dgos/*.gd`); how they are compiled is declared in the
+project file `goal_src/<game>/game.gp`. If your code is spawned by an
+always-running system (traffic, a global manager) but *defined* in a level
+DGO, it will be missing or dangling the moment that level is not loaded.
+
+#### Registering a new source file
+
+A brand-new `.gc` file (one the decompiler never produced) needs both: its
+`.o` in a `.gd` list, and a compile step in `game.gp`. The compile step
+differs by game:
+
+- **Jak 1:** `game.gp` lists every source explicitly with `goal-src` and
+  `goal-src-sequence`. Add the file there, after the files it depends on.
+- **Jak 2 and Jak 3:** `game.gp` compiles most code through `cgo-file`, which
+  walks a `.gd` list and looks each `.o` up in the decompiler's file index.
+  A new file is not in that index, so pre-mark it in `*file-entry-map*`
+  **before** the `cgo-file` line that reads its `.gd` (then `cgo-file` skips
+  it), and compile it with an explicit `goal-src` step whose dependencies
+  pin the compile order:
+
+```lisp
+;; goal_src/jak2/game.gp, before (cgo-file "game.gd" ...)
+(hash-table-set! *file-entry-map* "my-mod-h.o" #f)
+(hash-table-set! *file-entry-map* "my-mod-menu.o" #f)
+
+;; further down, with the other build steps: path relative to goal_src/jak2/,
+;; then the objects (no extension) to compile first
+(goal-src "pc/mods/my-mod-h.gc" "settings")
+(goal-src "pc/features/my-mod-menu.gc" "my-mod-h" "mods-menu")
+```
+
+In the `.gd` list itself, a Mods-menu file goes after `"mods-menu.o"`.
+
+Verified: jak2 `cgo-file` in `goal_src/jak2/lib/project-lib.gp` and the
+haven-city-chaos mod's `game.gp` (built and played); jak3 uses the same
+`cgo-file` (`goal_src/jak3/lib/project-lib.gp`); jak1 `goal-src` lists in
+`goal_src/jak1/game.gp`. 2026-10-02.
 
 ### Virtual method / state residency, conceptually
 
