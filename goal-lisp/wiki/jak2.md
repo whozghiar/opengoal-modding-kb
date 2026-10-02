@@ -32,7 +32,7 @@ Small bikes use `:grab-rail-array #f` and seat Jak instantly. There is
 also a flight "turtle-flip" gotcha: moving `cm-offset-joint` without moving
 every flight control-point array (`*-thruster-array`, `stabilizer-array`) by
 the same vector flips the vehicle upside down. Verified: jak2, the
-jak2-transport-ag-traffic mod repository,
+jak2-mod-transport-ag-traffic mod repository,
 `docs/modding/current_mod/transport_traffic_readme.md`.
 
 ## 3.2 Traffic manager

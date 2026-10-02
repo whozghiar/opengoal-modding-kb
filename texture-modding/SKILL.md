@@ -96,9 +96,21 @@ custom_assets/jak[x]/texture_replacements/   the replacement textures
 
 `metadata.json` needs `author`/`authors` and `releaseDate`/`publishedDate`
 at minimum. If the pack is releasing alongside a specific mod, add the
-mod's slug to `metadata.json`'s `tags` and point `websiteUrl` at the mod
-repository — this is what the launcher catalog schema uses to associate a
-texture pack with its mod.
+mod's slug to `metadata.json`'s `tags`: that is metadata for people reading
+the catalog, nothing more. The launcher's mod-source schema has no field
+that links a texture pack to a mod, the launcher applies texture packs to
+the base game only (a `.zip` the player adds in its Texture Packs screen),
+and its texture support for installed mods is not finished. Verified:
+open-goal/launcher `main`, `schemas/mod-source/v1/types.ts` and
+`src/components/games/GameControlsMod.svelte`, 2026-10-02.
+
+Textures a mod needs go in the mod itself: commit the PNGs under
+`custom_assets/<game>/texture_replacements/` with `git add -f` (the folder
+is gitignored). `release.yml` copies `custom_assets/` into the archive's
+`data/`, which is the project folder of a launcher install, and the
+decompiler applies `custom_assets/<game>/texture_replacements/` during
+extraction (`decompiler/decompilation_process.cpp`), so the mod's extractor
+bakes them at install.
 
 `docs/modding/current_mod/texture_packs/` has its own `.gitignore` that
 ignores `*.zip`, so a work-in-progress pack is never committed by accident:
