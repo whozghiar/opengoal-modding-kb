@@ -26,10 +26,11 @@ verbatim from their source.
 
 ## 2. Language rule
 
-English only, everywhere, with no exceptions. A French section, a bilingual
-mirror, or a partial translation is a compliance failure, not a style
-choice — this replaced an earlier bilingual EN/FR requirement that no
-longer applies.
+English only, everywhere, whatever language the user speaks: each document
+exists once, in English alone. A translated section, a bilingual title or
+label, or a language switcher is a compliance failure: fold any fact it
+carries into the English text, then delete it. Commit messages and PR text
+follow the same rule (AGENTS.md, section 6).
 
 ## 3. Tone & conciseness
 
@@ -97,7 +98,7 @@ it, and some hooks exist in only one or two of the three games.
 
 Before finishing any documentation edit, confirm:
 
-- [ ] English only — no French section, no bilingual scaffolding left over.
+- [ ] English only: one English version, no translated section, bilingual title or language switcher.
 - [ ] No decorative icons — semantic admonitions only.
 - [ ] The content lives in the right file for its theme, not bolted onto
       an unrelated one.
