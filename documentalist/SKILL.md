@@ -18,7 +18,7 @@ or auditing the docs tree for compliance.
 ## 1. Scope
 
 Applies to every `.md` file in the repository: `README.md`, `AGENTS.md`,
-everything under `docs/`, mod-branch root READMEs, and skill files under
+everything under `docs/`, the root README of each mod repository, and skill files under
 `.agents/skills/`. A skill file being written is exempt from checking
 itself mid-edit, but must satisfy every rule below once finished.
 Imported third-party skills, which say so in their first line, are kept

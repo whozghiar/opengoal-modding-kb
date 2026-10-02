@@ -7,8 +7,8 @@ description: Record or correct a verified OpenGOAL modding fact (GOAL pattern, l
 
 The folder this skill lives in is the knowledge base: the repository
 [`whozghiar/opengoal-modding-kb`](https://github.com/whozghiar/opengoal-modding-kb),
-mounted as a git submodule at `.agents/skills/` in `whozghiar/jak-project` and in every
-mod repository created from it. Each fact has one home, shared by every mod.
+mounted as a git submodule at `.agents/skills/` in the host `jak-project` repository and in
+every mod repository created from it. Each fact has one home, shared by every mod.
 
 ## What belongs here
 
@@ -46,6 +46,11 @@ game, or when it was read in the actual `goal_src/` of the game it is attributed
    git -C .agents/skills commit -m "<game>: <topic>"
    git -C .agents/skills push
    ```
+
+   Pushing needs write access to the knowledge-base repository named in `.gitmodules`.
+   In a fork without it, fork the knowledge base, point the submodule at the fork
+   (`git submodule set-url .agents/skills <fork URL>`, then commit `.gitmodules`), and
+   push there.
 
    Say in the commit message when it replaces a previous statement. The git history of
    this repository is the changelog, so no file keeps a "recent discoveries" section.

@@ -2,9 +2,10 @@
 
 Verified knowledge for modding the Jak & Daxter trilogy with OpenGOAL, packaged as
 [Agent Skills](https://agentskills.io): one folder per skill, each with a `SKILL.md`. It is
-mounted as a git submodule at `.agents/skills/` in
-[`whozghiar/jak-project`](https://github.com/whozghiar/jak-project) and in every mod
-repository created from it, so every mod reads and feeds the same copy.
+mounted as a git submodule at `.agents/skills/` in the host `jak-project` repository and in
+every mod repository created from it, so every mod reads and feeds the same copy. A fork of
+`jak-project` can use this repository as is to read, or fork it too and point its submodule at
+the fork to record its own discoveries (`git submodule set-url .agents/skills <fork URL>`).
 
 | Skill | Use it for |
 |---|---|

@@ -21,9 +21,11 @@ without restarting the application or rebuilding C++ binaries.
    modified `.gc` files and upload them to `gk`. Changes take effect within
    seconds.
 
-Both commands are single top-level forms typed at the REPL prompt — see
-`AGENTS.md` §7 for their exact names, since they're the same two commands
-used in every hot-reload cycle across the project.
+Both commands are single top-level forms typed at the REPL prompt: `(lt)`
+("listen to target") attaches to the running game, `(mi)` ("make
+incremental") compiles and uploads the changed files. They are the same two
+commands in every hot-reload cycle across the project. AI agents never run
+`(lt)`: attaching to the game is the user's step.
 
 ---
 
@@ -93,9 +95,9 @@ build it during a clean boot. Whenever you create a new `.gc` file:
    - Jak 1: `goal_src/jak1/game.gp`
    - Jak 2: `goal_src/jak2/game.gp`
    - Jak 3: `goal_src/jak3/game.gp`
-2. Add your file under the appropriate CGO/DGO group — the exact
-   registration call is the same shape as "Register a new script" in each
-   game's Lisp wiki.
+2. Add your file under the appropriate CGO/DGO group — the exact lines
+   for each game are in the Lisp wiki,
+   [Registering a new source file](../goal-lisp/wiki/common.md#registering-a-new-source-file).
 3. Ensure dependent type definitions are declared in files listed above
    your file in `.gp`.
 

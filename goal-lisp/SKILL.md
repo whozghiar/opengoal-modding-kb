@@ -116,7 +116,7 @@ then the code there.
 
 ## 8. Mod architecture: the in-game Mods menu
 
-Every new mod (without exception for `jak[x]/features/*` branches) must be
+Every mod must be
 toggleable at runtime and ship off by default, so it never changes default
 game behavior unless a player explicitly turns it on. The mechanism is the
 unified in-game Mods menu, opened with L3 + SELECT in both retail and debug

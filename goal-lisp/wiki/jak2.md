@@ -29,8 +29,11 @@ All ambient and player vehicles derive from `vehicle`
 Grab rails: define `:grab-rail-count` + `:grab-rail-array` for
 long-range edge-grab boarding (Triangle -> hang -> Cross -> cockpit).
 Small bikes use `:grab-rail-array #f` and seat Jak instantly. There is
-also a flight control-point / `cm-offset-joint` "turtle-flip" gotcha
-documented in the git history of `jak2/features/transport_traffic`.
+also a flight "turtle-flip" gotcha: moving `cm-offset-joint` without moving
+every flight control-point array (`*-thruster-array`, `stabilizer-array`) by
+the same vector flips the vehicle upside down. Verified: jak2, the
+jak2-transport-ag-traffic mod repository,
+`docs/modding/current_mod/transport_traffic_readme.md`.
 
 ## 3.2 Traffic manager
 

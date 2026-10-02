@@ -97,13 +97,14 @@ custom_assets/jak[x]/texture_replacements/   the replacement textures
 `metadata.json` needs `author`/`authors` and `releaseDate`/`publishedDate`
 at minimum. If the pack is releasing alongside a specific mod, add the
 mod's slug to `metadata.json`'s `tags` and point `websiteUrl` at the mod
-branch — this is what the launcher catalog schema uses to associate a
+repository — this is what the launcher catalog schema uses to associate a
 texture pack with its mod.
 
-Archives in `docs/modding/current_mod/texture_packs/` are git-tracked (only
-`custom_assets/jak*/texture_replacements/*` itself is gitignored). During
-`.github/workflows/release.yml`, CI automatically picks up any `.zip` from
-that directory, computes its SHA256 checksum, registers it in `index.json`,
+`docs/modding/current_mod/texture_packs/` has its own `.gitignore` that
+ignores `*.zip`, so a work-in-progress pack is never committed by accident:
+commit the pack you ship with `git add -f <file>.zip`. During
+`.github/workflows/release.yml`, which runs on a fresh checkout, CI picks up
+every committed `.zip` from that directory, computes its SHA256 checksum, registers it in `index.json`,
 and attaches it to the GitHub Release assets.
 
 ---

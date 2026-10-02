@@ -311,7 +311,7 @@ so the registration would silently never run. You call
 ```
 
 Prefix every symbol with your mod slug (`*mod-<slug>-*`, `mod-<slug>-*`)
-to avoid collisions between mod branches. Add `"my-slug-menu.o"` to your
+to avoid collisions between mods. Add `"my-slug-menu.o"` to your
 `.gd` **after** `"mods-menu.o"`. Full architecture (controls, entry types,
 pitfalls, the one real Jak 2/Jak 3 difference) is in
 [`guides/mods_menu.md`](../../../../docs/modding/guides/mods_menu.md); copy-paste starting point:

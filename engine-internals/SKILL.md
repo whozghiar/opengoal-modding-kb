@@ -80,12 +80,12 @@ task repl                    # Open goalc interactive compiler
 # Inside REPL:
 (mi)                          # Incrementally compile and hot-reload the active project
 task boot-game                # Boot game directly without REPL attached
-task run-game                  # Boot game and attach REPL automatically
+task run-game                  # Start the runtime; it waits for task repl to connect
 task format                    # Format all C++ and GOAL files
 
 # Modding tool wrappers (scripts/modding/*.py)
-task modding-new-branch -- jak2/features/my-mod   # Create mod branch from master-dev + README template
-task modding-sync-branch                          # Safe git merge of master-dev into current branch
+task modding-new-mod                             # Create a mod repository from master-dev (asks for the details)
+task modding-sync-branch                          # Safe git merge of master-dev into the current mod
 task kb-update                                    # Refresh this knowledge base (the .agents/skills submodule)
 ```
 
@@ -146,6 +146,6 @@ for this.
 ## See also
 
 - [`docs/modding/guides/task_scripts_reference.md`](../../../docs/modding/guides/task_scripts_reference.md) — every task, with concrete examples.
-- [`docs/modding/guides/build_and_iteration_workflow.md`](../../../docs/modding/guides/build_and_iteration_workflow.md) — the 3-layer build model in more depth.
+- [`docs/modding/guides/task_scripts_reference.md`, section 3](../../../docs/modding/guides/task_scripts_reference.md#3-c-build--compilation-tasks) — the 3-layer build model and sccache.
 - [`repl-workflow.md`](repl-workflow.md) — REPL lifecycle, heap architecture, and the "ghost memory" hot-reload pitfall.
 - [`goal-lisp`](../goal-lisp/SKILL.md) — the language this engine compiles and runs.

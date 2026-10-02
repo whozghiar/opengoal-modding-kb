@@ -59,7 +59,7 @@ no skeleton, no full decompiler run required.
    When porting or backporting a model, verify bone counts and joint order
    against the target game's skeletal definition. Use the `retarget_anim`
    tool (`cmake --build out/build/Release --target retarget_anim --config Release`)
-   or the GUI Reskin Tool when adapting joint matrices. Target `.glb` files
+   when adapting joint matrices. Target `.glb` files
    go under `custom_assets/<target_game>/models/<area_name>/<model_name>.glb`.
 3. **Non-destructive textures & UV management.** Never modify base
    decompiled archives or retail textures directly — place custom PNGs
@@ -82,7 +82,7 @@ no skeleton, no full decompiler run required.
    vanilla files inline. Tag any unavoidable edit to a shared vanilla file
    with a short marker comment naming the mod and what changed. Prefix
    every mod-owned state, variable, and art-group name with the mod slug to
-   avoid collisions with other mod branches.
+   avoid collisions with other mods.
 
 ---
 
