@@ -14,7 +14,7 @@ every mod repository created from it. Each fact has one home, shared by every mo
 
 | Here | Elsewhere |
 |---|---|
-| A GOAL pattern, macro or language trap | What a mod changed and why: that mod's root `README.md` ("Modding Changes Log") |
+| A GOAL pattern, macro or language trap | What a mod changed and why: the change log of that mod's `docs/modding/current_mod/<slug>_readme.md` |
 | An engine behavior several mods can hit (memory, DGOs, processes, traffic, art groups) | A mod's design notes: `docs/modding/current_mod/<slug>_readme.md` in that mod |
 | The cause and fix of a crash another mod could reproduce | A hypothesis: nowhere until it is verified |
 
