@@ -480,21 +480,22 @@ DGO, it will be missing or dangling the moment that level is not loaded.
 
 #### Registering a new source file
 
-A brand-new `.gc` file (one the decompiler never produced) needs both: its
-`.o` in a `.gd` list, and a compile step in `game.gp`. The compile step
-differs by game:
+A brand-new `.gc` file (one the decompiler never produced) needs its `.o` in
+a `.gd` list. Whether `game.gp` needs a line too depends on the game:
 
 - **Jak 1:** `game.gp` lists every source explicitly with `goal-src` and
   `goal-src-sequence`. Add the file there, after the files it depends on.
-- **Jak 2 and Jak 3:** `game.gp` compiles most code through `cgo-file`, which
-  walks a `.gd` list and looks each `.o` up in the decompiler's file index.
-  A new file is not in that index, so pre-mark it in `*file-entry-map*`
-  **before** the `cgo-file` line that reads its `.gd` (then `cgo-file` skips
-  it), and compile it with an explicit `goal-src` step whose dependencies
-  pin the compile order:
+- **Jak 2 and Jak 3:** nothing to add. `game.gp` compiles most code through
+  `cgo-file`, which walks a `.gd` list and resolves each `.o` by base name
+  with `get-gsrc-path`. `set-gsrc-folder!` indexes every `.gc` under
+  `goal_src/<game>/`, so a new file anywhere in that tree is found and
+  compiled in `.gd` order, as long as its base name is unique. An explicit
+  step remains possible when you want to pin dependencies yourself: pre-mark
+  the `.o` in `*file-entry-map*` **before** the `cgo-file` line that reads its
+  `.gd` (then `cgo-file` skips it), and compile it with `goal-src`:
 
 ```lisp
-;; goal_src/jak2/game.gp, before (cgo-file "game.gd" ...)
+;; optional, goal_src/jak2/game.gp, before (cgo-file "game.gd" ...)
 (hash-table-set! *file-entry-map* "my-mod-h.o" #f)
 (hash-table-set! *file-entry-map* "my-mod-menu.o" #f)
 
@@ -506,10 +507,12 @@ differs by game:
 
 In the `.gd` list itself, a Mods-menu file goes after `"mods-menu.o"`.
 
-Verified: jak2 `cgo-file` in `goal_src/jak2/lib/project-lib.gp` and the
-haven-city-chaos mod's `game.gp` (built and played); jak3 uses the same
-`cgo-file` (`goal_src/jak3/lib/project-lib.gp`); jak1 `goal-src` lists in
-`goal_src/jak1/game.gp`. 2026-10-02.
+Verified: `get-gsrc-path` and `set-gsrc-folder!` in `goalc/make/MakeSystem.cpp`,
+used by `cgo-file` in `goal_src/jak2/lib/project-lib.gp` and
+`goal_src/jak3/lib/project-lib.gp`; jak3, two new files built with `.gd` lines
+only (peaceful-haven-city mod, `(make-group "iso" :force #t)`, 2026-10-04);
+jak2 explicit steps, haven-city-chaos mod (built and played); jak1 `goal-src`
+lists in `goal_src/jak1/game.gp`, 2026-10-02.
 
 ### Virtual method / state residency, conceptually
 
