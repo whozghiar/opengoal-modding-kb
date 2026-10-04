@@ -510,7 +510,7 @@ In the `.gd` list itself, a Mods-menu file goes after `"mods-menu.o"`.
 Verified: `get-gsrc-path` and `set-gsrc-folder!` in `goalc/make/MakeSystem.cpp`,
 used by `cgo-file` in `goal_src/jak2/lib/project-lib.gp` and
 `goal_src/jak3/lib/project-lib.gp`; jak3, two new files built with `.gd` lines
-only (peaceful-haven-city mod, `(make-group "iso" :force #t)`, 2026-10-04);
+only (haven-city-breath-of-peace mod, `(make-group "iso" :force #t)`, 2026-10-04);
 jak2 explicit steps, haven-city-chaos mod (built and played); jak1 `goal-src`
 lists in `goal_src/jak1/game.gp`, 2026-10-02.
 
