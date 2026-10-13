@@ -45,6 +45,10 @@ subsystem differences, not restatements of the shared material.
   - [4.4 Weapon system (gun)](jak3.md#44-weapon-system-gun)
   - [4.5 Custom art-groups: no dynamic linking hook](jak3.md#45-custom-art-groups-no-dynamic-linking-hook)
   - [4.6 Memory](jak3.md#46-memory)
+  - [4.7 Start menu: adding a page](jak3.md#47-start-menu-adding-a-page)
+  - [4.8 Making the player follow another process](jak3.md#48-making-the-player-follow-another-process-target-grab-ride)
+  - [4.9 Playable Daxter (indax mode)](jak3.md#49-playable-daxter-indax-mode)
+  - [4.10 Wrapping a stock method from a GAME file](jak3.md#410-wrapping-a-stock-method-from-a-game-file)
 - [How to contribute](../../kb/SKILL.md)
 
 

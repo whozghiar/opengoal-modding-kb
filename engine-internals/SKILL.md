@@ -143,6 +143,37 @@ for this.
 
 ---
 
+## 7. Exposing C++ functions to GOAL (kernel functions)
+
+A mod that needs the operating system (sockets, files, clipboard) adds C++ to the runtime and calls
+it from GOAL like any function.
+
+- **Register** it in the game's `InitMachine_PCPort` (`game/kernel/jak3/kmachine.cpp` for Jak 3)
+  with `make_function_symbol_from_c("pc-my-thing", (void*)my_thing)`. This runs before GAME is
+  linked, so GOAL top-level forms of GAME files may already call it. Declare it on the GOAL side
+  with `define-extern` and its function type.
+- **Arguments** arrive as integers: GOAL pointers are `u32` offsets into EE memory
+  (`Ptr<T>(offset).c()`), a string is `Ptr<String>(offset).c()->data()` (its first `u32` is the
+  allocated size: bound copies by it), a float is its bit pattern. Return a boolean as
+  `s7.offset + true_symbol_offset(g_game_version)` or `s7.offset`.
+- **At most four register arguments on Windows:** the win32 trampoline only remaps four registers
+  (`kscheme.cpp`). Pass a structure pointer for more.
+- **Shared structures:** mirror the GOAL `deftype` field for field with a `static_assert` on the
+  size, and give the `deftype` a `:size-assert`. Inline vectors are 16-byte aligned.
+- **Threading:** kernel functions run on the game thread. Anything that can block (a socket, a
+  file on a network drive) stalls the frame: use non-blocking calls pumped once per frame.
+- **Winsock:** `gk` never calls `WSAStartup` globally, and `close_socket` in
+  `common/cross_sockets/XSocket.cpp` calls `WSACleanup` on every close. Own your sockets, call
+  `WSAStartup` once, and include `winsock2.h` before anything that includes `windows.h`, with
+  `NOMINMAX` defined (or `std::min`/`std::max` stop compiling).
+- **Tests:** `goalc-test` (`test/CMakeLists.txt`) links `runtime`, so a gtest can include the new
+  `game/` header and exercise the C++ without the game.
+
+Verified: jak3, `game/kernel/jak3/kmachine.cpp`, `kscheme.cpp`, `common/cross_sockets/XSocket.cpp`;
+the multiplayer mod's `game/kernel/jak3/kmultiplayer.cpp` built and unit-tested, 2026-10-14.
+
+---
+
 ## See also
 
 - [`docs/modding/guides/task_scripts_reference.md`](../../../docs/modding/guides/task_scripts_reference.md) — every task, with concrete examples.
