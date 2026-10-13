@@ -117,6 +117,11 @@ scrolling page only consumes confirm and triangle, so the D-pad reaches it. The 
 it arrives with `selected?` still `#f` (load the value there); the confirm that ends the selection
 arrives with `selected?` `#t` (commit there).
 
+Two traps of the stock generic options: a `menu-generic-button-option` fires again on the confirm
+that deselects it (guard actions that must not run twice), and `menu-generic-confirm-option` runs
+its action on confirm whatever the yes / no choice; subclass it and test `confirmed?` in
+`call-on-confirm` when "no" must do nothing.
+
 Verified: jak3, `engine/ui/progress/progress.gc`, `pc/progress/progress-pc.gc`,
 `progress-generic-pc.gc`, `progress-generic-draw-pc.gc`; compiled in the multiplayer mod, not yet
 played, 2026-10-14.

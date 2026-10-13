@@ -717,6 +717,24 @@ it on the frame *after* the spawn. `send-event` to a just-spawned process
 hits a stateless process and the event is silently dropped — no error.
 Spawn on one frame, send on a later one.
 
+### 1.4.16 A static object's unset fields are 0, not `#f`
+
+`(new 'static ...)` zero-fills every field the form does not set (`goalc/compiler/compilation/Static.cpp`).
+A `symbol` field left out is therefore `0`, and `(not 0)` is `#f`: a test like
+`(when (not (-> this mounted?)) ...)` never fires on a fresh static object, and a `string` or
+other pointer field left out stays `0`. Test both, as the stock PC menu code does:
+
+```lisp
+(when (or (zero? (-> this mounted?)) (not (-> this mounted?)))
+  (on-mount! this))
+```
+
+Writing through a field that is still `0` targets the protected low memory and crashes the game.
+
+Verified: jak3, `pc/progress/progress-generic-draw-pc.gc` (stock test),
+`goalc/compiler/compilation/Static.cpp`; the multiplayer mod's text field crashed this way (found
+in review, fixed, compiled), 2026-10-14.
+
 ### 1.4.15 Porting code between games in the trilogy
 
 When hand-porting `defstate`/`defpart`/`defpartgroup` GOAL code from one
