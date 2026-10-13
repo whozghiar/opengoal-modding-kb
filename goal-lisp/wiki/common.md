@@ -735,6 +735,26 @@ Verified: jak3, `pc/progress/progress-generic-draw-pc.gc` (stock test),
 `goalc/compiler/compilation/Static.cpp`; the multiplayer mod's text field crashed this way (found
 in review, fixed, compiled), 2026-10-14.
 
+### 1.4.17 A global symbol holds 32 bits: never keep a handle in one
+
+goalc writes a symbol's value with a 32-bit store (`IR_SetSymbolValue`,
+`goalc/compiler/IR.cpp`) and reads it back with a 32-bit load, sign-extended only for signed
+types. A `handle` is 64 bits, its pid in the upper half: kept in a `define`d global it loses the
+pid, and `handle->process` never matches again. Small signed values (`int` -1, a `time-frame`
+counter) survive. Keep handles in a structure or a process field:
+
+```lisp
+(deftype my-globals (structure)
+  ((manager handle)))
+(define *my-globals* (new 'global 'my-globals))
+(set! (-> *my-globals* manager) (the-as handle #f))
+;; (handle->process (-> *my-globals* manager)) then works
+```
+
+Verified: jak3, `goalc/compiler/IR.cpp`; the multiplayer mod kept its manager's handle in a global
+and spawned a new manager every frame until `*nk-dead-pool*` was empty (seen in game: the start
+menu could no longer open), 2026-10-14.
+
 ### 1.4.15 Porting code between games in the trilogy
 
 When hand-porting `defstate`/`defpart`/`defpartgroup` GOAL code from one
