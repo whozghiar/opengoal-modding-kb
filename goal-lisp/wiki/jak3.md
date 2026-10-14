@@ -345,13 +345,15 @@ within 7 cm of the authority's and carrying the player standing on them), 2026-1
   find free small-edge bank in the level-group heap`, then the loader stops the game on purpose
   (`break!`, an integer division by zero in the PC port). Load only what the player's position
   calls for.
-- A level that leaves (`level` `deactivate`, called by `unload!`) kills its entities and their
-  particles, and unlinks its groups from `*part-group-id-table*` (but not its launchers from
-  `*part-id-table*`, see 4.13); then its memory is reused. A process that is not one of its
+- A level that leaves (`level` `deactivate`, called by `unload!`, also for a level only `'loaded`,
+  not active) kills its entities and their particles, and unlinks its groups from
+  `*part-group-id-table*` (but not its launchers from `*part-id-table*`, see 4.13); then its
+  memory is reused. A process that is not one of its
   entities but uses its art (a model built from its skeleton-group, a part-tracker playing one
   of its groups) keeps pointing there: deactivate those before calling the stock `deactivate`,
   or the game crashes when they are drawn or spawn particles.
 
 Verified: jak3, `engine/level/level.gc`, `engine/load/load-state.gc`; seen in game in the
 multiplayer mod (the bank error and crash when loading wascityb next to wascitya; crashes at a
-level unload until copies and part-trackers of the level were dropped first), 2026-10-14.
+level unload until copies and part-trackers of the level, active or only loaded, were dropped
+first), 2026-10-14.
