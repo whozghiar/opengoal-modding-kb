@@ -463,8 +463,7 @@ Jak 3's 15.0 is past the ceiling: its level heap runs from about
 `#x1c60000` to `#x129da0f0`, so the top banks (Spargus `wasstadb` at
 `#x109a00f0`) break the shader lists (44 broken links counted in Spargus,
 then a crash at the next level unload). 12.0 ends it near `#xf400000`, with
-no broken link; the multiplayer mod branch uses 12.0, `master-dev` still has
-15.0. Jak 1 has a different level-heap architecture entirely: no
+no broken link; `master-dev` has 12.0 since commit 3e47edcc6, like the multiplayer mod. Jak 1 has a different level-heap architecture entirely: no
 page/multiplier scheme, just `LEVEL_HEAP_SIZE_DEBUG` allocated from the
 global heap. The exact `defconstant` snippets live in each game's
 "Memory" section ([2.2](jak1.md#22-memory), [3.8](jak2.md#38-memory),

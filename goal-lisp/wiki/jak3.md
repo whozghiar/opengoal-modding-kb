@@ -76,10 +76,10 @@ extension:
 (defconstant END_OF_MEMORY #x20000000)     ;; 512 MB
 
 ;; goal_src/jak3/engine/level/level.gc
-(defconstant DEBUG_LEVEL_HEAP_MULT 15.0)   ;; master-dev; ends the level heap above 256 MB
+(defconstant DEBUG_LEVEL_HEAP_MULT 12.0)   ;; master-dev since 3e47edcc6; 15.0 ended it above 256 MB
 ```
 
-15.0 puts the top banks of the level heap above 256 MB, where adgif shader links cannot reach
+15.0 (master-dev before 3e47edcc6) put the top banks of the level heap above 256 MB, where adgif shader links cannot reach
 (`shader-ptr`, see [Memory](common.md)): a level loaded there breaks the texture lists and a
 later level unload crashes in `unlink-shaders-in-heap`. 12.0 keeps every bank below
 `#xf400000`. `BORROW_MULT` follows it (`(defglobalconstant BORROW_MULT DEBUG_LEVEL_HEAP_MULT)`).
