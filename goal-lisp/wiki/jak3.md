@@ -248,6 +248,10 @@ drawn and its current level of detail animates every joint:
 `(>= (+ (-> draw mgeo num-joints) 3) (-> node-list length))`, or `force-math` in the
 joint-control status; a lower level of detail leaves the other bones stale.
 
+Within a frame (`engine/game/main.gc`), the processes run first, then `execute-math-engine`
+computes the queued bones, then `*mods-menu-hook*` runs: a process reads the bones of the previous
+frame, the mods hook those of this frame.
+
 Verified: jak3, `engine/process-drawable/process-drawable.gc` (`draw-control-method-14`,
 `do-joint-math`, `ja-post`), `engine/gfx/foreground/bones.gc`, `engine/target/sidekick.gc`; seen in
 game in the multiplayer mod (replicas of citizens, Daxter and the gun on another machine; a
@@ -296,3 +300,44 @@ Verified: jak3, the files above, `engine/gfx/sprite/particles/sparticle-launcher
 `engine/sound/gsound.gc`; seen in game in the multiplayer mod (shots, impacts, a buggy's dust and
 engine sound replayed on another machine; task nodes closed on one machine closed on the other),
 2026-10-14.
+
+## 4.14 Keeping world objects alike on several machines
+
+- **Cycles.** An object on a cycle (moving platform, wheel, light) gets its phase from a
+  `sync-info` (`engine/util/sync-info.gc`) as `(mod (current-time) period) + offset`, where
+  `current-time` is the calling process's clock (`(-> pp clock)`, one of `(-> *display* clock i)`).
+  Every method reads the `offset` field, so adding a constant to it for the duration of a call
+  (and putting it back) shifts the phase without moving any clock or timer. `get-norm!` is
+  overridden by `sync-linear`, `sync-eased` and `sync-paused`; `sync-now!` writes `offset`.
+- **Doors.** A `com-airlock` (`engine/common-obs/airlock.gc`) opens when `want-cross-airlock?` says
+  so, computed from `(target-pos 0)`: distance to `active-distance`, `check-crossing-distance`
+  under `open-distance`, `y-height`, `latch-closed-time`, `(script-eval open-test)`, the
+  `airlock` setting and `airlock-command-lookup`. Every door type of the game inherits it.
+- **Elevators.** An `elevator` (`engine/common-obs/elevator.gc`) in its `waiting` or `arrived` state
+  takes `(send-event elev 'move-to 'top)` or `'bottom` and runs there; `(-> elev move-pos 1)` is
+  the stop it runs to, `bottom-top` its two ends.
+- **Cutscenes.** Every cutscene starts with `scene-player-init` (`engine/scene/scene.gc`, a
+  `scene-player` behavior; scenes as a name, a scene, a list or an array, then the wait flag and a
+  continue point name). `(process-spawn scene-player :init scene-player-init name #t #f
+  :name "scene-player")` plays one; `scene-lookup` finds it by name.
+
+Verified: jak3, the files above; seen in game in the multiplayer mod (a test cycle within one
+frame of the host's, a door opened for a remote player 200 m away, an elevator trip and a Spargus
+cutscene started on two machines), 2026-10-14.
+
+## 4.15 Levels: memory banks, and what outlives a level
+
+- A level needs a free bank of the level-group heap for its memory mode. Asking for one more
+  level (`want-levels`, `want-display-level`) without one prints `ERROR: level <name> could not
+  find free small-edge bank in the level-group heap`, then the game crashes (integer division by
+  zero). Load only what the player's position calls for.
+- A level that leaves (`level` `deactivate`, called by `unload!`) kills its entities and their
+  particles, and unlinks its groups from `*part-group-id-table*` (but not its launchers from
+  `*part-id-table*`, see 4.13); then its memory is reused. A process that is not one of its
+  entities but uses its art (a model built from its skeleton-group, a part-tracker playing one
+  of its groups) keeps pointing there: deactivate those before calling the stock `deactivate`,
+  or the game crashes when they are drawn or spawn particles.
+
+Verified: jak3, `engine/level/level.gc`, `engine/load/load-state.gc`; seen in game in the
+multiplayer mod (the bank error and crash when loading wascityb next to wascitya; crashes at a
+level unload until copies and part-trackers of the level were dropped first), 2026-10-14.

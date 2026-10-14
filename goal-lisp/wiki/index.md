@@ -52,6 +52,8 @@ subsystem differences, not restatements of the shared material.
   - [4.11 Making a process hittable by the player's attacks](jak3.md#411-making-a-process-hittable-by-the-players-attacks)
   - [4.12 Drawing another process's model elsewhere](jak3.md#412-drawing-another-processs-model-elsewhere)
   - [4.13 Hooks for every effect, projectile, sound and story step](jak3.md#413-hooks-for-every-effect-projectile-sound-and-story-step)
+  - [4.14 Keeping world objects alike on several machines](jak3.md#414-keeping-world-objects-alike-on-several-machines)
+  - [4.15 Levels: memory banks, and what outlives a level](jak3.md#415-levels-memory-banks-and-what-outlives-a-level)
 - [How to contribute](../../kb/SKILL.md)
 
 
