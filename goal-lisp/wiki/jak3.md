@@ -316,21 +316,35 @@ engine sound replayed on another machine; task nodes closed on one machine close
 - **Elevators.** An `elevator` (`engine/common-obs/elevator.gc`) in its `waiting` or `arrived` state
   takes `(send-event elev 'move-to 'top)` or `'bottom` and runs there; `(-> elev move-pos 1)` is
   the stop it runs to, `bottom-top` its two ends.
+- **Physics objects.** A `rigid-body-object` (`engine/physics/rigid-body.gc`) is put somewhere
+  with `(rigid-body-control-method-28 (-> obj rbody) trans quat)` (root position and orientation),
+  then `reset-momentum!` and `init-velocities!` to leave it at rest; its next `rbody-post` moves
+  the root and the collision there and still carries its riders. Objects spawned by one entity's
+  process share that entity (the volcano's 5 lava platforms and their spawner): name them by the
+  aid plus their rank among the spawner's children, the same on every machine. A floating
+  platform (`rigid-body-platform`, volcano level code) takes a player's weight from
+  `(send-event plat 'ridden rider)`, `rider` a `collide-rider` whose `rider-handle` is a process
+  with `(process-mask target)` set.
+- **Stale bones.** `(do-joint-math (-> proc draw) (-> proc node-list) (-> proc skel))` can be called
+  from another process (it sets `pp` itself): it computes the bones of a process whose own joint
+  math did not run lately.
 - **Cutscenes.** Every cutscene starts with `scene-player-init` (`engine/scene/scene.gc`, a
   `scene-player` behavior; scenes as a name, a scene, a list or an array, then the wait flag and a
   continue point name). `(process-spawn scene-player :init scene-player-init name #t #f
   :name "scene-player")` plays one; `scene-lookup` finds it by name.
 
-Verified: jak3, the files above; seen in game in the multiplayer mod (a test cycle within one
-frame of the host's, a door opened for a remote player 200 m away, an elevator trip and a Spargus
-cutscene started on two machines), 2026-10-14.
+Verified: jak3, the files above, `levels/volcano/volcano-obs2.gc`; seen in game in the
+multiplayer mod (a test cycle within one frame of the host's, a door opened for a remote player
+200 m away, an elevator trip and a Spargus cutscene started on two machines, lava platforms
+within 7 cm of the authority's and carrying the player standing on them), 2026-10-14.
 
 ## 4.15 Levels: memory banks, and what outlives a level
 
 - A level needs a free bank of the level-group heap for its memory mode. Asking for one more
   level (`want-levels`, `want-display-level`) without one prints `ERROR: level <name> could not
-  find free small-edge bank in the level-group heap`, then the game crashes (integer division by
-  zero). Load only what the player's position calls for.
+  find free small-edge bank in the level-group heap`, then the loader stops the game on purpose
+  (`break!`, an integer division by zero in the PC port). Load only what the player's position
+  calls for.
 - A level that leaves (`level` `deactivate`, called by `unload!`) kills its entities and their
   particles, and unlinks its groups from `*part-group-id-table*` (but not its launchers from
   `*part-id-table*`, see 4.13); then its memory is reused. A process that is not one of its
