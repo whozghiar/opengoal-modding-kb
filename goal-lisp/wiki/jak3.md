@@ -230,11 +230,24 @@ Daxter on Jak's shoulder (`sidekick`) and Jak's gun keep their root still: their
 computed from one of Jak's joints each frame. Their world transform is
 `(-> proc node-list data 0 bone transform)`.
 
-Verified: jak3, `engine/process-drawable/process-drawable.gc`, `engine/target/sidekick.gc`; seen in
-game in the multiplayer mod (replicas of citizens, Daxter and the gun on another machine),
-2026-10-14.
+To show the source's exact pose (blends, streamed animations, joint mods, ragdolls), copy its
+bones instead. `(-> proc node-list data i bone transform)` is each bone's world matrix, and the
+renderer skins with it (`bones-mtx-calc-execute` multiplies it by the joint's bind pose). Write
+the copy's bones from its joint-control `postbind-function`
+(`(function draw-control cspace-array joint-control none)`, `pp` is the process): `do-joint-math`
+calls it after computing the bones from the animation and before deriving the draw origin from
+them. Do not write them from the process's `post`: `ja-post` usually only queues the math on
+`*matrix-engine*`, run after every process. The source's bones are complete only when it is
+drawn and its current level of detail animates every joint:
+`(>= (+ (-> draw mgeo num-joints) 3) (-> node-list length))`, or `force-math` in the
+joint-control status; a lower level of detail leaves the other bones stale.
 
-## 4.13 One hook for every effect, one for every projectile
+Verified: jak3, `engine/process-drawable/process-drawable.gc` (`draw-control-method-14`,
+`do-joint-math`, `ja-post`), `engine/gfx/foreground/bones.gc`, `engine/target/sidekick.gc`; seen in
+game in the multiplayer mod (replicas of citizens, Daxter and the gun on another machine; a
+remote Jak in a buggy matching the driver's bones within 1 mm), 2026-10-14.
+
+## 4.13 Hooks for every effect, projectile and sound
 
 - Every one-shot particle effect (`part-tracker-spawn`, `do-effect "group-..."`) goes through
   `part-tracker-init-base` (`engine/common-obs/generic-obs.gc`), which returns normally; the
@@ -249,8 +262,23 @@ game in the multiplayer mod (replicas of citizens, Daxter and the gun on another
   so check `(type? (-> (string->symbol name) value) type)`. To make a copy harmless, set its
   `(-> root root-prim prim-core collide-with)` to `(collide-spec backgnd)`.
 
-Both are plain functions called through their symbol, so a `define-perm` + `defbehavior` wrapper in
-a GAME file catches every caller (see [4.10](#410-wrapping-a-stock-method-from-a-game-file)).
+- Every running particle group goes through the `sparticle-launch-control` `spawn` method
+  (`spawn-from-mat` and `spawn-from-cspace` call it); `(-> this proc)` is the owner and
+  `(-> this origin)` the launch matrix once its `trans` is set to the argument. Particles launched
+  directly (`launch-particles`, no launch control) go through `sp-launch-particles-var`, a
+  `def-mips2c` function reached through its symbol like the others; `pp` is the launching process.
+  `*part-id-table*` keeps the launchers of unloaded levels (`unlink-part-group-by-heap` only clears
+  `*part-group-id-table*`): an entry is safe only when its address lies in the heap of a loaded
+  level that defines it, or outside every level heap (global parts).
+- Every sound goes through `sound-play-by-name` or `sound-play-by-spec` (behaviors, `self` is the
+  playing process; `trans` is a vector, `#t` for the process root, `#f` for none) and stops
+  through `sound-stop`. Playing again with an id that is still playing updates that sound
+  (`game/overlord/jak3/srpc.cpp`): a lasting sound such as an engine is one id played every frame.
 
-Verified: jak3, the files above; seen in game in the multiplayer mod (shots and impacts replayed on
-another machine), 2026-10-14.
+All are functions or methods called through their symbol or method table, so a `define-perm` +
+`defbehavior`, `defun` or `defmethod` wrapper in a GAME file catches every caller (see
+[4.10](#410-wrapping-a-stock-method-from-a-game-file)).
+
+Verified: jak3, the files above, `engine/gfx/sprite/particles/sparticle-launcher.gc`,
+`engine/sound/gsound.gc`; seen in game in the multiplayer mod (shots, impacts, a buggy's dust and
+engine sound replayed on another machine), 2026-10-14.
