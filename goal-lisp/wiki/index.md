@@ -51,7 +51,7 @@ subsystem differences, not restatements of the shared material.
   - [4.10 Wrapping a stock method from a GAME file](jak3.md#410-wrapping-a-stock-method-from-a-game-file)
   - [4.11 Making a process hittable by the player's attacks](jak3.md#411-making-a-process-hittable-by-the-players-attacks)
   - [4.12 Drawing another process's model elsewhere](jak3.md#412-drawing-another-processs-model-elsewhere)
-  - [4.13 Hooks for every effect, projectile and sound](jak3.md#413-hooks-for-every-effect-projectile-and-sound)
+  - [4.13 Hooks for every effect, projectile, sound and story step](jak3.md#413-hooks-for-every-effect-projectile-sound-and-story-step)
 - [How to contribute](../../kb/SKILL.md)
 
 

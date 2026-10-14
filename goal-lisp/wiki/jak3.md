@@ -203,14 +203,20 @@ must be in that list, collide-as a bit the attacks look for (`bot`, `civilian`, 
 ;; its :event gets 'attack, from the target (melee) or from the projectile (shots); return #t
 ```
 
+Keep a solid sphere's underside out of the player's way: a sphere centered above the ground is a
+ceiling for a player standing next to it, who slides down and stays in `target-duck-stance` while
+under it. Center big spheres (a vehicle's) at ground level or below.
+
 A process that must also be focused by enemies (they scan the player list for `jak`) needs a
 second process for this shape, as one collide-shape sits in one list. A blow lands several frames:
 dedupe by `(-> attack-info id)`. Hitting the player back: send `'attack` with a fresh
 `(new-attack-id)` and a `vector` (the push direction): without one, `target-hit` pushes away from the
 sender's `root`, which a plain process does not have.
 
-Verified: jak3, `engine/target/logic-target.gc`, `engine/collide/collide-shape-h.gc`; seen in game
-in the multiplayer mod (player hits, health 8 to 5, 3 m knockback), 2026-10-14.
+Verified: jak3, `engine/target/logic-target.gc`, `engine/collide/collide-shape-h.gc`,
+`engine/target/target.gc` (`target-slide-down`); seen in game in the multiplayer mod (player hits,
+health 8 to 5, 3 m knockback; a player crouched next to a 2.5 m sphere centered 1 m up),
+2026-10-14.
 
 ## 4.12 Drawing another process's model elsewhere
 
@@ -247,7 +253,7 @@ Verified: jak3, `engine/process-drawable/process-drawable.gc` (`draw-control-met
 game in the multiplayer mod (replicas of citizens, Daxter and the gun on another machine; a
 remote Jak in a buggy matching the driver's bones within 1 mm), 2026-10-14.
 
-## 4.13 Hooks for every effect, projectile and sound
+## 4.13 Hooks for every effect, projectile, sound and story step
 
 - Every one-shot particle effect (`part-tracker-spawn`, `do-effect "group-..."`) goes through
   `part-tracker-init-base` (`engine/common-obs/generic-obs.gc`), which returns normally; the
@@ -275,10 +281,18 @@ remote Jak in a buggy matching the driver's bones within 1 mm), 2026-10-14.
   through `sound-stop`. Playing again with an id that is still playing updates that sound
   (`game/overlord/jak3/srpc.cpp`): a lasting sound such as an engine is one id played every frame.
 
+- Every story step goes through the `game-task-node-info` `open!` method
+  (`engine/game/task/task-control.gc`), which, despite its name, **closes** the node (and the
+  parent nodes it needs, through `open!` again), runs its `on-close` script and gives the fuel
+  cell of a task-closing node. The node's index is `(get-idx-in-task-list node)` in
+  `(-> *game-info* sub-task-list)`; `(open! node 'event)` closes it anywhere, as when the task is
+  done.
+
 All are functions or methods called through their symbol or method table, so a `define-perm` +
 `defbehavior`, `defun` or `defmethod` wrapper in a GAME file catches every caller (see
 [4.10](#410-wrapping-a-stock-method-from-a-game-file)).
 
 Verified: jak3, the files above, `engine/gfx/sprite/particles/sparticle-launcher.gc`,
 `engine/sound/gsound.gc`; seen in game in the multiplayer mod (shots, impacts, a buggy's dust and
-engine sound replayed on another machine), 2026-10-14.
+engine sound replayed on another machine; task nodes closed on one machine closed on the other),
+2026-10-14.

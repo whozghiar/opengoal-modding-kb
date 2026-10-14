@@ -190,7 +190,9 @@ each driven by a script, without anyone at the controller:
   `<config>/OpenGOAL/<game>/screenshots/<name>.png`. GOAL's `capture-pc.gc` is debug-only.
 - **Input:** `scePadRead` (`game/sce/libpad.cpp`) fills each pad from the input manager; OR extra
   bits into `cpad->button0` (PS2 order, select = bit 0, square = bit 15) or set `leftx`/`lefty`
-  there to drive the player.
+  there to drive the player. Set the pressure too (`cpad->abutton[i]`, order right, left, up,
+  down, triangle, circle, x, square, l1, r1, l2, r2): Jak 3's buggies take their throttle from X's
+  pressure alone (`wvehicle.gc`), so a bare button bit does not drive them.
 - **Commands:** an environment variable naming a script file read by a kernel function, polled by
   GOAL every frame, keeps everything in-process; `(format 0 ...)` lines land in the instance's
   output for the runner to collect.
