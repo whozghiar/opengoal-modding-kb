@@ -174,6 +174,34 @@ the multiplayer mod's `game/kernel/jak3/kmultiplayer.cpp` built and unit-tested,
 
 ---
 
+## 8. Automated in-game checks
+
+When the user allows the game to be launched for tests, several instances can run side by side,
+each driven by a script, without anyone at the controller:
+
+- **Separate instances:** `gk --config-path <dir> ...` makes `<dir>/OpenGOAL/<game>/` the settings,
+  saves and screenshots folder of that instance. Copy the user's `saves/` and `settings/` into it;
+  `display-settings.json` (`display_mode` 0 = windowed, `window_xpos`) and the `(window-size w h)`
+  line of `pc-settings.gc` place each window. A second debug instance only warns that the REPL
+  port is taken.
+- **Into the game without input:** `-boot -fakeiso -debug` loads save slot 1.
+- **Screenshots from C++:** set `g_screen_shot_settings->name` (and its size), then
+  `g_want_screenshot = true` (`game/graphics/screenshot.h`): the renderer saves the next frame as
+  `<config>/OpenGOAL/<game>/screenshots/<name>.png`. GOAL's `capture-pc.gc` is debug-only.
+- **Input:** `scePadRead` (`game/sce/libpad.cpp`) fills each pad from the input manager; OR extra
+  bits into `cpad->button0` (PS2 order, select = bit 0, square = bit 15) or set `leftx`/`lefty`
+  there to drive the player.
+- **Commands:** an environment variable naming a script file read by a kernel function, polled by
+  GOAL every frame, keeps everything in-process; `(format 0 ...)` lines land in the instance's
+  output for the runner to collect.
+
+The multiplayer mod's `scripts/mp-test/run_mp_test.py` and `multiplayer-test.gc` implement this.
+
+Verified: jak3, `game/main.cpp`, `common/util/FileUtil.cpp`, `game/graphics/pipelines/opengl.cpp`;
+used for every in-game check of the multiplayer mod, 2026-10-14.
+
+---
+
 ## See also
 
 - [`docs/modding/guides/task_scripts_reference.md`](../../../docs/modding/guides/task_scripts_reference.md) — every task, with concrete examples.

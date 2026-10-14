@@ -755,6 +755,17 @@ Verified: jak3, `goalc/compiler/IR.cpp`; the multiplayer mod kept its manager's 
 and spawned a new manager every frame until `*nk-dead-pool*` was empty (seen in game: the start
 menu could no longer open), 2026-10-14.
 
+### 1.4.18 `format` takes at most 8 arguments, and `state` is a process field
+
+A function call takes at most 8 arguments: `format` counts its destination and its format string,
+so 6 values at most per call (*"Function call cannot use more than 8 parameters"*). Split a long
+log line.
+
+A process type already has a `state` field (its current state). A field of that name in your own
+`deftype` of a process fails with *"Type ... already has a field named state"*.
+
+Verified: jak3, compile errors in the multiplayer mod, 2026-10-14.
+
 ### 1.4.15 Porting code between games in the trilogy
 
 When hand-porting `defstate`/`defpart`/`defpartgroup` GOAL code from one

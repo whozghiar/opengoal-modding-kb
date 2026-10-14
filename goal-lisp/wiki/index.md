@@ -49,6 +49,9 @@ subsystem differences, not restatements of the shared material.
   - [4.8 Making the player follow another process](jak3.md#48-making-the-player-follow-another-process-target-grab-ride)
   - [4.9 Playable Daxter (indax mode)](jak3.md#49-playable-daxter-indax-mode)
   - [4.10 Wrapping a stock method from a GAME file](jak3.md#410-wrapping-a-stock-method-from-a-game-file)
+  - [4.11 Making a process hittable by the player's attacks](jak3.md#411-making-a-process-hittable-by-the-players-attacks)
+  - [4.12 Drawing another process's model elsewhere](jak3.md#412-drawing-another-processs-model-elsewhere)
+  - [4.13 One hook for every effect, one for every projectile](jak3.md#413-one-hook-for-every-effect-one-for-every-projectile)
 - [How to contribute](../../kb/SKILL.md)
 
 

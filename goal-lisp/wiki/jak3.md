@@ -180,3 +180,77 @@ inherit it at creation. The multiplayer mod wraps `enemy` `mark-as-dead`
 
 Verified: jak3, `game/kernel/jak3/kscheme.cpp` (`method_set`), `game/kernel/jak3/kmachine.cpp`;
 compiled, not yet played, 2026-10-14.
+
+## 4.11 Making a process hittable by the player's attacks
+
+The player's punches, kicks and shots never look in `*collide-player-list*` with a `jak` collide-as:
+the target's attack collide-with (`target-collide-set!`, `target-danger-set!`) lacks the `jak` bit,
+and gun shots query the actor hash, built from `*collide-hit-by-others-list*`. To be hit, a shape
+must be in that list, collide-as a bit the attacks look for (`bot`, `civilian`, `enemy`,
+`obstacle`), and `solid` (shots only collide with solid prims). The list enum is offset by one:
+`(collide-list-enum usually-hit-by-player)` adds to `*collide-hit-by-others-list*`.
+
+```lisp
+(let ((cshape (new 'process 'collide-shape self (collide-list-enum usually-hit-by-player))))
+  (let ((prim (new 'process 'collide-shape-prim-sphere cshape (the-as uint 0))))
+    (set! (-> prim prim-core collide-as) (collide-spec bot civilian))
+    (set! (-> prim prim-core collide-with) (collide-spec))
+    (set! (-> prim prim-core action) (collide-action solid))
+    (set-vector! (-> prim local-sphere) 0.0 (meters 1) 0.0 (meters 0.9))
+    (set! (-> cshape total-prims) (the-as uint 1))
+    (set! (-> cshape root-prim) prim))
+  (set! (-> self root) cshape))
+;; its :event gets 'attack, from the target (melee) or from the projectile (shots); return #t
+```
+
+A process that must also be focused by enemies (they scan the player list for `jak`) needs a
+second process for this shape, as one collide-shape sits in one list. A blow lands several frames:
+dedupe by `(-> attack-info id)`. Hitting the player back: send `'attack` with a fresh
+`(new-attack-id)` and a `vector` (the push direction): without one, `target-hit` pushes away from the
+sender's `root`, which a plain process does not have.
+
+Verified: jak3, `engine/target/logic-target.gc`, `engine/collide/collide-shape-h.gc`; seen in game
+in the multiplayer mod (player hits, health 8 to 5, 3 m knockback), 2026-10-14.
+
+## 4.12 Drawing another process's model elsewhere
+
+A process keeps its draw-control's `art-group` and `jgeo`, not the skeleton-group it was built
+from. Every `defskelgroup` registers its skeleton-group in the loading level's art-group array next
+to the art groups, so search the active levels' arrays for a skeleton-group whose `art-group-name`
+is the process's art group name and whose `jgeo` index points at the same joint geometry. Then
+build the copy with `initialize-skeleton`, after setting the copy's `level` to the level that holds
+the **art group** (`art-group-get-by-name` on `art-group-name`), which is not always the level that
+registered the skeleton-group (the dogat's skeleton is in WASALL code, its art elsewhere).
+
+Play the source's animation by index in the art group (channel 0 frame-group and frame-num); the
+copy's effect-control then plays the effects carried by the animation (footsteps, sounds).
+`setup-masks draw -1 seg-mask` copies a body variant (citizens), except a 0 mask.
+
+Daxter on Jak's shoulder (`sidekick`) and Jak's gun keep their root still: their root joint is
+computed from one of Jak's joints each frame. Their world transform is
+`(-> proc node-list data 0 bone transform)`.
+
+Verified: jak3, `engine/process-drawable/process-drawable.gc`, `engine/target/sidekick.gc`; seen in
+game in the multiplayer mod (replicas of citizens, Daxter and the gun on another machine),
+2026-10-14.
+
+## 4.13 One hook for every effect, one for every projectile
+
+- Every one-shot particle effect (`part-tracker-spawn`, `do-effect "group-..."`) goes through
+  `part-tracker-init-base` (`engine/common-obs/generic-obs.gc`), which returns normally; the
+  group is its first argument and `(-> self root trans)` (or the target's root) its position.
+  Replaying one elsewhere: set `(-> *launch-matrix* trans)`, then `part-tracker-spawn` with
+  `part-tracker-subsampler` when the group has `(sp-group-flag sp13)`, else `part-tracker`. A
+  group's id is its index in `*part-group-id-table*`; a level's groups are zero while it is not
+  loaded.
+- Every projectile goes through `projectile-init-by-other` (`engine/common-obs/projectile.gc`),
+  which never returns (it goes to the first state): act before calling the stock one. Fire one
+  with `spawn-projectile` (type, params, a process-drawable parent, pool); the type is level code,
+  so check `(type? (-> (string->symbol name) value) type)`. To make a copy harmless, set its
+  `(-> root root-prim prim-core collide-with)` to `(collide-spec backgnd)`.
+
+Both are plain functions called through their symbol, so a `define-perm` + `defbehavior` wrapper in
+a GAME file catches every caller (see [4.10](#410-wrapping-a-stock-method-from-a-game-file)).
+
+Verified: jak3, the files above; seen in game in the multiplayer mod (shots and impacts replayed on
+another machine), 2026-10-14.
