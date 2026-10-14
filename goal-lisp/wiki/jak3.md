@@ -436,6 +436,13 @@ place, without taking a bank (`goal_src/jak3/pc/features/multiplayer/multiplayer
   of the level the art comes from: `pc_set_levels` (`game/kernel/jak3/kmachine_extras.cpp`) is
   the list the renderer keeps, and at its cap it drops levels not active for 180 frames
   (`Loader::get_most_unloadable_level`).
+- **Skeleton-groups are data.** A model drawn without its object's code needs only the
+  `skeleton-group` (what `defskelgroup` fills: `art-group-name`, `jgeo`, `janim`, `bounds`, `mgeo`
+  and `lod-dist`, `max-lod`, `version`, shadow and joint indices, `clothing` `#f` is fine) and
+  the art group. `(new 'global 'skeleton-group)` with those fields set builds one that
+  `initialize-skeleton` accepts; the multiplayer mod rebuilds them from a description its sender
+  sends. Never keep a pointer to a skeleton-group (or any object) of a level that may unload:
+  look it up again by name, its memory is reused (a crash in testing).
 - **Borrow levels.** Its borrow levels (Haven's cars `ctycara`, guards `ctypesa`) load in its
   borrow heaps through the stock path once it is `'loaded`, and must leave `target` as soon as it
   is not: a borrow level asked for without its master stops the game.
