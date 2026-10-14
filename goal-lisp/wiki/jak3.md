@@ -76,8 +76,16 @@ extension:
 (defconstant END_OF_MEMORY #x20000000)     ;; 512 MB
 
 ;; goal_src/jak3/engine/level/level.gc
-(defconstant DEBUG_LEVEL_HEAP_MULT 15.0)   ;; already the highest tested of the three games
+(defconstant DEBUG_LEVEL_HEAP_MULT 15.0)   ;; master-dev; ends the level heap above 256 MB
 ```
+
+15.0 puts the top banks of the level heap above 256 MB, where adgif shader links cannot reach
+(`shader-ptr`, see [Memory](common.md)): a level loaded there breaks the texture lists and a
+later level unload crashes in `unlink-shaders-in-heap`. 12.0 keeps every bank below
+`#xf400000`. `BORROW_MULT` follows it (`(defglobalconstant BORROW_MULT DEBUG_LEVEL_HEAP_MULT)`).
+
+Verified: jak3, `engine/gfx/texture/texture-h.gc`, `engine/level/level.gc`; shader lists walked
+in game (44 broken links at 15.0, 0 at 12.0), 2026-10-14.
 
 
 ## 4.7 Start menu: adding a page
@@ -252,10 +260,18 @@ Within a frame (`engine/game/main.gc`), the processes run first, then `execute-m
 computes the queued bones, then `*mods-menu-hook*` runs: a process reads the bones of the previous
 frame, the mods hook those of this frame.
 
+Sent to another machine, a pose drawn at the sender's time needs a clock finer than the
+millisecond: a running citizen's bones move about 3.5 mm per ms, so whole-millisecond stamps on
+the poses and in the clock estimate leave up to about 7 mm between a copy and its source, tenths
+of a millisecond 1.6 mm at most (the 1 mm steps of the wire format). The frames of the game are
+not even (a 43 ms frame, then two short ones): compare a copy with its source's bones logged on
+every frame, not on a script's fixed times.
+
 Verified: jak3, `engine/process-drawable/process-drawable.gc` (`draw-control-method-14`,
 `do-joint-math`, `ja-post`), `engine/gfx/foreground/bones.gc`, `engine/target/sidekick.gc`; seen in
 game in the multiplayer mod (replicas of citizens, Daxter and the gun on another machine; a
-remote Jak in a buggy matching the driver's bones within 1 mm), 2026-10-14.
+remote Jak in a buggy matching the driver's bones within 1 mm; a running citizen's copy within
+1.6 mm with 0.1 ms stamps, 6.7 mm with 1 ms stamps), 2026-10-14.
 
 ## 4.13 Hooks for every effect, projectile, sound and story step
 
@@ -353,7 +369,61 @@ within 7 cm of the authority's and carrying the player standing on them), 2026-1
   of its groups) keeps pointing there: deactivate those before calling the stock `deactivate`,
   or the game crashes when they are drawn or spawn particles.
 
+- The loader keeps the levels named in `*load-state*` `target` and discards the others, one per
+  frame (`update!` of `load-state` in `level.gc`); `target` is rebuilt from `want-exp` only when
+  the wanted levels change (`add-borrow-levels`). A level whose `master-level` is not loaded
+  stops the game when asked for (`level-get-for-use`: "is loading before master-level").
+
 Verified: jak3, `engine/level/level.gc`, `engine/load/load-state.gc`; seen in game in the
 multiplayer mod (the bank error and crash when loading wascityb next to wascitya; crashes at a
 level unload until copies and part-trackers of the level, active or only loaded, were dropped
 first), 2026-10-14.
+
+## 4.16 Loading the level of another place, outside the banks
+
+The multiplayer mod loads the level a distant player stands in, next to the levels of the local
+place, without taking a bank (`goal_src/jak3/pc/features/multiplayer/multiplayer-world.gc`,
+"Distant players' levels"). Each step meets a trap of the engine:
+
+- **Memory.** The banks of the PC level heap are 12 times the PS2 page and mostly empty. The level
+  gets a heap carved from the free top of an active level (its host), below 256 MB (4.6), and the
+  host's `top-base` and `top` are lowered to it, as `level-update-after-load` does for borrow
+  heaps: `get-level-by-heap-ptr-and-status` gives the first level whose `[base, top-base)` holds
+  an address, and art login stops the game ("illegal login of art ... to level ...") when that is
+  not the loading level. `load-begin` gets a hook before its bank search (`memory-mask` 0).
+- **Size.** Count the borrow heaps the level carves from its own top at login:
+  `BORROW_MULT` times each `borrow-size` (KB). For `ctywide` that is 34 MB on top of its pages.
+- **Unloading.** Registered in a borrow slot of the host that none of the host's own borrow levels
+  can claim (`level-find-borrow-slot` gives slots 0 to 2 to `borrow-city-small` levels and slot i
+  to the levels its borrow info names at i, so 3 or 4 when unused), the level is unloaded by the
+  host's `unload!` first. Give the host its `top` and `top-base` back when it leaves.
+- **Not displayed.** Kept in `target` with `display?` `#f`, it stays `'loaded`: no entity birth,
+  no level callback (they run at birth and display), no traffic. `art-group-get-by-name` only
+  searches `'active` and `'reserved` levels, and `assign-draw-indices` gives a draw slot to
+  `'active` levels only: a model built from its art must take `level-index` 10 (the default
+  level's buckets and lighting). The PC renderer finds merc models by name in any loaded level
+  (`Loader::get_merc_model`).
+- **Code.** A level's code is global: its `defun`, `define` and `deftype` of names the local levels
+  use point those names at its copy, and a `deftype` of an existing type resets that type's
+  methods to the parent's (`new_type` in `game/kernel/jak3/kscheme.cpp`). Two halves of a place
+  the game never loads together share their code (Spargus `wascitya` and `wascityb`): the second
+  one unloading leaves the first with dangling code. The mod notes every symbol value, the methods
+  of every type and the `*part-id-table*`, `*part-group-id-table*`, `*lightning-spec-id-table*`
+  and texture page dir entries before the load, and puts back each one that held a value and now
+  points into the new level's memory, every frame while it links (`pc-mp-sandbox-*` in
+  `game/kernel/jak3/kmultiplayer.cpp`; 2226 entries for `ctywide` loaded in Spargus). It also
+  unloads it before the local place loads any level, so no local level links next to it.
+- **Textures.** `link-texture-by-id` allocates the shader list of a texture page in the loading
+  level's heap, and `unload-page` and `unlink-shaders-in-heap` only clean the pages that are
+  loaded: a page the level used without loading it keeps a list in freed memory, and the next
+  level loaded there corrupts it (a shader list looping forever in testing). Clear those links
+  and splice the level's shaders out of every list when it leaves.
+- **Borrow levels.** Its borrow levels (Haven's cars `ctycara`, guards `ctypesa`) load in its
+  borrow heaps through the stock path once it is `'loaded`, and must leave `target` as soon as it
+  is not: a borrow level asked for without its master stops the game.
+
+Verified: jak3, `engine/level/level.gc`, `engine/gfx/texture/texture.gc`,
+`engine/anim/joint.gc`, `game/kernel/jak3/kscheme.cpp`; in game with the multiplayer mod
+(`far`: `wascityb` loaded in `wascitya`'s heap and back; `far-city`: `ctywide`, `ctypesa`,
+`ctycara`, `ctycarb` loaded in Spargus, Haven's guards and car drawn there, all unloaded cleanly),
+2026-10-14.

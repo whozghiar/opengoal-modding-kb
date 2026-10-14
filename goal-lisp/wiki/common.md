@@ -435,6 +435,13 @@ document.
 | `END_OF_MEMORY` (used by `valid?`) | `goal_src/<game>/kernel/gcommon.gc` | per game |
 | `DEBUG_LEVEL_HEAP_MULT` (level-heap size multiplier) | `goal_src/<game>/engine/level/level.gc` | per game |
 
+The level heap must end below 256 MB (`#x10000000`), whatever the memory
+size: the texture page dir links the adgif shaders of each texture through
+`shader-ptr`, which keeps an address divided by 16 in 24 bits
+(`engine/gfx/texture/texture-h.gc`). A level loaded above 256 MB has its
+shader links cut to the low bits, the lists walk into unrelated memory, and
+the next level unload crashes or hangs in `unlink-shaders-in-heap`.
+
 `valid?` (in `gcommon.gc`) is the engine's pointer sanity check: it
 rejects any address `>= END_OF_MEMORY`. The PS2 limit was 128 MB
 (`#x8000000`). The PC port can reserve much more, but if `END_OF_MEMORY`
@@ -452,8 +459,12 @@ Where each game stands on `master-dev`:
 | `END_OF_MEMORY` | `#x20000000` | `#x20000000` | `#x20000000` |
 | level-heap tuning | `LEVEL_HEAP_SIZE_DEBUG`, no multiplier scheme | `DEBUG_LEVEL_HEAP_MULT 12.0` | `DEBUG_LEVEL_HEAP_MULT 15.0` |
 
-Jak 3 is already at the ceiling — 15.0 is the highest tested multiplier of
-the three. Jak 1 has a different level-heap architecture entirely: no
+Jak 3's 15.0 is past the ceiling: its level heap runs from about
+`#x1c60000` to `#x129da0f0`, so the top banks (Spargus `wasstadb` at
+`#x109a00f0`) break the shader lists (44 broken links counted in Spargus,
+then a crash at the next level unload). 12.0 ends it near `#xf400000`, with
+no broken link; the multiplayer mod branch uses 12.0, `master-dev` still has
+15.0. Jak 1 has a different level-heap architecture entirely: no
 page/multiplier scheme, just `LEVEL_HEAP_SIZE_DEBUG` allocated from the
 global heap. The exact `defconstant` snippets live in each game's
 "Memory" section ([2.2](jak1.md#22-memory), [3.8](jak2.md#38-memory),
