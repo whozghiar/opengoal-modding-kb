@@ -426,6 +426,16 @@ place, without taking a bank (`goal_src/jak3/pc/features/multiplayer/multiplayer
   loaded: a page the level used without loading it keeps a list in freed memory, and the next
   level loaded there corrupts it (a shader list looping forever in testing). Clear those links
   and splice the level's shaders out of every list when it leaves.
+- **Art alone.** Levels are capped (10 slots, and the PC renderer keeps `LEVEL_TOTAL` = 11 levels
+  of `fr3` data). An art group can be loaded without its level: `(loado "barge-ag" heap)` reads
+  `out/jak3/obj/barge-ag.go` (the PC port maps `DATA_FILE_TYPE` there, `game/kernel/jak3/fileio.cpp`;
+  the skeleton-group names it `"barge"`). Loaded while no level loads, it logs itself in
+  (`art-group` relocate in `engine/anim/joint.gc`, which stops the game unless `*print-login*` is
+  `#t`); append it to a level's `art-group` load-dir (100 entries) so `initialize-skeleton` finds
+  it through the process's level. On PC its model is drawn only once the renderer has the `fr3`
+  of the level the art comes from: `pc_set_levels` (`game/kernel/jak3/kmachine_extras.cpp`) is
+  the list the renderer keeps, and at its cap it drops levels not active for 180 frames
+  (`Loader::get_most_unloadable_level`).
 - **Borrow levels.** Its borrow levels (Haven's cars `ctycara`, guards `ctypesa`) load in its
   borrow heaps through the stock path once it is `'loaded`, and must leave `target` as soon as it
   is not: a borrow level asked for without its master stops the game.
@@ -433,5 +443,6 @@ place, without taking a bank (`goal_src/jak3/pc/features/multiplayer/multiplayer
 Verified: jak3, `engine/level/level.gc`, `engine/gfx/texture/texture.gc`,
 `engine/anim/joint.gc`, `game/kernel/jak3/kscheme.cpp`; in game with the multiplayer mod
 (`far`: `wascityb` loaded in `wascitya`'s heap and back; `far-city`: `ctywide`, `ctypesa`,
-`ctycara`, `ctycarb` loaded in Spargus, Haven's guards and car drawn there, all unloaded cleanly),
-2026-10-14.
+`ctycara`, `ctycarb` loaded in Spargus, Haven's guards and car drawn there, then `barge-ag` and
+`citizen-chick-ag` loaded alone with `ctyport` and `ctypepa` kept by the renderer, the boats and
+citizens drawn; all unloaded cleanly), 2026-10-14.
