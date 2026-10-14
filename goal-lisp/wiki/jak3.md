@@ -260,6 +260,13 @@ Within a frame (`engine/game/main.gc`), the processes run first, then `execute-m
 computes the queued bones, then `*mods-menu-hook*` runs: a process reads the bones of the previous
 frame, the mods hook those of this frame.
 
+A bone's world matrix is homogeneous: a few joints are sometimes computed with the `w` of their
+translation row a little off 1 (0.9992 on two joints of Jak driving a buggy, for one or two
+frames). At world coordinates of millions of units (Spargus is about 9.2 million units from the
+origin), reading the translation row alone then moves those joints by more than a meter. A pose
+expressed relative to the object's frame (`bone x inverse(frame)`, the whole row) is right; to
+compare a bone with its parent or bone 0, take `trans - w * base`, not `trans - base`.
+
 Sent to another machine, a pose drawn at the sender's time needs a clock finer than the
 millisecond: a running citizen's bones move about 3.5 mm per ms, so whole-millisecond stamps on
 the poses and in the clock estimate leave up to about 7 mm between a copy and its source, tenths
@@ -271,7 +278,8 @@ Verified: jak3, `engine/process-drawable/process-drawable.gc` (`draw-control-met
 `do-joint-math`, `ja-post`), `engine/gfx/foreground/bones.gc`, `engine/target/sidekick.gc`; seen in
 game in the multiplayer mod (replicas of citizens, Daxter and the gun on another machine; a
 remote Jak in a buggy matching the driver's bones within 1 mm; a running citizen's copy within
-1.6 mm with 0.1 ms stamps, 6.7 mm with 1 ms stamps), 2026-10-14.
+1.6 mm with 0.1 ms stamps, 6.7 mm with 1 ms stamps; joints 48 and 64 of the driver read 1.5 m
+off with `trans - base`, 1.8 mm at most with `trans - w * base`), 2026-10-14.
 
 ## 4.13 Hooks for every effect, projectile, sound and story step
 
