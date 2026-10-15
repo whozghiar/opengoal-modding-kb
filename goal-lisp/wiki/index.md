@@ -54,7 +54,8 @@ subsystem differences, not restatements of the shared material.
   - [4.13 Hooks for every effect, projectile, sound and story step](jak3.md#413-hooks-for-every-effect-projectile-sound-and-story-step)
   - [4.14 Keeping world objects alike on several machines](jak3.md#414-keeping-world-objects-alike-on-several-machines)
   - [4.15 Levels: memory banks, and what outlives a level](jak3.md#415-levels-memory-banks-and-what-outlives-a-level)
-  - [4.16 Loading the level of another place, outside the banks](jak3.md#416-loading-the-level-of-another-place-outside-the-banks)
+  - [4.16 Drawing the objects of another place, outside the banks](jak3.md#416-drawing-the-objects-of-another-place-outside-the-banks)
+  - [4.17 A game loaded from memory, and saves turned off](jak3.md#417-a-game-loaded-from-memory-and-saves-turned-off)
 - [How to contribute](../../kb/SKILL.md)
 
 

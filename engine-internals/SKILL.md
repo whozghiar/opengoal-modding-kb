@@ -199,8 +199,23 @@ each driven by a script, without anyone at the controller:
 
 The multiplayer mod's `scripts/mp-test/run_mp_test.py` and `multiplayer-test.gc` implement this.
 
-Verified: jak3, `game/main.cpp`, `common/util/FileUtil.cpp`, `game/graphics/pipelines/opengl.cpp`;
-used for every in-game check of the multiplayer mod, 2026-10-14.
+- **Which GOAL function crashed.** An access violation in GOAL code ends `gk` with exit code
+  `0xC0000005` and nothing in its output. A vectored exception handler
+  (`AddVectoredExceptionHandler`, Windows) sees the faulting `Rip`: inside
+  `[g_ee_main_mem, g_ee_main_mem + EE_MAIN_MEM_SIZE)` it is GOAL code, at EE offset
+  `rip - g_ee_main_mem`. The function holding it is the one whose code starts last before it:
+  scan every symbol value (from `SymbolTable2` to `LastSymbol`) that is a function object
+  (`(v & 7) == 4` and the word at `v - 4` is the `function` type,
+  `u32_in_fixed_sym(FIX_SYM_FUNCTION_TYPE)`), and every method of every type object, keeping the
+  greatest start at or below the offset. GOAL calls run on the native stack: the qwords near
+  `Rsp` that point into EE memory are its callers (and stale return addresses). Print, `fflush`,
+  return `EXCEPTION_CONTINUE_SEARCH`. A jump to EE offset 0 is a call through an unset function.
+  The multiplayer mod's `report_goal_crash` (`game/kernel/jak3/kmultiplayer.cpp`) printed
+  `vector<-cspace! +#xc` from `board-zap-track`, the first clue to a crash no log showed.
+
+Verified: jak3, `game/main.cpp`, `common/util/FileUtil.cpp`, `game/graphics/pipelines/opengl.cpp`,
+`game/kernel/jak3/kmultiplayer.cpp`; used for every in-game check of the multiplayer mod,
+2026-10-15.
 
 ---
 

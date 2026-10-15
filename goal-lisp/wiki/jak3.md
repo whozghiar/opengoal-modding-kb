@@ -293,8 +293,12 @@ off with `trans - base`, 1.8 mm at most with `trans - w * base`), 2026-10-14.
 - Every projectile goes through `projectile-init-by-other` (`engine/common-obs/projectile.gc`),
   which never returns (it goes to the first state): act before calling the stock one. Fire one
   with `spawn-projectile` (type, params, a process-drawable parent, pool); the type is level code,
-  so check `(type? (-> (string->symbol name) value) type)`. To make a copy harmless, set its
-  `(-> root root-prim prim-core collide-with)` to `(collide-spec backgnd)`.
+  so check `(type? (-> (string->symbol name) value) type)`. A copy of a player's shot fired on
+  another machine runs its code there, and the gun shots' code reads the local player: the peace
+  maker (`gun-dark-shot`) charges with that machine's R1 and vanishes unless its player holds a
+  gun, homes on its player's target and takes `(-> *target* gun ...)`; the gyro burster's saucer
+  (`gun-yellow-3-saucer`) drains that machine's ammo and fires real sub-shots. Send such shots as
+  objects to draw (place, model, emitters) instead of firing them again.
 
 - Every running particle group goes through the `sparticle-launch-control` `spawn` method
   (`spawn-from-mat` and `spawn-from-cspace` call it); `(-> this proc)` is the owner and
@@ -316,14 +320,30 @@ off with `trans - base`, 1.8 mm at most with `trans - w * base`), 2026-10-14.
   `(-> *game-info* sub-task-list)`; `(open! node 'event)` closes it anywhere, as when the task is
   done.
 
+- A particle's callback (`(:func 'name)` in a `defpart`, the `spt-func` init spec, read with
+  `(get-field-spec-by-id launcher (sp-field-id spt-func))`) runs with the launching process in
+  `(-> cpuinfo key proc)`. Replaying a group on a `part-tracker` changes that process: callbacks
+  that read its parent's joints (`board-zap-track`: under `*entity-pool*` it read garbage, a crash),
+  a collide-shape root (`sparticle-track-root-prim`, `eco-track-root-prim-fadeout`), joints of the
+  process itself (`sparticle-track-joint-xz`, `sparticle-track-joint-glider`) or a given type
+  (`sparticle-track-hadouken`) break, and those that read `*target*` (`sparticle-track-gun-joint`,
+  `-player-y`, `part-tracker-track-target-joint`, `board-charge-track`, `sparticle-red-2-converge`)
+  follow the local player. Spawn a replayed group under a process of the same skeleton as the
+  original (`:to copy :target copy :mat-joint joint`), and skip groups with the others. The gun's
+  laser (`gun-info-method-9`, `engine/target/gun/gun-util.gc`) is particles 207-212 launched with
+  `draw-beam`, which orients them from globals (`*particle-quat*`): draw it again from the laser
+  joint (14) and barrel (joint 13) of the gun's model rather than replaying the launches.
+
 All are functions or methods called through their symbol or method table, so a `define-perm` +
 `defbehavior`, `defun` or `defmethod` wrapper in a GAME file catches every caller (see
 [4.10](#410-wrapping-a-stock-method-from-a-game-file)).
 
 Verified: jak3, the files above, `engine/gfx/sprite/particles/sparticle-launcher.gc`,
-`engine/sound/gsound.gc`; seen in game in the multiplayer mod (shots, impacts, a buggy's dust and
-engine sound replayed on another machine; task nodes closed on one machine closed on the other),
-2026-10-14.
+`engine/sound/gsound.gc`, `engine/target/gun/gun-dark-shot.gc`, `gun-yellow-shot.gc`,
+`engine/target/board/board-part.gc`; seen in game in the multiplayer mod (shots, impacts, a
+buggy's dust and engine sound replayed on another machine; task nodes closed on one machine closed
+on the other; the hoverboard zap replayed under `*entity-pool*` crashed the other machine in
+`board-zap-track`, no crash once parented to the player's copy), 2026-10-15.
 
 ## 4.14 Keeping world objects alike on several machines
 
@@ -338,8 +358,19 @@ engine sound replayed on another machine; task nodes closed on one machine close
   under `open-distance`, `y-height`, `latch-closed-time`, `(script-eval open-test)`, the
   `airlock` setting and `airlock-command-lookup`. Every door type of the game inherits it.
 - **Elevators.** An `elevator` (`engine/common-obs/elevator.gc`) in its `waiting` or `arrived` state
-  takes `(send-event elev 'move-to 'top)` or `'bottom` and runs there; `(-> elev move-pos 1)` is
-  the stop it runs to, `bottom-top` its two ends.
+  takes `(send-event elev 'move-to 'top)`, `'bottom` or a path position and runs there;
+  `(-> elev move-pos 1)` is the stop it runs to, `bottom-top` its two ends. In `waiting` it has
+  `(process-mask actor-pause)`: out of view it does not run, and a `'move-to` received then only
+  sets its next state (its `running` enter, which clears the mask, never runs): clear the mask
+  first. Its entity scripts (`on-activate`, `on-deactivate`, `on-up`, `on-down`, `on-running`,
+  `on-notice`, `on-wait`, pairs in the elevator) load levels and change the continue point, the
+  camera and the player's settings, and some do not check `player-ridden?`: Spargus' palace
+  elevator arriving runs `(want-vis 'waspala) (want-continue "waspala-start")`. Set them aside
+  (`#f`) for a trip the local player is not on. To show another machine's trip, place it: clear
+  `(elevator-status waiting-to-ascend)` (its `running` post then stops seeking), set `path-pos`,
+  `move-pos` and `basetrans` with `get-point-in-path!` at
+  `(+ from (* (ease-value-in-out path-pos 0.08) (- to from)))`; its post moves the platform and
+  its riders; `path-pos` 1.0 makes it arrive.
 - **Physics objects.** A `rigid-body-object` (`engine/physics/rigid-body.gc`) is put somewhere
   with `(rigid-body-control-method-28 (-> obj rbody) trans quat)` (root position and orientation),
   then `reset-momentum!` and `init-velocities!` to leave it at rest; its next `rbody-post` moves
@@ -357,10 +388,13 @@ engine sound replayed on another machine; task nodes closed on one machine close
   continue point name). `(process-spawn scene-player :init scene-player-init name #t #f
   :name "scene-player")` plays one; `scene-lookup` finds it by name.
 
-Verified: jak3, the files above, `levels/volcano/volcano-obs2.gc`; seen in game in the
-multiplayer mod (a test cycle within one frame of the host's, a door opened for a remote player
-200 m away, an elevator trip and a Spargus cutscene started on two machines, lava platforms
-within 7 cm of the authority's and carrying the player standing on them), 2026-10-14.
+Verified: jak3, the files above, `levels/volcano/volcano-obs2.gc`, the palace elevator's res
+(`decompiler_out/jak3/entities/wascitya-actors.json`); seen in game in the multiplayer mod (a test
+cycle within one frame of the host's, a door opened for a remote player 200 m away, an elevator
+trip and a Spargus cutscene started on two machines, lava platforms within 7 cm of the
+authority's and carrying the player standing on them; the palace elevator still at the bottom on
+a guest 25 m away until `actor-pause` was cleared, then rising with the host's, the guest's
+continue point unchanged), 2026-10-15.
 
 ## 4.15 Levels: memory banks, and what outlives a level
 
@@ -387,11 +421,12 @@ multiplayer mod (the bank error and crash when loading wascityb next to wascitya
 level unload until copies and part-trackers of the level, active or only loaded, were dropped
 first), 2026-10-14.
 
-## 4.16 Loading the level of another place, outside the banks
+## 4.16 Drawing the objects of another place, outside the banks
 
-The multiplayer mod loads the level a distant player stands in, next to the levels of the local
-place, without taking a bank (`goal_src/jak3/pc/features/multiplayer/multiplayer-world.gc`,
-"Distant players' levels"). Each step meets a trap of the engine:
+How to draw objects of another place next to the local one without taking a bank, and why the
+place's own levels must not be loaded (the multiplayer mod tried, then kept the art alone:
+`goal_src/jak3/pc/features/multiplayer/multiplayer-world.gc`, "Art of distant players'
+objects"). Each step meets a trap of the engine:
 
 - **Memory.** The banks of the PC level heap are 12 times the PS2 page and mostly empty. The level
   gets a heap carved from the free top of an active level (its host), below 256 MB (4.6), and the
@@ -411,16 +446,15 @@ place, without taking a bank (`goal_src/jak3/pc/features/multiplayer/multiplayer
   `'active` levels only: a model built from its art must take `level-index` 10 (the default
   level's buckets and lighting). The PC renderer finds merc models by name in any loaded level
   (`Loader::get_merc_model`).
-- **Code.** A level's code is global: its `defun`, `define` and `deftype` of names the local levels
-  use point those names at its copy, and a `deftype` of an existing type resets that type's
-  methods to the parent's (`new_type` in `game/kernel/jak3/kscheme.cpp`). Two halves of a place
-  the game never loads together share their code (Spargus `wascitya` and `wascityb`): the second
-  one unloading leaves the first with dangling code. The mod notes every symbol value, the methods
-  of every type and the `*part-id-table*`, `*part-group-id-table*`, `*lightning-spec-id-table*`
-  and texture page dir entries before the load, and puts back each one that held a value and now
-  points into the new level's memory, every frame while it links (`pc-mp-sandbox-*` in
-  `game/kernel/jak3/kmultiplayer.cpp`; 2226 entries for `ctywide` loaded in Spargus). It also
-  unloads it before the local place loads any level, so no local level links next to it.
+- **Code: do not.** A level's code is global: its `defun`, `define` and `deftype` of names the
+  local levels use point those names at its copy, a `deftype` of an existing type resets that
+  type's methods to the parent's (`new_type` in `game/kernel/jak3/kscheme.cpp`), and its top-level
+  forms run: Haven's `traffic-manager.gc` (in `cwi.gd`) runs `(define *traffic-engine* #f)`, so
+  loading `ctywide` next to Spargus leaves Spargus' traffic without its engine and the next
+  citizen it spawns crashes the game (seen in testing: "traffic-entity-hack wlander-male", then
+  an access violation). Putting back the values that point into the new level's memory misses
+  such a `#f`, and putting back every changed value would undo the local game's own changes made
+  in the frames the level links. Load the art alone instead (below): a model needs no code.
 - **Textures.** `link-texture-by-id` allocates the shader list of a texture page in the loading
   level's heap, and `unload-page` and `unlink-shaders-in-heap` only clean the pages that are
   loaded: a page the level used without loading it keeps a list in freed memory, and the next
@@ -448,8 +482,44 @@ place, without taking a bank (`goal_src/jak3/pc/features/multiplayer/multiplayer
   is not: a borrow level asked for without its master stops the game.
 
 Verified: jak3, `engine/level/level.gc`, `engine/gfx/texture/texture.gc`,
-`engine/anim/joint.gc`, `game/kernel/jak3/kscheme.cpp`; in game with the multiplayer mod
-(`far`: `wascityb` loaded in `wascitya`'s heap and back; `far-city`: `ctywide`, `ctypesa`,
-`ctycara`, `ctycarb` loaded in Spargus, Haven's guards and car drawn there, then `barge-ag` and
-`citizen-chick-ag` loaded alone with `ctyport` and `ctypepa` kept by the renderer, the boats and
-citizens drawn; all unloaded cleanly), 2026-10-14.
+`engine/anim/joint.gc`, `game/kernel/jak3/kscheme.cpp`, `levels/city/traffic/traffic-manager.gc`;
+in game with the multiplayer mod (`far`: `wascityb` loaded in `wascitya`'s heap and back;
+`far-city`: `ctywide`, `ctypesa`, `ctycara`, `ctycarb` loaded in Spargus, Haven's guards and car
+drawn there, then `barge-ag` and `citizen-chick-ag` loaded alone with `ctyport` and `ctypepa` kept
+by the renderer; then the guest crash from `ctywide`'s code in Spargus, and the art loaded alone
+into a heap carved from an active level instead, no level loaded: no crash), 2026-10-15.
+
+## 4.17 A game loaded from memory, and saves turned off
+
+- **A save in memory.** `(new 'global 'game-save #x1e000)` is a save as large as a memory card's
+  (80 bytes of header, then `#x1e000` of tags). `(save-game *game-info* save "name")` (a
+  `game-info` method, `engine/game/game-save.gc`; call it from a process) fills it with the whole
+  game: progress (task nodes), features, items, the entity perms of the active levels, the
+  checkpoint (`current-continue`), and the player's settings. It is `(+ (-> save type size)
+  (-> save length))` bytes from `(&-> save type)`, about 43 KB early in the game; send or copy
+  those, and on the receiving side set `(-> save type)` to `game-save` again (the stock restore
+  does the same) and check `(-> save version)` is 4.
+- **Loading it.** As the stock Load Game does after reading the card: `(set! (-> *game-info*
+  mode) 'play)`, `(initialize! *game-info* 'game save (the-as string #f) (the-as resetter-spec
+  #f))`, `(set-master-mode 'game)`. It works in game and from the title screen: the target is
+  killed, actors are reset, a loading screen (`target-continue`) shows while the checkpoint's
+  levels load, and `load-game` applies the save one frame later (keep the buffer). Processes in
+  `*pc-pool*` survive (`reset-actors` only kills entity and pusher pool processes).
+- **The player's own settings.** `load-game` also sets the language, subtitles, screen position,
+  camera, hints, brightness and contrast from the save's tags. To keep the local ones, rewrite
+  those tags' `elt-type` to `(game-save-elt sfx-volume)`, which `load-game` skips (the PC port
+  keeps volumes in `pc-settings`). Tags follow each other at
+  `(logand -16 (+ (* elt-size elt-count) 31))` bytes.
+- **No save.** Every card write goes through `auto-save-command` (`'save`, `'save-last`,
+  `'auto-save`, `'create-file`, `'format-card`, `'unformat-card`; `'restore` reads): the pause
+  menu's saves, checkpoints, missions' `(auto-save 'auto-save)`, a new game's first save. A
+  `define-perm` wrapper that returns `#f` for those turns saving off; tell the menu that asked
+  with `(send-event menu 'notify 'error (mc-status-code no-process))`, or its "Saving" page waits.
+- **Title screen or not.** `(= (level-status? *level* 'title #f) 'active)` while the title screen
+  is up (`*game-info*` `mode` is `'play` there too).
+
+Verified: jak3, `engine/game/game-save.gc`, `engine/game/game-info.gc`,
+`engine/ui/progress/progress.gc`; in game with the multiplayer mod (`join-world`: a guest in
+Haven loaded the host's 42928-byte save sent over the network, came out at the host's Spargus
+checkpoint with the host's progress, its language kept, an auto-save refused; `join-title`: the
+same from the title screen), 2026-10-15.
