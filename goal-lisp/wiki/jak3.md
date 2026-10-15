@@ -362,6 +362,11 @@ on the other; the hoverboard zap replayed under `*entity-pool*` crashed the othe
   Every method reads the `offset` field, so adding a constant to it for the duration of a call
   (and putting it back) shifts the phase without moving any clock or timer. `get-norm!` is
   overridden by `sync-linear`, `sync-eased` and `sync-paused`; `sync-now!` writes `offset`.
+  To show another machine's phase, take that machine's clocks with the time it read them, and
+  shift by its clocks at the time its objects are drawn here (its clock as estimated for drawing,
+  not the time its clocks arrived): with the arrival time and a fixed draw delay, the cycles were
+  30 to 34 ms off under 50 ms of delay and 30 of jitter, 2 to 3 ms with the drawing clock
+  (multiplayer mod, `mp-apply-clocks`, 2026-10-15).
 - **Doors.** A `com-airlock` (`engine/common-obs/airlock.gc`) opens when `want-cross-airlock?` says
   so, computed from `(target-pos 0)`: distance to `active-distance`, `check-crossing-distance`
   under `open-distance`, `y-height`, `latch-closed-time`, `(script-eval open-test)`, the
