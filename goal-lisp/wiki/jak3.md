@@ -55,6 +55,19 @@ and power transitions (`light-jak` / `dark-jak`). Test both after any
     ))
 ```
 
+The wave concussor (red 2), mass inverter (dark 2) and arc wielder (blue 2) are processes, not
+projectiles: `gun-red-2-shockwave` (its `next-state` is `explode` once it goes off),
+`gun-gravity`, and `gun-blue-2-lightning-tracker`, whose `setup-draw!` method receives each
+frame's arc points. A tracker spawned to draw an arc elsewhere needs the stock heap size,
+`:stack-size #x29400`: its six lightning bolts fill most of it, and with less it ends in
+`process-drawable-art-error` "memory". Switch its bolts on as the stock `active` state's enter
+does, `(lightning-bolt-method-13 bolt 0)`, or they draw nothing. Leave its skeleton out: the art
+of `skel-gun-blue-2-tracker` is loaded only with the local player's own arc wielder.
+
+Verified: jak3, `engine/target/gun/gun-blue-shot.gc` (`create-lightning-tracker-if-necessary`,
+`active`), `engine/target/gun/gun-red-shot.gc`, `engine/target/gun/gun-dark-shot.gc`; arcs drawn
+on another machine in the multiplayer mod, 2026-10-15.
+
 ## 4.5 Custom art-groups: no dynamic linking hook
 
 Unlike Jak 1 and Jak 2 ([1.2.8](common.md#128-custom-art-groups--dynamic-animation-linking-link-art)),
@@ -86,6 +99,29 @@ later level unload crashes in `unlink-shaders-in-heap`. 12.0 keeps every bank be
 
 Verified: jak3, `engine/gfx/texture/texture-h.gc`, `engine/level/level.gc`; shader lists walked
 in game (44 broken links at 15.0, 0 at 12.0), 2026-10-14.
+
+Process heaps move. `*default-dead-pool*` is `*nk-dead-pool*`, a `dead-pool-heap`, compacted
+every frame (`compact`, `shrink-heap`); a spawn with a large `:stack-size` (the arc wielder's
+`#x29400`) forces a large compaction. Compaction calls `(relocate proc offset)` on the old memory,
+then copies it: a relocate method fixes the pointers into its own heap that the parent's relocate
+does not know of. `joint-control`'s relocate leaves `override` out (the stock players never move),
+so a process that allocates `(new 'process 'boxed-array float 54)` for `(-> self skel override)`
+relocates it itself:
+
+```lisp
+(defmethod relocate ((this my-model) (offset int))
+  (if (and (nonzero? (-> this skel)) (-> this skel override) (nonzero? (-> this skel override)))
+      (&+! (-> this skel override) offset))
+  (call-parent-method this offset))
+```
+
+Left behind, every write through the stale pointer lands in whatever process was later put
+there: zeroed fields in random processes, crashes in their code (a projectile's `die` reading a
+`notify-handle` of 0, `change-parent`, `compact` meeting a heap object of type 0).
+
+Verified: jak3, `kernel/gkernel.gc` (`compact`, `shrink-heap`), `engine/entity/relocate.gc`;
+the multiplayer mod crashed once an arc wielder fired, and no longer did with this method,
+2026-10-15.
 
 
 ## 4.7 Start menu: adding a page
@@ -226,6 +262,34 @@ Verified: jak3, `engine/target/logic-target.gc`, `engine/collide/collide-shape-h
 health 8 to 5, 3 m knockback; a player crouched next to a 2.5 m sphere centered 1 m up),
 2026-10-14.
 
+The area weapons (wave concussor, mass inverter, needle lazer, blasts) do not collide: they fill
+a list from the actor hash and keep the `process-focusable`s with a process mask among `crate
+enemy guard vehicle civilian`, not `disable dead inactive`, and a `solid` or `semi-solid` root
+prim (`pc-check-focus-fix`). A plain `process-drawable` is skipped. To be hit by them, make the
+process a focusable of kind crate (no faction of the AI picks crates), offered to no search, with
+an aim point that needs no draw-control:
+
+```lisp
+(deftype my-hurtbox (process-focusable) ())
+(defmethod get-search-info-flag ((this my-hurtbox))
+  (search-info-flag)) ;; neither the guns' aim nor an enemy picks it
+(defmethod get-trans ((this my-hurtbox) (mode int))
+  ;; the stock method reads (-> this draw status) for modes 2, 3 and 10
+  (if (or (= mode 2) (= mode 3) (= mode 10))
+      (the-as vector (-> this root root-prim prim-core))
+      (-> this root trans)))
+;; in its init: (logior! (-> self mask) (process-mask crate))
+```
+
+The mass inverter's blows come from a `gravity-spinner`, a child of the process it lifts, with
+`'attack #f` and the shooter in the attack-info's `attacker`: damage 0 at the lift (`eco-dark`),
+0.2 at the end (`gravity-end`).
+
+Verified: jak3, `engine/target/gun/gun-red-shot.gc` (`find-targets-and-attack!`),
+`engine/target/gun/gun-dark-shot.gc`, `engine/target/gun/gun-blue-shot.gc` (`gun-fire-blue-3`),
+`engine/process-drawable/process-focusable.gc`; in the multiplayer mod, the four weapons hurt
+another player through such a hurtbox, 2026-10-15.
+
 ## 4.12 Drawing another process's model elsewhere
 
 A process keeps its draw-control's `art-group` and `jgeo`, not the skeleton-group it was built
@@ -289,6 +353,15 @@ destroyed vehicle plays it. Skip it for vehicles; their explosion is their own e
 Verified: jak3, seen in game in the multiplayer mod (`multiplayer-v1.0.0` crashed on the guest
 when a barge its gyro burster or plasmite RPG destroyed died; fixed by the vehicle test),
 2026-10-15.
+
+Cloth (Jak's scarf, `:clothing` in `target-util.gc`): its strips are drawn apart from the model
+and rebuilt by `cloth-on-skeleton` only while the owner is on screen. A copy moved far in one
+step (a teleport, a player gone to another region) keeps a strip stretched from the old place to
+the new one, across the world. Reset it with `(process-drawable-reset-all-cloth proc)` after a
+jump, and empty its strips (`num-verts` 0) while the owner is off screen or `no-draw`.
+
+Verified: jak3, `engine/physics/cloth.gc`, `engine/target/target-util.gc`; a stretched scarf seen
+and gone in the multiplayer mod's screenshots, 2026-10-15.
 
 ## 4.13 Hooks for every effect, projectile, sound and story step
 
@@ -559,6 +632,12 @@ world (a second player, a spectator camera) can see happen:
 
 A citizen that goes inactive is still a process: test `focus-status inactive` or `no-draw`, not
 whether its handle resolves, to tell it vanished.
+
+Beyond that, every process with the `actor-pause` mask stops running (trans, code, post) farther
+than `(-> *ACTOR-bank* pause-dist)` (50 m) plus its root's `pause-adjust-distance` from the camera:
+`run-logic?` of `process-drawable` (`engine/entity/entity.gc`), and of `enemy`, which also pauses
+an idle enemy off screen (`engine/ai/enemy.gc`). The kernel asks it each frame, so wrapping both
+methods (4.10) keeps the actors near another viewpoint running.
 
 Verified: jak3, the files above; seen in the multiplayer mod's tests (flitters going inactive in
 the port's water, copies hidden when the host walked away), 2026-10-15.
