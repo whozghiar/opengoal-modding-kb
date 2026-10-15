@@ -281,6 +281,15 @@ remote Jak in a buggy matching the driver's bones within 1 mm; a running citizen
 1.6 mm with 0.1 ms stamps, 6.7 mm with 1 ms stamps; joints 48 and 64 of the driver read 1.5 m
 off with `trans - base`, 1.8 mm at most with `trans - w * base`), 2026-10-14.
 
+A copy's own death effect: `(do-effect (-> skel effect) "death-default" 0.0 -1)` plays the
+dissolve of characters, but the art of a vehicle (cars, bikes, barges: `vehicle` and its
+children) has no `death-default`, and the call jumps to address 0: a crash when the copy of a
+destroyed vehicle plays it. Skip it for vehicles; their explosion is their own effects.
+
+Verified: jak3, seen in game in the multiplayer mod (`multiplayer-v1.0.0` crashed on the guest
+when a barge its gyro burster or plasmite RPG destroyed died; fixed by the vehicle test),
+2026-10-15.
+
 ## 4.13 Hooks for every effect, projectile, sound and story step
 
 - Every one-shot particle effect (`part-tracker-spawn`, `do-effect "group-..."`) goes through
@@ -523,3 +532,28 @@ Verified: jak3, `engine/game/game-save.gc`, `engine/game/game-info.gc`,
 Haven loaded the host's 42928-byte save sent over the network, came out at the host's Spargus
 checkpoint with the host's progress, its language kept, an auto-save refused; `join-title`: the
 same from the title screen), 2026-10-15.
+
+## 4.18 What the game removes out of its player's view
+
+The city's NPCs leave when the local player does not see them, which another viewer of the same
+world (a second player, a spectator camera) can see happen:
+
+- **Traffic vehicles** (`vehicle-flag traffic-managed`, not `persistent`), every frame
+  (`levels/city/traffic/vehicle/vehicle.gc`), with `d` the nearer of the player and the camera:
+  farther than 200 m, back to the traffic pool (`vehicle-method-109`); between 20 and 200 m and
+  off screen (`draw-control-status on-screen` clear), back to the pool after 10 s off screen or
+  at once beyond 100 m. On screen within 200 m, a vehicle stays.
+- **Citizens** (`citizen` `enemy-common-post`, `levels/city/traffic/citizen/citizen.gc`): not in
+  a mission, off screen or farther than 110 m (xz) from the camera, and their branch's territory
+  not wanted by `*cty-faction-manager*` (methods 23 and 9): `go-inactive`. The inactive state
+  sets `focus-status inactive`, `no-draw` and turns collision off; the process lives on.
+- **Metal head flitters** go inactive on entering water deeper than 2.8 m below its surface
+  (`in-ditch`, `check-water`), a fall from a quay included.
+- **Crimson guards** off screen, not in formation nor in a mission, can be retired by their
+  squad (`crimson-guard-method-270`).
+
+A citizen that goes inactive is still a process: test `focus-status inactive` or `no-draw`, not
+whether its handle resolves, to tell it vanished.
+
+Verified: jak3, the files above; seen in the multiplayer mod's tests (flitters going inactive in
+the port's water, copies hidden when the host walked away), 2026-10-15.

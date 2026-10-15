@@ -56,6 +56,7 @@ subsystem differences, not restatements of the shared material.
   - [4.15 Levels: memory banks, and what outlives a level](jak3.md#415-levels-memory-banks-and-what-outlives-a-level)
   - [4.16 Drawing the objects of another place, outside the banks](jak3.md#416-drawing-the-objects-of-another-place-outside-the-banks)
   - [4.17 A game loaded from memory, and saves turned off](jak3.md#417-a-game-loaded-from-memory-and-saves-turned-off)
+  - [4.18 What the game removes out of its player's view](jak3.md#418-what-the-game-removes-out-of-its-players-view)
 - [How to contribute](../../kb/SKILL.md)
 
 
