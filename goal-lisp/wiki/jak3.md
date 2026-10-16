@@ -166,9 +166,32 @@ that deselects it (guard actions that must not run twice), and `menu-generic-con
 its action on confirm whatever the yes / no choice; subclass it and test `confirmed?` in
 `call-on-confirm` when "no" must do nothing.
 
+- **Title screen.** Its list is `*title-pc*` (New Game, Load Game, Options, Secrets, Quit); it
+  opens on Load Game when a save exists, and only after the title screen's first press
+  (`title-progress`, `levels/title/title-obs.gc`). Until Secrets is unlocked the stock hides that
+  entry by its name but still counts it: moving skips index 3 (`respond-to-cpad`,
+  `progress-generic-pc.gc`), sub-menu entries are drawn 0.08 lower and Quit 0.07 higher
+  (`progress-draw-pc.gc`). A list with more entries must keep Secrets at index 3 while it is
+  locked (pick the order from `(memcard-unlocked-secrets? #f #f)`).
+- **Going to a page from your own option:** `(push-state progress)` then
+  `(set-next-state progress 'my-page 0)`, as a `menu-sub-menu-option` does with its `next-state`.
+  Triangle goes back a page (`pop-state`) after the option's `respond-progress` returned.
+- **A page drawn by one option** (a `menu-option` subclass alone in a `menu-option-list`): its
+  `respond-progress` sees every press first; clear the ones it uses (`cpad-clear!`). Its
+  `draw-option` is handed the unadjusted x (70) and width (375), while the page's frame is drawn
+  squeezed to the screen's ratio: compute the frame with `adjust-game-x` (unless `use-vis?`).
+  `get-aspect-ratio` can say `aspect4x3` in a 16:9 window (the game's own setting).
+- **Everything is paused under a menu,** a mod's processes too, at the title screen as in game:
+  work that must go on (network) belongs in the per-frame hook (`*mods-menu-hook*`).
+- **SELECT pauses** like START (`determine-pause-mode`, `engine/draw/drawable.gc`). To give it
+  another use, wrap that function and clear SELECT from `(-> *cpad-list* cpads 0 button0-rel 0)`
+  before calling the stock one.
+
 Verified: jak3, `engine/ui/progress/progress.gc`, `pc/progress/progress-pc.gc`,
-`progress-generic-pc.gc`, `progress-generic-draw-pc.gc`; compiled in the multiplayer mod, not yet
-played, 2026-10-14.
+`progress-generic-pc.gc`, `progress-generic-draw-pc.gc`, `progress-draw-pc.gc`,
+`levels/title/title-obs.gc`, `engine/draw/drawable.gc`; the multiplayer mod's title screen entries,
+lobby page and SELECT player list driven by the `lobby` and `player-list` scenarios
+(screenshots, pages logged), 2026-10-16.
 
 ## 4.8 Making the player follow another process: `target-grab-ride`
 
@@ -206,9 +229,20 @@ anywhere, list the three objects in `game.gd` (the art after `daxter-ag.go`) and
 those level DGOs: a copy left in a level DGO would relink the states into that level's heap, and
 they would dangle once it unloads.
 
+- **Daxter at the wheel:** `'change-mode 'pilot-daxter` (the parameters of `'pilot`) drives with
+  the target's art swapped for Daxter's (`pilot` `as-daxter?`). Its clips are in
+  `jak-pidax+0-ag.go`, which only LCTYPATK carries: elsewhere the target dies in
+  `process-drawable-art-error`. List it in `game.gd` and remove it from `lctypatk.gd`.
+- **From the indax mode,** the handler ignores `'change-mode 'pilot`: end the mode first
+  (`'end-mode 'indax`), then ask from `target-stance`.
+- **Held as Daxter:** in the indax mode, `'change-mode 'grab` enters `target-indax-grab`, the
+  counterpart of `target-grab` (the player held, moved by whoever holds him); `'end-mode 'grab`
+  goes back to `target-indax-stance` (`target-indax.gc:1769`).
+
 Verified: jak3, `goal_src/jak3/dgos/*.gd`, `engine/target/indax/target-indax.gc`,
-`engine/target/target-handler.gc:1363`; moved into GAME and compiled in the multiplayer mod, not
-yet played, 2026-10-14.
+`engine/target/target-handler.gc:1363`, `engine/target/target-pilot.gc`; in the multiplayer mod's
+scenarios (`daxter-drive`, `daxter-drive-own`, `daxter-ride`, `coop`: Daxter drives, rides in a
+passenger seat and sits on a shoulder held in `target-indax-grab`), 2026-10-16.
 
 ## 4.10 Wrapping a stock method from a GAME file
 
@@ -380,7 +414,10 @@ and gone in the multiplayer mod's screenshots, 2026-10-15.
   maker (`gun-dark-shot`) charges with that machine's R1 and vanishes unless its player holds a
   gun, homes on its player's target and takes `(-> *target* gun ...)`; the gyro burster's saucer
   (`gun-yellow-3-saucer`) drains that machine's ammo and fires real sub-shots. Send such shots as
-  objects to draw (place, model, emitters) instead of firing them again.
+  objects to draw (place, model, emitters) instead of firing them again. A vehicle's gun shells
+  and shots are spawned under `*rigid-body-queue-manager*` with the vehicle as `owner-handle`,
+  not under the player, and a shell's explosion is that shell's child: to find a player's shots,
+  walk that manager's children too and follow owners up to the player.
 
 - Every running particle group goes through the `sparticle-launch-control` `spawn` method
   (`spawn-from-mat` and `spawn-from-cspace` call it); `(-> this proc)` is the owner and
@@ -591,7 +628,9 @@ into a heap carved from an active level instead, no level loaded: no crash), 202
   #f))`, `(set-master-mode 'game)`. It works in game and from the title screen: the target is
   killed, actors are reset, a loading screen (`target-continue`) shows while the checkpoint's
   levels load, and `load-game` applies the save one frame later (keep the buffer). Processes in
-  `*pc-pool*` survive (`reset-actors` only kills entity and pusher pool processes).
+  `*pc-pool*` survive (`reset-actors` only kills entity and pusher pool processes). It also works
+  from the per-frame hook with a menu open (the multiplayer lobby at the title screen), where every
+  process is paused.
 - **The player's own settings.** `load-game` also sets the language, subtitles, screen position,
   camera, hints, brightness and contrast from the save's tags. To keep the local ones, rewrite
   those tags' `elt-type` to `(game-save-elt sfx-volume)`, which `load-game` skips (the PC port
