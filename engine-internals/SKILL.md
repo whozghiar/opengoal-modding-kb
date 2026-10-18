@@ -174,6 +174,34 @@ the multiplayer mod's `game/kernel/jak3/kmultiplayer.cpp` built and unit-tested,
 
 ---
 
+## 7b. Merc2: per-model data from GOAL, and a pass after the 3D scene
+
+- **Per-model flags.** `pc-merc-draw-request` (`goal_src/jak3/engine/gfx/foreground/foreground.gc`)
+  writes two quadwords of flags per merc model: `enable-mask`, `ignore-alpha-mask`,
+  `effect-count`, `bit-flags` (`pc-merc-bits`, bits 0-4 taken), then 14 free bytes.
+  `Merc2::handle_pc_model` reads them as `PcMercFlags` and skips the 32 bytes: a new bit and a
+  value at byte 20 reach the renderer with no other change. `draw-control-global-effect` has no
+  free bit in Jak 3; a global table the request checks (`(= dc (-> table dc i))`) selects models.
+- **Drawing after the scene.** Merc draws are flushed per bucket, interleaved with the levels'
+  background, so a later bucket's walls cover them. Keep the model (its `MercModel` draws,
+  `ShaderMercMat` bones, `m_low_memory` camera) and draw it from
+  `OpenGLRenderer::dispatch_buckets_jak3` once a late bucket is done (after `GENERIC_WARP`, before
+  `DEBUG_NO_ZBUF1`). Re-upload its bones to `m_bones_buffer` (each model's at a multiple of
+  `GL_UNIFORM_BUFFER_OFFSET_ALIGNMENT`) and bind the range at binding 1 (`ub_bones` is bound to 1
+  for every shader by `Shader.cpp`).
+- **Depth is reversed:** merc tests `GEQUAL` (greater is closer). "Hidden by something" is
+  `GL_LESS`. Drawn again with the same transform, a model comes out a hair behind its first
+  drawing: a `glPolygonOffset(2, 512)` toward the camera keeps its own visible parts from
+  passing a "hidden" test. The framebuffer has a stencil (`DEPTH24_STENCIL8`).
+- **A new shader** goes in `ShaderId` (before `MAX_SHADERS`) and `ShaderLibrary`; its files in
+  `game/graphics/opengl_renderer/shaders/` ship with the release (section 6). Uniforms are set
+  after `activate()`.
+
+Verified: jak3, `goal_src/jak3/engine/gfx/foreground/foreground.gc`,
+`game/graphics/opengl_renderer/foreground/Merc2.cpp`, `OpenGLRenderer.cpp`, `Shader.cpp`; the
+multiplayer mod's outline of other players through walls (`outline` scenario: 90 pixels in the
+open, 920 behind a vehicle, screenshots), 2026-10-19.
+
 ## 8. Automated in-game checks
 
 When the user allows the game to be launched for tests, several instances can run side by side,

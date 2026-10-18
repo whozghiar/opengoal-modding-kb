@@ -238,11 +238,36 @@ they would dangle once it unloads.
 - **Held as Daxter:** in the indax mode, `'change-mode 'grab` enters `target-indax-grab`, the
   counterpart of `target-grab` (the player held, moved by whoever holds him); `'end-mode 'grab`
   goes back to `target-indax-stance` (`target-indax.gc:1769`).
+- **Guns as Daxter:** his surfaces (`*indax-walk-mods*`...) carry `gun-off`. Never give the gun a
+  nonzero `gun-type` in this mode: the gun's `use` state calls `target-gun-check` every frame,
+  which pushes Jak's `jakb-gun-*` clips onto the player's skeleton. What works:
+  - The D-pad marking menu (`target-gun-marking-menu`, a `*pad-engine*` connection) still runs
+    and sets `(-> *target* gun using-gun-type)`.
+  - Fire through the per-color functions `target-gun-fire-yellow` / `-red` / `-blue` / `-dark`
+    (pickup-type 26-37), run as the target (`pp` set to `*target*`), after setting the gun-info's
+    `fire-point`, `fire-dir-out` (and `laser-dir`: the vulcan fury reads it). They need no Jak
+    animation; `target-gun-fire` adds those and takes the ammo of 26 28 29 30 32 35 36 37
+    (`ammo-required`).
+  - The ranges (`fire-range`, `track-find-range`...) are set by `target-gun-type-set!` only:
+    set them yourself, or the scatter gun reaches nothing.
+  - `gun-red-2-shockwave` (`charging`) goes off after 0.1 s and `gun-dark-shot` (`startup`)
+    fizzles when `*target*` is in `indax` mode: spawn a subtype whose `(defstate charging
+    (subtype) :virtual #t ...)` drops that check (unspecified handlers are inherited,
+    `(call-parent-state-handler enter)` runs the parent's). `process-spawn` of a subtype looks
+    for `<subtype>-init-by-other`: pass `:init gun-red-2-shockwave-init-by-other`.
+  - The arc wielder's tracker stays on while `using-gun-type` is 33 and `gun active?` is `#t`.
+  - Where the gun is drawn: `target-gun-compute-pos`, called by the gun's `gun-post` with `self`
+    set to the target (`target-gun.gc`); a `define-perm` wrapper can place it.
+- **Respawn in a loaded game:** a death restores the features of the game loaded (for a game
+  loaded from memory, that save's): re-apply what you gave since.
 
 Verified: jak3, `goal_src/jak3/dgos/*.gd`, `engine/target/indax/target-indax.gc`,
-`engine/target/target-handler.gc:1363`, `engine/target/target-pilot.gc`; in the multiplayer mod's
-scenarios (`daxter-drive`, `daxter-drive-own`, `daxter-ride`, `coop`: Daxter drives, rides in a
-passenger seat and sits on a shoulder held in `target-indax-grab`), 2026-10-16.
+`engine/target/target-handler.gc:1363`, `engine/target/target-pilot.gc`,
+`engine/target/target-gun.gc`, `engine/target/gun/gun-util.gc`, `gun-*-shot.gc`; in the
+multiplayer mod's scenarios (`daxter-drive`, `daxter-drive-own`, `daxter-ride`, `coop`: Daxter
+drives, rides in a passenger seat and sits on a shoulder held in `target-indax-grab`, 2026-10-16;
+`daxter-fire`: Daxter fires each of the 12 mods, 10 kinds of blows landing on another player,
+2026-10-19).
 
 ## 4.10 Wrapping a stock method from a GAME file
 
@@ -643,9 +668,24 @@ into a heap carved from an active level instead, no level loaded: no crash), 202
   with `(send-event menu 'notify 'error (mc-status-code no-process))`, or its "Saving" page waits.
 - **Title screen or not.** `(= (level-status? *level* 'title #f) 'active)` while the title screen
   is up (`*game-info*` `mode` is `'play` there too).
+- **A new game somewhere, or at a mission.** `(initialize! *game-info* 'game (the-as game-save #f)
+  "<continue name>" spec)` then `(set-master-mode 'game)` (the menu closes by itself): with `spec`
+  a `resetter-spec` whose `node` is a task's `play-node` and `continue` its `play-continue`
+  (`*game-info* play-list`), the game starts at that mission with the nodes it needs closed, as
+  the stock mission list's `play-task` does. The stock New Game uses `"intro-start"`.
+- **The whole story done:** `(task-node-close! (game-task-node city-win-resolution) 'event)` runs
+  that node's `open!`, which closes every node it needs first (254 nodes, with their rewards).
+  The rest (gun upgrades, vehicles: `(-> *game-info* vehicles)`, secrets) is set by hand.
+- **Daxter off Jak's shoulder without touching the saved features:** the sidekick exists while
+  `game features` and `(-> *setting-control* user-current features)` both have bit 20; a process
+  holding `(set-setting! 'features 'clear 0 #x100000)` takes him off (`target-death.gc` does it),
+  `(remove-setting! 'features)` gives him back.
 
 Verified: jak3, `engine/game/game-save.gc`, `engine/game/game-info.gc`,
-`engine/ui/progress/progress.gc`; in game with the multiplayer mod (`join-world`: a guest in
+`engine/ui/progress/progress.gc`, `engine/game/task/task-control.gc`, `engine/target/sidekick.gc`,
+`engine/target/logic-target.gc`; in the multiplayer mod's `coop-campaign` and `lobby` scenarios
+(a mission started with 4 nodes closed, the story closed with 254, the sidekick off and back),
+2026-10-19; in game with the multiplayer mod (`join-world`: a guest in
 Haven loaded the host's 42928-byte save sent over the network, came out at the host's Spargus
 checkpoint with the host's progress, its language kept, an auto-save refused; `join-title`: the
 same from the title screen), 2026-10-15.
