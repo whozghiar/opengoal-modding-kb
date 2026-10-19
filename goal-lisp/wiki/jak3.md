@@ -209,10 +209,13 @@ to follow, and left with the grab exit:
 
 `get-trans` mode 0 only reads `(-> root trans)`, so the followed process may have a plain `trsqv`
 root and no skeleton. The player's model stays visible in its last pose: hide it with
-`(send-event *target* 'draw #f)`.
+`(send-event *target* 'draw #f)`. Only the position follows: the player keeps the facing it had
+when it got in (`control quat`).
 
 Verified: jak3, `engine/target/target2.gc`, `engine/target/target-handler.gc` (`'grab-ride`
-branch), `engine/process-drawable/process-focusable.gc` (`get-trans`), 2026-10-14.
+branch), `engine/process-drawable/process-focusable.gc` (`get-trans`), 2026-10-14; the facing in
+the multiplayer mod's `ride-seat` scenario (a passenger drawn with the player's facing sat at
+random angles), 2026-10-19.
 
 ## 4.9 Playable Daxter (`indax` mode)
 
@@ -257,17 +260,45 @@ they would dangle once it unloads.
     for `<subtype>-init-by-other`: pass `:init gun-red-2-shockwave-init-by-other`.
   - The arc wielder's tracker stays on while `using-gun-type` is 33 and `gun active?` is `#t`.
   - Where the gun is drawn: `target-gun-compute-pos`, called by the gun's `gun-post` with `self`
-    set to the target (`target-gun.gc`); a `define-perm` wrapper can place it.
+    set to the target (`target-gun.gc`); a `define-perm` wrapper can place it. In his hand: his
+    gun joint, `(-> *target* sidekick 0 node-list data 28 bone transform)`, with `gun gun-daxter`
+    1.0 (the stock place when he fires from a vehicle; his mode skips `target-gun-joint-points`,
+    which sets it, so set it back to 0.0 after).
+  - `gun-post` hides the gun (`draw-control-status no-draw`) while the player has
+    `no-draw-bounds2`, which his mode sets: clear it from a process that runs after the gun's post
+    (one in `*pc-pool*`, 4.20).
+  - The gun's `idle` state holds its folded clip (`gun-idle-ja`); its `use` state the mod's open
+    shape, `gun-idle-red-ja` ... (gun-ag 13-24: red 1-3 13-15, dark 1-3 16-18, yellow 1-3
+    19-21, blue 1-3 22-24). Setting that clip on the gun's channel 0 from
+    `target-gun-compute-pos` (the gun's post, after its code) opens it.
+  - Daxter's clips holding the gun are the ones he fires from a vehicle with:
+    `daxter-pilot-gun-<color>-idle` (308 red, 309 dark, 310 yellow, 311 blue) and `-fire` (312
+    red, 313 yellow, 314 dark, 296 blue loop), with the gun joint in his hands. They are in
+    `jak-pilot-gun+0-ag.go` (88 KB), which only COMBA, CWI, HGA and RAILA carry: list it in
+    `game.gd` and remove it from those four. On his upper body only, over his mode's clips: 4.19.
 - **Respawn in a loaded game:** a death restores the features of the game loaded (for a game
   loaded from memory, that save's): re-apply what you gave since.
+- **Seated clips:** `target-pilot-stance` (`pilot-states.gc`) plays the vehicle's
+  `<x>-turn-back` clip on channel 0 and `<x>-turn-front` (the index before it) on channel 1,
+  blended by how the vehicle pitches, their frames by the steering (middle frame: straight), by
+  `rider-stance` (vehicle info: 0 hover bikes `jakb-pilot-bike-*` 240-241, 1 hover cars
+  `jakb-pilot-car-*` 233-234, 2 wasteland cars `jakb-pilot-wcar-*` 268-269, 3 glider). These
+  come with the levels that have vehicles (`jak-pilot+0-ag`, `-hcar`, `-wcar`). Daxter driving
+  (`as-daxter?`) uses `daxter-pidax-missile-turn-front` / `-back` (541-542) in every vehicle,
+  placed from the seat point (the `'indax` matrix: control trans plus `cspace-offset`). His
+  `daxter-pilot-*` clips are not: the sidekick's default matrix puts his root at Jak's node 34
+  (the shoulder) with the sidekick's facing, and those clips seat him next to Jak from there.
 
 Verified: jak3, `goal_src/jak3/dgos/*.gd`, `engine/target/indax/target-indax.gc`,
 `engine/target/target-handler.gc:1363`, `engine/target/target-pilot.gc`,
-`engine/target/target-gun.gc`, `engine/target/gun/gun-util.gc`, `gun-*-shot.gc`; in the
+`engine/target/pilot-states.gc`, `engine/target/sidekick.gc`, `engine/target/target-gun.gc`,
+`engine/target/gun/gun-util.gc`, `gun-*-shot.gc`, `engine/data/art-elts.gc`; in the
 multiplayer mod's scenarios (`daxter-drive`, `daxter-drive-own`, `daxter-ride`, `coop`: Daxter
 drives, rides in a passenger seat and sits on a shoulder held in `target-indax-grab`, 2026-10-16;
-`daxter-fire`: Daxter fires each of the 12 mods, 10 kinds of blows landing on another player,
-2026-10-19).
+`daxter-fire`: Daxter fires each of the 12 mods, 10 kinds of blows landing on another player;
+`ride-seat`, `ride-seat-daxter`: passengers in the drivers' clips, a Daxter passenger's upper
+body as high as a Daxter driver's within 7 cm; `daxter-fire-anim`: the gun drawn in his hand,
+opened, his clips holding it, screenshots, 2026-10-19).
 
 ## 4.10 Wrapping a stock method from a GAME file
 
@@ -720,3 +751,47 @@ methods (4.10) keeps the actors near another viewpoint running.
 
 Verified: jak3, the files above; seen in the multiplayer mod's tests (flitters going inactive in
 the port's water, copies hidden when the host walked away), 2026-10-15.
+
+## 4.19 A clip on part of a skeleton
+
+A `joint-control` computes a frame from its channels with its `generate-frame-function`
+(`create-interpolated-joint-animation-frame` by default). With
+`create-interpolated2-joint-animation-frame` (`engine/anim/joint.gc`), it computes the frame twice,
+the blend channels weighted by `frame-interp 0` then by `frame-interp 1`, and each joint takes the
+second when its bit is set in `interp-select` (bit = joint index in the skeleton: 0 align, 1
+prejoint, 2 main...; joints 64 and up in `interp-select 1`). With both masks 0 it runs the plain
+computation, so leaving the function set costs nothing. `top-anim` (the gun's clips on Jak's arms)
+works this way.
+
+To play a clip on chosen joints only, append a blend channel after the clips the skeleton holds:
+`parent` the joint-control, `command` `(joint-control-command blend)`, the clip in `frame-group`,
+`num-func-identity`, `frame-num`, `frame-interp 0` 0.0 and `frame-interp 1` 1.0; increment
+`active-channels` (below `allocated-length`), set `interp-select`, and the function above. A puppet
+can use `(ja-channel-set! 2)` and `(ja :chan 1 :group! clip :num! (identity f) :frame-interp0 0.0
+:frame-interp1 1.0)`.
+
+The sidekick (Daxter's model) copies the player's channels every frame, and turns the player's
+`top-anim` channels into full-body blends (`frame-interp 0` set to `frame-interp 1`): a clip for
+part of Daxter goes after that copy. `joint-control-remap!` is called right after it in the
+sidekick's post, with the sidekick's joint-control: a `define-perm` wrapper can append the channel
+there. Daxter's upper body (`skel-sidekick`): upper_body 3 to the gun joint 27 (head, ears, arms,
+hands; the gun joint's parent is upper_body) and the thumbs 44-47, `#xf0000ffffff8`; hips 28 and
+the legs and tail under it.
+
+Verified: jak3, `engine/anim/joint.gc`, `engine/process-drawable/process-drawable.gc` (`top-anim`),
+`engine/target/sidekick.gc`; the multiplayer mod's `daxter-fire-anim` scenario (Daxter's upper body
+in his gun clips over his mode's legs, screenshots; without the function, the channel had no
+effect), 2026-10-19.
+
+## 4.20 The order processes run in
+
+`change-parent` (`kernel/gkernel.gc`) puts a process first among its parent's children, and a
+tree runs a parent, then its children from first to last: the latest child runs first. The pools
+are made in that order under `*active-pool*`: `*pc-pool*`, `*camera-pool*`, `*target-pool*`,
+`*entity-pool*`, `*pusher-pool*`, `*bg-pool*`, `*default-pool*`, so they run the other way round,
+`*pc-pool*` last. A process in `*pc-pool*` runs after the player and its children (gun,
+sidekick) every frame, before anything is drawn: it can undo what their posts set.
+
+Verified: jak3, `kernel/gkernel.gc` (`change-parent`, `execute-process-tree`, the pools); the
+multiplayer mod's manager in `*pc-pool*` showing the gun the gun's post hid (`daxter-fire-anim`;
+from the sidekick's post it did not work: the sidekick runs before the gun), 2026-10-19.
