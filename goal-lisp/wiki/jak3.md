@@ -155,7 +155,13 @@ to it through the generic history stack, which calls `set-menu-options` again wi
 
 Labels of generic options are `text-id`s: add them at the end of the `text-id` enum
 (`engine/ui/text-h.gc`) and their strings to `game/assets/jak3/text/game_custom_text_<lang>.json`
-(English is loaded as the fallback for every language). A custom option type subclasses
+(English is loaded as the fallback for every language). That English fallback goes into
+`*fallback-text-heap*` (`text-h.gc`, PC port), only 80 KB against 128 KB for the language's own
+text: once `out/jak3/iso/0COMMON.TXT` reached 78.6 KB, its link overran that heap and every boot
+stopped in `c_symlink2` (`val is 0x1010101`, `klink.cpp:289`) right after loading `0common.TXT`,
+with no "Game text heap overrun!" (that check compares with the whole heap). Watch that file's size
+when adding many strings; raising the heap to `(* 128 1024)` fixed it (multiplayer mod, every
+scenario booting again, 2026-10-19). A custom option type subclasses
 `menu-generic-option` and defines `respond-progress` and `draw-option`: while it is selected the
 scrolling page only consumes confirm and triangle, so the D-pad reaches it. The confirm that selects
 it arrives with `selected?` still `#f` (load the value there); the confirm that ends the selection
