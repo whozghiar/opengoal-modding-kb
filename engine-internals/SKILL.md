@@ -193,6 +193,18 @@ the multiplayer mod's `game/kernel/jak3/kmultiplayer.cpp` built and unit-tested,
   `GL_LESS`. Drawn again with the same transform, a model comes out a hair behind its first
   drawing: a `glPolygonOffset(2, 512)` toward the camera keeps its own visible parts from
   passing a "hidden" test. The framebuffer has a stencil (`DEPTH24_STENCIL8`).
+- **Data after the flags.** A request can append quadwords after its 32 bytes of flags (64
+  bytes of tints for a flagged model) when `handle_pc_model` skips them for that bit: nothing
+  else reads that packet.
+- **Per-model textures.** A texture animated for every model at once (Dark Jak's skin, the
+  `darkjak` group of `jakc-*` textures, `set-darkjak-texture-morph!`) is one slot shared by every
+  model of Jak. `TextureAnimator` can blend the variants itself at fixed levels (17 per texture,
+  as the group's blenders do) and Merc2 bind the variant a flagged model asks for in place of the
+  shared slot.
+- **Not every model goes through Merc2.** A model drawn in the HUD (the START menu's models)
+  goes through the generic renderer: Merc2's flags do not reach it. The PC
+  `draw-bg-box-alpha-1` of the menu writes depth: a 3D model behind it is hidden, so narrow the
+  box where a model must show through.
 - **A new shader** goes in `ShaderId` (before `MAX_SHADERS`) and `ShaderLibrary`; its files in
   `game/graphics/opengl_renderer/shaders/` ship with the release (section 6). Uniforms are set
   after `activate()`.
@@ -200,7 +212,8 @@ the multiplayer mod's `game/kernel/jak3/kmultiplayer.cpp` built and unit-tested,
 Verified: jak3, `goal_src/jak3/engine/gfx/foreground/foreground.gc`,
 `game/graphics/opengl_renderer/foreground/Merc2.cpp`, `OpenGLRenderer.cpp`, `Shader.cpp`; the
 multiplayer mod's outline of other players through walls (`outline` scenario: 90 pixels in the
-open, 920 behind a vehicle, screenshots), 2026-10-19.
+open, 920 behind a vehicle, screenshots), 2026-10-19; `TextureAnimator.cpp`, `merc2.frag`: another
+player's Dark Jak skin and outfit tints (`powers`, `skin` scenarios), 2026-10-19.
 
 ## 8. Automated in-game checks
 

@@ -182,7 +182,31 @@ its action on confirm whatever the yes / no choice; subclass it and test `confir
   squeezed to the screen's ratio: compute the frame with `adjust-game-x` (unless `use-vis?`).
   `get-aspect-ratio` can say `aspect4x3` in a 16:9 window (the game's own setting).
 - **Everything is paused under a menu,** a mod's processes too, at the title screen as in game:
-  work that must go on (network) belongs in the per-frame hook (`*mods-menu-hook*`).
+  work that must go on (network) belongs in the per-frame hook (`*mods-menu-hook*`). The menu
+  stops them through a setting: `progress-init-by-other` adds `'process-mask 'set (process-mask
+  progress)`, and every process masked `progress` stops. To keep the world running under it, put
+  the opposite setting in `*setting-control*` `engine-hi`, which `apply-settings` applies after
+  every other connection (`set-setting-by-param` replaces the one of that key there):
+
+  ```lisp
+  ;; the world runs under the START menu
+  (set-setting-by-param *setting-control* 'process-mask 'clear 0 (process-mask progress))
+  (apply-settings *setting-control*)
+  ;; back to the stock
+  (remove-by-param0 (-> *setting-control* engine-hi) 'process-mask)
+  (apply-settings *setting-control*)
+  ```
+
+  The same pair overrides any setting a mission holds (`'pilot-exit #t` over a race's `#f`). The
+  menu also pauses every sound (`set-master-mode 'progress`): `(sound-group-continue (the-as
+  sound-group #xffffffff))` once it is open lets them go on. It shows a still copy of the screen
+  (`blit-displays-work` `set-menu-mode`, `engine/gfx/blit-displays-h.gc`): wrap that method and pass
+  `#f` to show the live game. The world still reads pad 0 meanwhile; hide it with a process that
+  runs before everything (4.20): copy `(-> *cpad-list* cpads 0)` aside, `cpad-invalid!` it, and
+  copy it back from the per-frame hook, which runs before the menu reads it.
+- **Text from the per-frame hook:** `print-game-text` adds its own DMA bucket. Called inside a
+  `with-dma-buffer-add-bucket` block it nests two buckets and the game stops on the `!m_ended`
+  assertion: call it after the block closes.
 - **SELECT pauses** like START (`determine-pause-mode`, `engine/draw/drawable.gc`). To give it
   another use, wrap that function and clear SELECT from `(-> *cpad-list* cpads 0 button0-rel 0)`
   before calling the stock one.
@@ -191,7 +215,10 @@ Verified: jak3, `engine/ui/progress/progress.gc`, `pc/progress/progress-pc.gc`,
 `progress-generic-pc.gc`, `progress-generic-draw-pc.gc`, `progress-draw-pc.gc`,
 `levels/title/title-obs.gc`, `engine/draw/drawable.gc`; the multiplayer mod's title screen entries,
 lobby page and SELECT player list driven by the `lobby` and `player-list` scenarios
-(screenshots, pages logged), 2026-10-16.
+(screenshots, pages logged), 2026-10-16; `engine/ui/progress/progress.gc`
+(`progress-init-by-other`), `engine/game/settings.gc` (`set-setting-by-param`, `apply-settings`);
+the multiplayer mod's START menu over a running world (`pause` scenario: clocks running, no still
+copy) and the `print-game-text` crash, 2026-10-19.
 
 ## 4.8 Making the player follow another process: `target-grab-ride`
 
@@ -452,6 +479,15 @@ jump, and empty its strips (`num-verts` 0) while the owner is off screen or `no-
 
 Verified: jak3, `engine/physics/cloth.gc`, `engine/target/target-util.gc`; a stretched scarf seen
 and gone in the multiplayer mod's screenshots, 2026-10-15.
+
+A `manipy` of Jak's model (a preview in a menu) needs the room a player's model has: spawned with
+`:stack-size #x10000` it fails to set up, with `#x20000` it draws. Give it the body segments of
+the target (`setup-masks`), and no cloth (its scarf strips stretch away from a model placed in
+front of the camera). To be seen under the START menu it must run there (a pool not masked
+`progress`, 4.7) and be drawn in the 3D scene: a model drawn in the HUD goes through the generic
+renderer, not Merc2 (no per-model flags, engine-internals 7b).
+
+Verified: jak3, the multiplayer mod's Appearance page preview (`skin` scenario), 2026-10-19.
 
 ## 4.13 Hooks for every effect, projectile, sound and story step
 
@@ -792,6 +828,50 @@ are made in that order under `*active-pool*`: `*pc-pool*`, `*camera-pool*`, `*ta
 `*pc-pool*` last. A process in `*pc-pool*` runs after the player and its children (gun,
 sidekick) every frame, before anything is drawn: it can undo what their posts set.
 
+To run before every pool, make a pool of your own with `change-parent` under `*active-pool*`
+after boot: it becomes the first child. Make it with `define-perm` so a reload keeps one:
+
+```lisp
+(define-perm *my-first-pool* process-tree
+  (let ((pool (new 'global 'process-tree "my-first-pool")))
+    (change-parent pool *active-pool*)
+    (set! (-> pool mask) (process-mask process-tree))
+    pool))
+```
+
+The display process runs before the pools: it runs the per-frame hook (`display-loop-main`,
+`engine/game/main.gc`), ends the frame, decides the pause (`determine-pause-mode`), reads the
+pads (`service-cpads`, `display-frame-start`, `engine/draw/drawable.gc`), then its children, the
+START menu (`*progress-process*`) among them. What the first pool does to pad 0 is seen by every
+process after it, and the hook of the next frame runs before the menu reads the pads again.
+
 Verified: jak3, `kernel/gkernel.gc` (`change-parent`, `execute-process-tree`, the pools); the
 multiplayer mod's manager in `*pc-pool*` showing the gun the gun's post hid (`daxter-fire-anim`;
-from the sidekick's post it did not work: the sidekick runs before the gun), 2026-10-19.
+from the sidekick's post it did not work: the sidekick runs before the gun), 2026-10-19; the
+mod's input pool hiding pad 0 from the world under the START menu (`pause` scenario: the stick
+pushed with the menu open does not move the player, the menu still reads it), 2026-10-19.
+
+## 4.21 How missions check the player: waypoints and races
+
+- **Waypoints.** The yellow beam of a mission is a `task-arrow` (`engine/game/task/task-arrow.gc`,
+  spawned with `task-arrow-spawn`, hidden while `taf4` is set). It only draws: the process that
+  spawned it (its `parent`, a task manager or an object of the mission) checks the arrival itself,
+  almost always as `(< (vector-vector-xz-distance (target-pos 0) <spot>) <radius>)`, radii of 3 to
+  40 m. A wrapper of `target-pos` that answers that process alone (`with-pp`, compare `pp` with
+  the arrow's parent) holds the mission without touching it; keep the stock function with
+  `define-perm`. Missions checking the vehicle or a cutscene region do not call it.
+- **Race continue points** (`continue-flags race`, `vehicle-type` set): `arrive-at-continue`
+  (`engine/target/target-death.gc`) stores `mode-cache 'pilot`, and the end of `target-continue`
+  sends `'change-mode 'pilot`, which spawns the vehicle where the target stands then: moving
+  `(-> *target* control trans)` while `mode-cache` is `'pilot` moves the vehicle. The start of
+  `desertb-race-start` is on a slope: the turtle rolls about 30 m in 20 s with no input.
+- **Race starts.** `task-manager-race` (`levels/desert/race/course-race.gc`: Kleiver's race, the
+  beast hunters' time trial and rally) and the artifact race's manager
+  (`levels/desert/artifact-race/artifact-race.gc`: Damas's races) set `pilot-exit #f` and start
+  the countdown from their `:code`; a `(while <test> (suspend))` before it (after the
+  `ai-set-target-speed 0` send, after `wasall-kill-duplicate-vehicle`) holds the start.
+
+Verified: jak3, `engine/game/task/task-arrow.gc`, `engine/target/target-death.gc`,
+`levels/desert/race/course-race.gc`, `levels/desert/artifact-race/artifact-race.gc`; the
+multiplayer mod's co-op waypoints and race starts (`beam`, `race-board`, `race-continue`
+scenarios), 2026-10-19.
