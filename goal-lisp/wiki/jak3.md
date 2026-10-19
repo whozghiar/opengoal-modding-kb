@@ -215,6 +215,9 @@ its action on confirm whatever the yes / no choice; subclass it and test `confir
 - **SELECT pauses** like START (`determine-pause-mode`, `engine/draw/drawable.gc`). To give it
   another use, wrap that function and clear SELECT from `(-> *cpad-list* cpads 0 button0-rel 0)`
   before calling the stock one.
+- **Opening the START menu on a page of yours** from the game (a shop at an NPC):
+  `(activate-progress *dproc* 'my-page)`; the `set-menu-options` wrapper routes `'my-page` to
+  your options (the multiplayer mod's Kleiver's shop, scenario `economy`, 2026-10-19).
 
 Verified: jak3, `engine/ui/progress/progress.gc`, `pc/progress/progress-pc.gc`,
 `progress-generic-pc.gc`, `progress-generic-draw-pc.gc`, `progress-draw-pc.gc`,
@@ -310,6 +313,16 @@ they would dangle once it unloads.
     `game.gd` and remove it from those four. On his upper body only, over his mode's clips: 4.19.
 - **Respawn in a loaded game:** a death restores the features of the game loaded (for a game
   loaded from memory, that save's): re-apply what you gave since.
+- **The sidekick:** Jak's Daxter is `(-> *target* sidekick)`, which can be `#f` (during the arena
+  training's cutscene): test it before `(-> ... 0)`. Every frame it copies the player's clips, then
+  calls `joint-control-remap!`, where a `define-perm` wrapper can put another clip on it. Its
+  feature bit is `#x100000`: `(set-setting! 'features 'clear 0 #x100000)` takes him off Jak (as
+  `target-death.gc` does), without touching the saved features.
+- **Daxter climbing onto Jak's shoulder:** the stock climb back after Dark Jak is
+  `daxter-darkjak-get-off-ja` then `daxter-darkjak-get-off-end-ja` (Daxter's art 420 and 427,
+  `engine/data/art-elts.gc`). Played on the sidekick's channel 0 from that wrapper, each clip
+  advancing by its own `speed` times `time-adjust-ratio` per frame, the pair lasts 159 frames (at
+  1.0 a frame, 21 frames: far too fast).
 - **Seated clips:** `target-pilot-stance` (`pilot-states.gc`) plays the vehicle's
   `<x>-turn-back` clip on channel 0 and `<x>-turn-front` (the index before it) on channel 1,
   blended by how the vehicle pitches, their frames by the steering (middle frame: straight), by
@@ -346,6 +359,18 @@ inherit it at creation. The multiplayer mod wraps `enemy` `mark-as-dead`
 
 Verified: jak3, `game/kernel/jak3/kscheme.cpp` (`method_set`), `game/kernel/jak3/kmachine.cpp`;
 compiled, not yet played, 2026-10-14.
+
+The same works for a `defbehavior` (a function with `self`): keep the stock one as
+`(define-perm *stock* (function symbol symbol none :behavior target) target-death-reset)` and
+redefine it with `defbehavior`; call `(*stock* arg0 arg1)` from it. `target-death-reset`
+(`engine/target/target-death.gc`) ends every death: it sends `'target 'die` to the task managers
+(a mission that fails on death fails there), then resets the game at the continue point
+(`initialize!`). Not calling it, and moving the player (`move-to-point!`, health set, `(go
+target-stance)`), brings the player back elsewhere with the mission still running.
+
+Verified: jak3, `engine/target/target-death.gc`; the multiplayer mod's co-op return next to a
+teammate (scenario `coop-respawn`: each player killed, back next to the other in `target-stance`,
+health full), 2026-10-19.
 
 ## 4.11 Making a process hittable by the player's attacks
 
@@ -550,9 +575,22 @@ Verified: jak3, the multiplayer mod's Appearance page preview (`skin` scenario),
   `draw-beam`, which orients them from globals (`*particle-quat*`): draw it again from the laser
   joint (14) and barrel (joint 13) of the gun's model rather than replaying the launches.
 
+- Every precursor orb taken goes through `game-info` `give` (`engine/game/game-info.gc`) with
+  `'skill`, the amount and the pickup's handle; that process's `entity` names the orb (its type:
+  `(-> (the-as entity-actor ent) etype symbol)`, `'skill`; `entity-by-aid` finds it again, with
+  its `trans`, on any machine with its level loaded).
+- Every enemy death goes through `enemy` `mark-as-dead` (4.10); its killer is
+  `(handle->process (-> this incoming attacker-handle))`. A Metal Head is an enemy whose
+  `enemy-info` `gem-joint` is above 0 (it can carry a skull gem).
+- A cutscene's actors are `(-> scene-player scene actor)`: `scene-actor`s with a `name` (Jak:
+  `jakc-highres`, `jak-highres`, `darkjak-highres`, `jakc-scarf`; Daxter: `sidekick-highres`) and
+  a `process` handle, 0 until the actor spawns (common.md 1.4.17 before `handle->process`).
+
 All are functions or methods called through their symbol or method table, so a `define-perm` +
 `defbehavior`, `defun` or `defmethod` wrapper in a GAME file catches every caller (see
-[4.10](#410-wrapping-a-stock-method-from-a-game-file)).
+[4.10](#410-wrapping-a-stock-method-from-a-game-file)). Orbs, Metal Heads and cutscene actors:
+verified in the multiplayer mod's scenarios `economy`, `economy-trophy` and `scene-skins`,
+2026-10-19.
 
 Verified: jak3, the files above, `engine/gfx/sprite/particles/sparticle-launcher.gc`,
 `engine/sound/gsound.gc`, `engine/target/gun/gun-dark-shot.gc`, `gun-yellow-shot.gc`,

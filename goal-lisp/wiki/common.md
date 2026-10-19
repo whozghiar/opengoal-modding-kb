@@ -761,9 +761,21 @@ counter) survive. Keep handles in a structure or a process field:
 ;; (handle->process (-> *my-globals* manager)) then works
 ```
 
+A handle field never set holds `0`, not `#f`, and `0` is true in GOAL (only `#f` is false):
+`handle->process` (`kernel/gkernel-h.gc`) tests `(-> the-handle process)`, finds it true and reads
+the process at address 0, which crashes. Test `(nonzero? h)` first. A cutscene's actors are such
+handles (`scene-actor` `process`, 0 until the actor spawns):
+
+```lisp
+(let ((proc (if (and a (-> a name) (nonzero? (-> a process))) (handle->process (-> a process)))))
+  ...)
+```
+
 Verified: jak3, `goalc/compiler/IR.cpp`; the multiplayer mod kept its manager's handle in a global
 and spawned a new manager every frame until `*nk-dead-pool*` was empty (seen in game: the start
-menu could no longer open), 2026-10-14.
+menu could no longer open), 2026-10-14; `kernel/gkernel-h.gc`, `engine/scene/scene-h.gc`; reading
+a cutscene's actors crashed at `handle->process` of a 0 handle (scenarios `scene-skins`,
+`beam-real`), fixed by the test above, 2026-10-19.
 
 ### 1.4.18 `format` takes at most 8 arguments, and `state` is a process field
 
@@ -774,7 +786,12 @@ log line.
 A process type already has a `state` field (its current state). A field of that name in your own
 `deftype` of a process fails with *"Type ... already has a field named state"*.
 
-Verified: jak3, compile errors in the multiplayer mod, 2026-10-14.
+`~A` prints a string with its quotes, `~S` without (`kprint.cpp`: "like A, but strings are
+printed without quotes"). A key built with `(format (clear buf) "~A" str)` carries the quotes:
+use `~S`, or `copy-string<-string` to copy a string.
+
+Verified: jak3, compile errors in the multiplayer mod, 2026-10-14; `game/kernel/jak3/kprint.cpp`,
+the multiplayer mod's shop key came out quoted with `~A`, 2026-10-19.
 
 ### 1.4.15 Porting code between games in the trilogy
 
