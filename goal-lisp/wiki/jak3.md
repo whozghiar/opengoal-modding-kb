@@ -173,6 +173,11 @@ its action on confirm whatever the yes / no choice; subclass it and test `confir
   `progress-generic-pc.gc`), sub-menu entries are drawn 0.08 lower and Quit 0.07 higher
   (`progress-draw-pc.gc`). A list with more entries must keep Secrets at index 3 while it is
   locked (pick the order from `(memcard-unlocked-secrets? #f #f)`).
+- **The intro of a retail boot.** Without `-debug`, the title screen (`title-obs.gc`, `demo-state`
+  0) waits for a press on its demo screen, then starts the game at `pre-intro-start`: the opening
+  cutscenes (`levels/intro/intro-scenes.gc`) play, about 4.5 minutes, before the title menu. They
+  carry `scf1`: triangle skips each one, and their `end-point` `title-restart` brings the title
+  menu back. A test that waits for the title menu presses triangle while a skippable scene plays.
 - **Going to a page from your own option:** `(push-state progress)` then
   `(set-next-state progress 'my-page 0)`, as a `menu-sub-menu-option` does with its `next-state`.
   Triangle goes back a page (`pop-state`) after the option's `respond-progress` returned.
@@ -869,9 +874,21 @@ pushed with the menu open does not move the player, the menu still reads it), 20
   beast hunters' time trial and rally) and the artifact race's manager
   (`levels/desert/artifact-race/artifact-race.gc`: Damas's races) set `pilot-exit #f` and start
   the countdown from their `:code`; a `(while <test> (suspend))` before it (after the
-  `ai-set-target-speed 0` send, after `wasall-kill-duplicate-vehicle`) holds the start.
+  `ai-set-target-speed 0` send, after `wasall-kill-duplicate-vehicle`) holds the start. Before it,
+  `task-manager-race` hands the player's vehicle to its AI (`'set-control-hook-ai`, target speed
+  0): the vehicle stays still at the line, the player cannot drive it until `'force-start`. Every
+  machine runs its own race manager (one per task, spawned where the player is).
+- **The arena's jump training** (`task-manager-arena-training`, `wasstadb-obs.gc`): the first beam
+  (`wait-touch`) is passed by touching the judge (`judge` `wait` state, a `'touch` event), not by
+  `target-pos`; the beam of its last step (`done`) is checked in `:trans` with
+  `(target-pos 0)` within 3 m.
+- **Taking a task manager to a later step** (a test): `(method-state (-> proc type) 'done)` finds a
+  virtual state by name, `(go-process proc (the-as (state process) st))` sends it there; without
+  the cast, the compiler stops on "Attempting to go to a state with incomplete type".
 
 Verified: jak3, `engine/game/task/task-arrow.gc`, `engine/target/target-death.gc`,
 `levels/desert/race/course-race.gc`, `levels/desert/artifact-race/artifact-race.gc`; the
 multiplayer mod's co-op waypoints and race starts (`beam`, `race-board`, `race-continue`
-scenarios), 2026-10-19.
+scenarios), 2026-10-19; Kleiver's race and the arena training played in co-op, the arena's manager
+sent to `done` (`race-real`, `race-real-daxter`, `beam-real`), the intro skipped in a retail boot
+(`retail-general`: the title menu after 6 s instead of 274 s), 2026-10-19.
