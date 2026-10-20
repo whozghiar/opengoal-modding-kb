@@ -793,6 +793,35 @@ use `~S`, or `copy-string<-string` to copy a string.
 Verified: jak3, compile errors in the multiplayer mod, 2026-10-14; `game/kernel/jak3/kprint.cpp`,
 the multiplayer mod's shop key came out quoted with `~A`, 2026-10-19.
 
+### 1.4.19 A state keeps the event handler it was defined with
+
+`defstate` evaluates `:event`, `:enter`, `:trans`... once, when the state is defined: a state holds
+the function, not the symbol. Redefining the handler's symbol later (a wrapper in a mod file)
+changes the code that calls it by name, not the states built with it. To change what a stock
+state answers, set the field of the state object itself, after its file loaded:
+
+```lisp
+;; target-indax-handler is the :event of target-indax-stance (engine/target/indax/target-indax.gc)
+(defbehavior my-indax-handler target ((proc process) (argc int) (msg symbol) (block event-message-block))
+  (if (and (= msg 'change-mode) (= (-> block param 0) 'flut))
+      (go target-flut-start (process->handle (the-as process (-> block param 1))) 'normal -1)
+      (target-indax-handler proc argc msg block) ;; the stock, by name
+      )
+  )
+
+(set! (-> target-indax-stance event)
+      (the-as (function process int symbol event-message-block object) my-indax-handler))
+```
+
+A process's `major-mode-event-hook` and the code that calls the handler by name
+(`target-indax-jump-event-handler` calls `target-indax-handler`) do follow a redefined symbol.
+
+`let` binds in parallel: an init form cannot read a variable the same `let` binds (*"... could
+not find symbol r"* on `(-> r field)`): use `let*`.
+
+Verified: jak3, `engine/target/indax/target-indax.gc`; the multiplayer mod's Daxter getting on a
+lizard (`daxter-flut` scenario), a compile error on `let`, 2026-10-20.
+
 ### 1.4.15 Porting code between games in the trilogy
 
 When hand-porting `defstate`/`defpart`/`defpartgroup` GOAL code from one

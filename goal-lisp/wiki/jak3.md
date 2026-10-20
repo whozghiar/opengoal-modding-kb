@@ -215,6 +215,12 @@ its action on confirm whatever the yes / no choice; subclass it and test `confir
   `#f` to show the live game. The world still reads pad 0 meanwhile; hide it with a process that
   runs before everything (4.20): copy `(-> *cpad-list* cpads 0)` aside, `cpad-invalid!` it, and
   copy it back from the per-frame hook, which runs before the menu reads it.
+- **A model drawn over the menu** (a preview on a page) must carry `draw-control-status hud`
+  (bit 14): while the still copy shows (menu mode, as at the title screen), the foreground only
+  draws the draw-controls with that status. Turning the menu mode off instead brought back
+  buckets with no renderer (`tex-lcom-pris2`, bucket 456) and stopped the game on an assertion.
+  `(if (get-menu-mode *blit-displays-work*) (logior! (-> proc draw status) (draw-control-status
+  hud)) (logclear! (-> proc draw status) (draw-control-status hud)))` each frame.
 - **Text from the per-frame hook:** `print-game-text` adds its own DMA bucket. Called inside a
   `with-dma-buffer-add-bucket` block it nests two buckets and the game stops on the `!m_ended`
   assertion: call it after the block closes.
@@ -340,6 +346,45 @@ they would dangle once it unloads.
   `daxter-pilot-*` clips are not: the sidekick's default matrix puts his root at Jak's node 34
   (the shoulder) with the sidekick's facing, and those clips seat him next to Jak from there.
 
+- **Eyes:** every model of an art group shares one eye slot (`*eye-control-array*`, found by
+  the art group's name when the model logs in), which the last model to animate fills
+  (`merc-eye-anim`, `engine/gfx/foreground/eye.gc`). The player in Daxter's mode keeps Jak's
+  model, hidden, playing Daxter's clips: it writes Daxter's eyes into Jak's slot, and every other
+  Jak on screen shows them. Skip `merc-eye-anim` for that model; a copy of Jak needs
+  `(logior! (-> self skel status) (joint-control-status eye-anim))` to feed the slot.
+- **Daxter on a lizard:** the stock rides him only in the desert chase (`'wild` mode, the lizard
+  running on its own; `as-daxter?` is set by that mode alone, and its states play his clips
+  through aliases such as `jakb-mech-pull-ja`). His mode ignores the lizard's
+  `'change-mode 'flut` (its idle state, `flut.gc`); answer it in his stance's and walk's handler
+  with `(go target-flut-start <handle> 'normal -1)` (common.md 1.4.19), and the lizard goes to
+  its pickup as for Jak. For his clips in `'normal` mode, give the player a copy of Daxter's art
+  group whose slots of Jak's lizard clips (`jakb-flut-*`, 406 to 432) hold his
+  (`daxter-fldax-*`, 384 to 401), and do what `target-fldax-enter` does (`no-draw-bounds2`,
+  sidekick `'matrix 'indax`). A basic starts 4 bytes before its address (its type): copy from
+  there.
+
+  ```lisp
+  (let* ((dax (-> *target* sidekick 0 draw art-group))
+         (size (+ 36 (* 4 (-> dax length))))
+         (mem (malloc 'global size)))
+    (mem-copy! mem (&+ (the-as pointer dax) -4) size)
+    (let ((ag (the-as art-group (&+ mem 4))))
+      (set! (-> ag data 406) (-> dax data 391)) ;; flut-idle: fldax-idle
+      ;; ... one per clip
+      (set! (-> *target* draw art-group) ag)))
+  ```
+
+  The lizard under him clones the player's clips by name (`joint-control-remap!`:
+  `daxter-fldax-idle` gives `flut-saddle-fldax-idle`).
+- **An art part linking to two masters:** `jak-fldax+0-ag` holds Daxter's clips
+  (`daxter-fldax-*`, master `daxter-ag`, resident) and the lizard's under him
+  (`flut-saddle-fldax-*`, master `flut-saddle-ag`, a level's). `link-art-to-master`
+  (`engine/load/loader.gc`) links each clip to a master loaded when the part loads: put in GAME,
+  the lizard's clips found none (*"could not find a master slot to link for"*) and the lizard
+  under Daxter stayed hidden. Such a part goes in the level DGOs that carry the other master
+  (WWD and VOCA list it after `jak-flut+0-ag.go`; DESLIZ already has it); a part whose clips all
+  have a resident master can go in GAME (`jak-pidax+0-ag`, 4.9 above).
+
 Verified: jak3, `goal_src/jak3/dgos/*.gd`, `engine/target/indax/target-indax.gc`,
 `engine/target/target-handler.gc:1363`, `engine/target/target-pilot.gc`,
 `engine/target/pilot-states.gc`, `engine/target/sidekick.gc`, `engine/target/target-gun.gc`,
@@ -349,7 +394,10 @@ drives, rides in a passenger seat and sits on a shoulder held in `target-indax-g
 `daxter-fire`: Daxter fires each of the 12 mods, 10 kinds of blows landing on another player;
 `ride-seat`, `ride-seat-daxter`: passengers in the drivers' clips, a Daxter passenger's upper
 body as high as a Daxter driver's within 7 cm; `daxter-fire-anim`: the gun drawn in his hand,
-opened, his clips holding it, screenshots, 2026-10-19).
+opened, his clips holding it, screenshots, 2026-10-19; `eyes`, `daxter-flut`: the puppets' eye
+slots, Daxter riding a lizard 22 m, firing from it, the lizard drawn under him on both machines,
+`engine/gfx/foreground/eye.gc`, `engine/target/flut/target-flut.gc`, `engine/load/loader.gc`,
+2026-10-20).
 
 ## 4.10 Wrapping a stock method from a GAME file
 
@@ -929,10 +977,28 @@ pushed with the menu open does not move the player, the menu still reads it), 20
 - **Taking a task manager to a later step** (a test): `(method-state (-> proc type) 'done)` finds a
   virtual state by name, `(go-process proc (the-as (state process) st))` sends it there; without
   the cast, the compiler stops on "Attempting to go to a state with incomplete type".
+- **When a mission starts.** A mission runs while its task manager lives: its node's `on-open`
+  script spawns it (`engine/util/script.gc`, `run-now-in-process` with the symbol
+  `task-manager-init-by-other`) when the node opens and its level is active, or
+  `update-task-masks` (on a level load) once the level is there. Wrapping
+  `task-manager-init-by-other` (`define-perm` the stock, call it last: it never returns) sees
+  every mission start. START > Restart is `restart-mission` (`(function int)`,
+  `task-control.gc`).
+- **Places and result of a race** (`levels/common/race/race-manager.gc`, in WASLEAPR, DESRALLY,
+  DESTRACK): the manager's `active` post sets `(-> *game-info* race-position)` from the player's
+  `racer-state` `rank` (0 = 1st; the HUD has sprites 1st to 8th, `hud-race-position`), and once
+  the player finished (`racer-state-flags rsf1`) goes `win` or `lose` on `player-win?`:
+  `(zero? (-> racer finish-count))` (1st), or for a time trial (`racer-info-flag rif6`) a new
+  score. `update-rankings` sorts the racers by `lap-count` plus `lap-distance` (a part of the lap),
+  finished ones by finish order; `finish-time` and `race-start-time` count `current-time` units.
+  Damas's races (`artifact-race.gc`, DESRACE1-2) have no ranking.
 
 Verified: jak3, `engine/game/task/task-arrow.gc`, `engine/target/target-death.gc`,
 `levels/desert/race/course-race.gc`, `levels/desert/artifact-race/artifact-race.gc`; the
 multiplayer mod's co-op waypoints and race starts (`beam`, `race-board`, `race-continue`
 scenarios), 2026-10-19; Kleiver's race and the arena training played in co-op, the arena's manager
 sent to `done` (`race-real`, `race-real-daxter`, `beam-real`), the intro skipped in a retail boot
-(`retail-general`: the title menu after 6 s instead of 274 s), 2026-10-19.
+(`retail-general`: the title menu after 6 s instead of 274 s), 2026-10-19;
+`levels/common/race/race-manager.gc`, `race-hud.gc`, `engine/game/task/task-control.gc`,
+`engine/util/script.gc`; the mod's `mission-start`, `race-result`, `race-board` scenarios,
+2026-10-20.
