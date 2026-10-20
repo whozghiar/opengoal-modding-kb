@@ -720,6 +720,24 @@ one-line `lambda`:
 :on-confirm (lambda () (my-helper) (none))   ;; not :on-confirm my-helper
 ```
 
+The same holds for the elements of a static array: a page built by a static
+macro (Jak 3's `progress-new-generic-scrolling-page` expands its options into
+`(new 'static 'boxed-array :type menu-option ...)`) cannot list a `define`d
+option. To share one option between two static pages, write it as a macro
+that expands to the inline form, and call it in each page:
+
+```lisp
+(defmacro my-act-carousel ()
+  `(new 'static 'menu-generic-carousel-option :name (text-id my-act) ...))
+
+(define *my-page-a* (progress-new-generic-scrolling-page (text-id my-page-a) (my-act-carousel) ...))
+(define *my-page-b* (progress-new-generic-scrolling-page (text-id my-page-b) (my-act-carousel) ...))
+```
+
+Verified: jak3, `goal_src/jak3/pc/progress/progress-generic-h-pc.gc` and the
+multiplayer mod's `multiplayer-menu.gc` (compile error with a variable, compiles
+with the macro), 2026-10-20.
+
 ### 1.4.14 `process-spawn` does not install state until the next frame
 
 A newly spawned process has no active state until the kernel dispatches
