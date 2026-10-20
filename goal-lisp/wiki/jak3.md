@@ -214,7 +214,14 @@ its action on confirm whatever the yes / no choice; subclass it and test `confir
   (`blit-displays-work` `set-menu-mode`, `engine/gfx/blit-displays-h.gc`): wrap that method and pass
   `#f` to show the live game. The world still reads pad 0 meanwhile; hide it with a process that
   runs before everything (4.20): copy `(-> *cpad-list* cpads 0)` aside, `cpad-invalid!` it, and
-  copy it back from the per-frame hook, which runs before the menu reads it.
+  copy it back from the per-frame hook, which runs before the menu reads it. Empty the PC port's
+  high-fps button history too, `(-> *cpad-history-list* cpads 0)` (`button0-abs` and
+  `button0-rel`, 15 entries each): `service-cpads` fills it before any process runs, and the
+  buffered checks read it (`recently-pressed?`, `engine/ps2/pad.gc`: the jump). With only
+  `cpad-invalid!`, R1 and square were blocked but X choosing a menu entry made the player jump.
+  Key the hiding on `*progress-process*` (the menu alive), not on `*master-mode*` `'progress`.
+  Verified: jak3, the multiplayer mod's `menu-buttons` scenario (X jumped before, not after),
+  2026-10-20.
 - **A model drawn over the menu** (a preview on a page) must carry `draw-control-status hud`
   (bit 14): while the still copy shows (menu mode, as at the title screen), the foreground only
   draws the draw-controls with that status. Turning the menu mode off instead brought back
@@ -1085,3 +1092,34 @@ the finish by the racers' AI on two machines), 2026-10-20.
 Verified: jak3, `engine/target/flut/flut.gc`, `flut-h.gc`, `target-flut.gc`, `dgos/game.gd`; the
 multiplayer mod's `mounts-coop` scenario (a second lizard of the same entity, idle at once, kept
 out of the count, hidden and shown for another player), 2026-10-20.
+
+## 4.23 A borrowed level on demand, and an engine shadow crash
+
+- **Loading a borrowed level from your code.** Missions list their borrowed levels in their task
+  nodes (`game-task.gc`, `:borrow '((waswide 0 lkleever special))`: level `lkleever` into
+  `waswide`'s borrow slot 0). Ask the same from a process that lives as long as you need it:
+
+  ```lisp
+  (set-setting! 'borrow '((waswide 0 lkleever special)) 0.0 0) ;; owned by the calling process
+  (apply-settings *setting-control*)                            ;; a borrow change runs update-task-masks
+  ;; later: (remove-setting! 'borrow) (apply-settings *setting-control*)
+  ```
+
+  `apply-settings` compares the borrow lists and calls `(update-task-masks 'event)` when they
+  change (`engine/game/settings.gc`), which applies them and loads the level
+  (`add-borrow-levels`). Its art is then found by name (`art-group-get-by-name *level*
+  "skel-kleever-highres" #f`). Spawn a model of it to `*entity-pool*`: when the borrowed level
+  unloads, `check-for-rougue-process` (`engine/entity/entity.gc`) kills every process-drawable of
+  `*pusher-pool*`, `*entity-pool*` and `*default-pool*` whose art is in that level's heap.
+  Kleiver's model (`lkleever`, 4.5 KB of level plus his art) loads at Spargus this way.
+- **Engine: the shadow overflow skip.** `Shadow2::render`
+  (`game/graphics/opengl_renderer/foreground/Shadow2.cpp`) skips a shadow too big for its VU
+  program ("shadow overflow detected, skipping all shadows for this frame!", upstream #3934, for
+  NaN bones). Its loop tests `while (dma.current_tag_offset() == render_state->next_bucket)`: it
+  skips nothing, and `dispatch_buckets_jak3` then stops on `dma.current_tag_offset() ==
+  m_render_state.next_bucket` (OpenGLRenderer.cpp). The fix is `!=`. Seen on a guest's game in the
+  palace ruins (`rubblea2`), right after the overflow message.
+
+Verified: jak3, `engine/game/settings.gc`, `engine/game/task/task-control.gc`,
+`engine/entity/entity.gc`; the multiplayer mod's `merchant` scenario (Kleiver's model at his
+spot, `lkleever` active) and the user's crash log, 2026-10-20.

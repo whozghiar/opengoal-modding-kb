@@ -61,6 +61,7 @@ subsystem differences, not restatements of the shared material.
   - [4.20 The order processes run in](jak3.md#420-the-order-processes-run-in)
   - [4.21 How missions check the player: waypoints and races](jak3.md#421-how-missions-check-the-player-waypoints-and-races)
   - [4.22 Leaper lizards (`flut`): where their code lives, spawning one](jak3.md#422-leaper-lizards-flut-where-their-code-lives-spawning-one)
+  - [4.23 A borrowed level on demand, and an engine shadow crash](jak3.md#423-a-borrowed-level-on-demand-and-an-engine-shadow-crash)
 - [How to contribute](../../kb/SKILL.md)
 
 
