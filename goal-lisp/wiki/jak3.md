@@ -1025,6 +1025,12 @@ pushed with the menu open does not move the player, the menu still reads it), 20
   score. `update-rankings` sorts the racers by `lap-count` plus `lap-distance` (a part of the lap),
   finished ones by finish order; `finish-time` and `race-start-time` count `current-time` units.
   Damas's races (`artifact-race.gc`, DESRACE1-2) have no ranking.
+- **Running a race to the finish without a player** (a test): once the race runs (`*game-info*`
+  `race-timer` above 0), `(send-event <player's vehicle> 'set-control-hook-race-ai)` hands the
+  player's turtle to the racers' AI (`wvehicle-method-177`, `levels/desert/wvehicle/wvehicle.gc`),
+  which drives Kleiver's three laps (about 75 s a lap) and crosses the line: the race finishes as
+  for a player. The race drives its racers every frame: `'set-control-hook-ai` with
+  `'ai-set-target-speed 0` does not stop them; deactivating a racer leaves its place frozen.
 
 Verified: jak3, `engine/game/task/task-arrow.gc`, `engine/target/target-death.gc`,
 `levels/desert/race/course-race.gc`, `levels/desert/artifact-race/artifact-race.gc`; the
@@ -1033,5 +1039,6 @@ scenarios), 2026-10-19; Kleiver's race and the arena training played in co-op, t
 sent to `done` (`race-real`, `race-real-daxter`, `beam-real`), the intro skipped in a retail boot
 (`retail-general`: the title menu after 6 s instead of 274 s), 2026-10-19;
 `levels/common/race/race-manager.gc`, `race-hud.gc`, `engine/game/task/task-control.gc`,
-`engine/util/script.gc`; the mod's `mission-start`, `race-result`, `race-board` scenarios,
-2026-10-20.
+`engine/util/script.gc`, `levels/desert/wvehicle/wvehicle.gc`; the mod's `mission-start`,
+`race-result`, `race-board`, `race-finish`, `race-finish-win` scenarios (Kleiver's race driven to
+the finish by the racers' AI on two machines), 2026-10-20.
