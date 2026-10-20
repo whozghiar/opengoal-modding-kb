@@ -491,6 +491,39 @@ Verified: jak3, `engine/target/gun/gun-red-shot.gc` (`find-targets-and-attack!`)
 `engine/process-drawable/process-focusable.gc`; in the multiplayer mod, the four weapons hurt
 another player through such a hurtbox, 2026-10-15.
 
+**Such a hurtbox crashes the dark blast.** Dark Jak's blast (L1 + square: `target-attack-uppercut`,
+then `target-darkjak-bomb1`, `engine/target/target-darkjak.gc`) takes every focusable of kind
+crate, enemy, guard or vehicle in the actor hash within 80 m and sends each a lightning bolt at
+joint 3 (`target-bomb1-fire-shot`). The bolt follows that joint every frame (`lightning-tracker`
+`update`, `engine/common-obs/generic-obs.gc`: `vector<-cspace!` on its `node-list`): a focusable
+without a skeleton, or with 3 joints or fewer, stops the game (access violation in
+`vector<-cspace!` from the tracker). Joint 256 makes the bolt follow `get-trans` instead; wrap
+`lightning-tracker-init` (its 5th argument is the joint, typed `vector`):
+
+```lisp
+(define-perm *my-stock-lightning-tracker-init*
+             (function lightning-spec time-frame symbol process-drawable vector vector none :behavior lightning-tracker)
+  lightning-tracker-init)
+
+(defbehavior lightning-tracker-init lightning-tracker ((arg0 lightning-spec) (arg1 time-frame) (arg2 symbol)
+                                                       (arg3 process-drawable) (arg4 vector) (arg5 vector))
+  (let ((joint (the-as int arg4)))
+    (if (and arg3 (>= joint 0) (< joint 256) (type? arg3 process-focusable)
+             (or (zero? (-> arg3 node-list)) (>= joint (-> arg3 node-list length))))
+        (set! arg4 (the-as vector 256))))
+  (*my-stock-lightning-tracker-init* arg0 arg1 arg2 arg3 arg4 arg5)
+  (none))
+```
+
+Setting the blast off needs the darkjak stage `bomb1` (from the `darkjak-bomb1` feature when Dark
+Jak starts), that feature in `*setting-control*` `user-current features`, the dark animations
+(`ext-anim` dark), no `latch-out-time` and `eco-pill-dark` at least `darkjak-bomb-min` (50); the
+input is L1 held (`target-duck-stance`), then square with L1 still held.
+
+Verified: jak3, `engine/target/target-darkjak.gc`, `engine/target/target.gc`,
+`engine/common-obs/generic-obs.gc`; the multiplayer mod's `dark-blast` scenario stopped the blasting
+player's game before the wrapper, passes after it (both players set one off, no crash), 2026-10-20.
+
 ## 4.12 Drawing another process's model elsewhere
 
 A process keeps its draw-control's `art-group` and `jgeo`, not the skeleton-group it was built
