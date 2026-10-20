@@ -1123,3 +1123,24 @@ out of the count, hidden and shown for another player), 2026-10-20.
 Verified: jak3, `engine/game/settings.gc`, `engine/game/task/task-control.gc`,
 `engine/entity/entity.gc`; the multiplayer mod's `merchant` scenario (Kleiver's model at his
 spot, `lkleever` active) and the user's crash log, 2026-10-20.
+
+## 4.24 Mission failures: the resetter
+
+- **One entry point.** Every failure, retry and restart screen is a `resetter` process started by
+  `(spawn-resetter! *resetter-control* params node-info)` (`engine/game/task/task-control.gc`):
+  the task manager's `fail` state with its `fail-info`, the game's fallback (`mission-fail`, back
+  to the mission's `play-continue`), a restart. Wrap that method to see or copy them all.
+- **Params** (`resetter-params`, 48 bytes): `message` (`mission-fail`: no choice, X goes on;
+  `mission-fail-or-retry`: X retry, triangle quit; `mission-retry`: a restart), `flags`
+  (`auto-reset` with `reset-delay`: it goes on by itself), `fail` and `retry` specs (continue name
+  or continue point, node, `reset-mode` `'life` or `'try`, an `execute` script), `task`,
+  `text-message`. Story missions have no `fail-info` and use the fallback; the minigames offer
+  retry or quit.
+- **Its choice** is read in its `idle` state with `cpad-pressed? 0 confirm` / `triangle` once it
+  grabbed the player and slowed the world down (1.5 s on the real clock; then
+  `set-master-mode 'freeze`). Hide those buttons from it (a process that runs before it) and give
+  them back on one frame to drive it. Time it with `(-> *display* real-clock frame-counter)`
+  against its `grabbed-time`: a process's `current-time` stays frozen meanwhile.
+
+Verified: jak3, `engine/game/task/task-control.gc`; the multiplayer mod's `mission-fail` and
+`mission-fail-retry` scenarios (a failure shown on two machines, decided together), 2026-10-21.
