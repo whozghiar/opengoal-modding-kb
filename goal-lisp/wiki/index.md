@@ -60,6 +60,7 @@ subsystem differences, not restatements of the shared material.
   - [4.19 A clip on part of a skeleton](jak3.md#419-a-clip-on-part-of-a-skeleton)
   - [4.20 The order processes run in](jak3.md#420-the-order-processes-run-in)
   - [4.21 How missions check the player: waypoints and races](jak3.md#421-how-missions-check-the-player-waypoints-and-races)
+  - [4.22 Leaper lizards (`flut`): where their code lives, spawning one](jak3.md#422-leaper-lizards-flut-where-their-code-lives-spawning-one)
 - [How to contribute](../../kb/SKILL.md)
 
 

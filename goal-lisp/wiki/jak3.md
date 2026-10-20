@@ -1056,3 +1056,32 @@ sent to `done` (`race-real`, `race-real-daxter`, `beam-real`), the intro skipped
 `engine/util/script.gc`, `levels/desert/wvehicle/wvehicle.gc`; the mod's `mission-start`,
 `race-result`, `race-board`, `race-finish`, `race-finish-win` scenarios (Kleiver's race driven to
 the finish by the racers' AI on two machines), 2026-10-20.
+
+## 4.22 Leaper lizards (`flut`): where their code lives, spawning one
+
+- **Type in GAME, code in the levels.** `deftype flut` is in `flut-h.gc` (GAME): a GAME file can
+  test `(type? p flut)` and read its fields. Its states and `flut-init` are in `flut.gc`, loaded
+  only with WWD, DESLIZ and VOCA. Find the init by name, and only call it while a lizard exists:
+
+  ```lisp
+  (let ((init (-> 'flut-init value)))
+    (when (and init (type? init function))
+      (process-spawn flut
+                     :init (the-as (function entity-actor transformq handle flut-flag symbol object) init)
+                     ent tq rider (the-as flut-flag (+ 1 (shl color 32))) 'normal
+                     :name "flut" :to *entity-pool*)))
+  ```
+
+- **A spawned lizard.** With an entity and a transform, it stands at the transform (the entity
+  gives its level and task mask). A live `rider` handle makes it go idle at once; `#f` sends it to
+  `wait-for-start`, which waits while its spot is in view within 100 m, while another lizard
+  stands within 4 m (`flut-method-33`), and while 10 lizards are out (`*game-info* flut-count`,
+  counted by `idle` once per lizard through `count-lock`). The `rider` field is not read after
+  the init.
+- **Picked up.** A lizard that is not its entity's own process (`(-> entity extra process)`)
+  deactivates once ridden; the entity's own one waits hidden (`wait-for-return`) until its next
+  birth. Getting off spawns a new lizard at that spot (`target-flut.gc`).
+
+Verified: jak3, `engine/target/flut/flut.gc`, `flut-h.gc`, `target-flut.gc`, `dgos/game.gd`; the
+multiplayer mod's `mounts-coop` scenario (a second lizard of the same entity, idle at once, kept
+out of the count, hidden and shown for another player), 2026-10-20.
