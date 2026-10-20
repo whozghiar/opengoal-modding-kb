@@ -686,6 +686,20 @@ buggy's dust and engine sound replayed on another machine; task nodes closed on 
 on the other; the hoverboard zap replayed under `*entity-pool*` crashed the other machine in
 `board-zap-track`, no crash once parented to the player's copy), 2026-10-15.
 
+**A particle group drawn in an object's local space** (`sp-group-flag sp12`) cannot be started
+anywhere else: its launch control's `spawn` (`sparticle-launcher.gc`) copies the matrix of
+`local-space-binding`, a `particle-local-space-info` that overlays the control's `fade` and that
+only the owning object sets (`set-local-space-info`, method 15). A part-tracker started elsewhere
+for such a group reads address 0 + #x20 and the game stops (access violation in the stock `spawn`
++#x143, under a `part-tracker-subsampler`). Test the flag before replaying a group:
+`(logtest? (-> group flags) (sp-group-flag sp12))` (Spargus's pre-game crystal,
+`group-wascity-pre-game-crystal-glow`, is one).
+
+Verified: jak3, `engine/gfx/sprite/particles/sparticle-launcher.gc`, `sparticle-launcher-h.gc`;
+the multiplayer mod's `pre-game` scenario stopped the guest twice out of two at that address (as in
+a co-op session the user played), three runs without a crash once those groups are skipped,
+2026-10-20.
+
 ## 4.14 Keeping world objects alike on several machines
 
 - **Cycles.** An object on a cycle (moving platform, wheel, light) gets its phase from a
