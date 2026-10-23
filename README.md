@@ -18,12 +18,14 @@ the fork to record its own discoveries (`git submodule set-url .agents/skills <f
 | [`verification-before-completion`](verification-before-completion/SKILL.md) | Evidence before any "done" or "fixed" claim (imported, MIT) |
 | [`writing-for-agents`](writing-for-agents/SKILL.md) | Writing skills and agent instruction files that agents follow reliably (imported, MIT) |
 | [`remotion/`](remotion/remotion-best-practices/SKILL.md) | Making videos with Remotion, one skill per folder, `remotion-best-practices` routing to the others (imported from [remotion-dev/skills](https://github.com/remotion-dev/skills), v4.0.537) |
+| [`jak-level-editor-skills/`](jak-level-editor-skills/README.md) | Working on [Jak Level Editor](https://github.com/whozghiar/jak-level-editor): building and testing it, its interface texts, its game data, its screenshots, building levels through its MCP tools, adding an exported level to the game |
 
 ## Which agents read it
 
 Gemini CLI, Codex, GitHub Copilot and Cursor read `.agents/skills/` natively. Claude Code
 reads `.claude/skills/`, which `task ai-link` in the host repository fills with links to
-these folders (`yarn skills:link` in the OpenGOAL launcher, which also links those of `remotion/`).
+these folders (`yarn skills:link` in the OpenGOAL launcher and in Jak Level Editor, which also link the skills
+grouped one folder down: `remotion/`, `jak-level-editor-skills/`).
 
 ## Contributing
 
