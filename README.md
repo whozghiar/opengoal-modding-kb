@@ -17,12 +17,13 @@ the fork to record its own discoveries (`git submodule set-url .agents/skills <f
 | [`kb`](kb/SKILL.md) | Recording a verified discovery here without duplicating or contradicting an entry |
 | [`verification-before-completion`](verification-before-completion/SKILL.md) | Evidence before any "done" or "fixed" claim (imported, MIT) |
 | [`writing-for-agents`](writing-for-agents/SKILL.md) | Writing skills and agent instruction files that agents follow reliably (imported, MIT) |
+| [`remotion/`](remotion/remotion-best-practices/SKILL.md) | Making videos with Remotion, one skill per folder, `remotion-best-practices` routing to the others (imported from [remotion-dev/skills](https://github.com/remotion-dev/skills), v4.0.537) |
 
 ## Which agents read it
 
 Gemini CLI, Codex, GitHub Copilot and Cursor read `.agents/skills/` natively. Claude Code
 reads `.claude/skills/`, which `task ai-link` in the host repository fills with links to
-these folders.
+these folders (`yarn skills:link` in the OpenGOAL launcher, which also links those of `remotion/`).
 
 ## Contributing
 
