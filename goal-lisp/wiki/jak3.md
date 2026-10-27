@@ -1262,3 +1262,26 @@ an effect, a distance check) must also compare the levels: the continue `volcano
 
 Verified: jak3, the entity dumps above; the multiplayer mod's `places` and `places-before`
 scenarios, 2026-10-27.
+
+## 4.28 The minimap: icon classes, the turned marker, the big map
+
+An icon is a connection: `(add-icon! *minimap* proc class-index #f (the-as vector #t) 0)` follows
+`proc`'s root; its `class` is a pointer into `*minimap-class-list*` (177 classes,
+`engine/ui/minimap.gc`) that can be pointed at a copy (`mem-copy!` a node, change `color`, `flags`,
+`scale`, `icon-xy`). Removed with `kill-callback` on `(-> *minimap* engine)`.
+
+- **Icons** (`sub-draw-1-2`): a cell of the `mini-map-icons` texture (`icon-xy`, `scale`), in the
+  class color; class 117 `red-clamped-dot` is a dot kept on the minimap's edge when far (`clamp`)
+  and shown on the big map (`bigmap`).
+- **The turned marker** (`racer` flag, class 29 `racer`): `draw-racer-2` draws
+  `map-target-marker`, the player's own marker, turned by the process's root quaternion, into the
+  map's texture (`sub-draw-1-1`) within 50 texels of the player, in the class color (128 = the
+  texture's color; the player's own marker is drawn at 255). A `racer` class is never drawn as an
+  icon, and the icons, drawn after, cover it. In Spargus a texel is `meters-per-texel` ×
+  `icon-inv-scale` = 22118.4 × 0.846 units (4.6 m): a player 30 m away is 6 texels off, under its
+  own dot.
+- **The big map** (`bigmap.gc`) draws every class with `bigmap` (or `bigmap-only`) as an icon, by
+  its `icon-xy` and `scale`.
+
+Verified: jak3, `engine/ui/minimap.gc`, `engine/ui/bigmap.gc`; the multiplayer mod's players shown
+by a marker in their color (scenarios `minimap-cone`, `coop-roles`, screenshots), 2026-10-28.

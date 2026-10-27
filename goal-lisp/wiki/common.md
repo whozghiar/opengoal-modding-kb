@@ -811,6 +811,16 @@ use `~S`, or `copy-string<-string` to copy a string.
 Verified: jak3, compile errors in the multiplayer mod, 2026-10-14; `game/kernel/jak3/kprint.cpp`,
 the multiplayer mod's shop key came out quoted with `~A`, 2026-10-19.
 
+### 1.4.20 `=` compares strings by address: use `string=`
+
+`=` on two strings compares the objects, not their text: a class name `"racer"` from the engine and
+a `"racer"` literal in another file are two static strings, never `=`. Compare text with
+`(string= a b)`. A copy of a structure (`mem-copy!`) keeps the same string object, so it stays `=`
+to the original's.
+
+Verified: jak3, the multiplayer mod's minimap probe: `(= (-> conn class name) "racer")` matched no
+connection while their class name printed `racer`, 2026-10-28.
+
 ### 1.4.19 A state keeps the event handler it was defined with
 
 `defstate` evaluates `:event`, `:enter`, `:trans`... once, when the state is defined: a state holds
