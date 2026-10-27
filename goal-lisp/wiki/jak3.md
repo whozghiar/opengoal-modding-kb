@@ -342,7 +342,14 @@ they would dangle once it unloads.
   training's cutscene): test it before `(-> ... 0)`. Every frame it copies the player's clips, then
   calls `joint-control-remap!`, where a `define-perm` wrapper can put another clip on it. Its
   feature bit is `#x100000`: `(set-setting! 'features 'clear 0 #x100000)` takes him off Jak (as
-  `target-death.gc` does), without touching the saved features.
+  `target-death.gc` does), without touching the saved features. Stock code that has Daxter act
+  for Jak reads him without a test, and crashes without him: `gun-post` (`gun-util.gc`) reads his
+  hand when `gun gun-daxter` is 1, which `target-gun-joint-points` sets by Daxter's firing clip in
+  a vehicle (the glider of `desert-glide` at once); `target-pilot-pidax-enter`
+  (`target-pilot.gc`) draws the player with his art for `'change-mode 'pilot-daxter` (the port
+  attack's torpedo). Keep `gun-daxter` at 0 without him, and bring him back first
+  (`target-sidekick-setup #t`, after removing the setting and `apply-settings`, or logic-target's
+  own check removes him again within the frame).
 - **Daxter climbing onto Jak's shoulder:** the stock climb back after Dark Jak is
   `daxter-darkjak-get-off-ja` then `daxter-darkjak-get-off-end-ja` (Daxter's art 420 and 427,
   `engine/data/art-elts.gc`). Played on the sidekick's channel 0 from that wrapper, each clip
@@ -438,6 +445,16 @@ target-stance)`), brings the player back elsewhere with the mission still runnin
 Verified: jak3, `engine/target/target-death.gc`; the multiplayer mod's co-op return next to a
 teammate (scenario `coop-respawn`: each player killed, back next to the other in `target-stance`,
 health full), 2026-10-19.
+
+Only for functions of GAME files. A file whose header lists level DGOs (`;; dgos: HGA, LPATK,
+RAILA, ...`, as `engine/target/target-pilot.gc`) is level code: its object is linked again each
+time one of those levels loads, which defines the stock function again over the wrapper. Call the
+mod's function from the stock file instead: a `define-extern` above `;; DECOMP BEGINS` and one call
+in the function, as the races do with `mp-race-hold?` (`artifact-race.gc`, `course-race.gc`).
+
+Verified: jak3, `engine/target/target-pilot.gc` header and `goal_src/jak3/dgos/*.gd`; the
+multiplayer mod's `mp-pidax-sidekick!` (the host rode the port attack's torpedo, which had crashed
+it), 2026-10-27.
 
 ## 4.11 Making a process hittable by the player's attacks
 
@@ -593,13 +610,18 @@ remote Jak in a buggy matching the driver's bones within 1 mm; a running citizen
 off with `trans - base`, 1.8 mm at most with `trans - w * base`), 2026-10-14.
 
 A copy's own death effect: `(do-effect (-> skel effect) "death-default" 0.0 -1)` plays the
-dissolve of characters, but the art of a vehicle (cars, bikes, barges: `vehicle` and its
-children) has no `death-default`, and the call jumps to address 0: a crash when the copy of a
-destroyed vehicle plays it. Skip it for vehicles; their explosion is their own effects.
+dissolve of characters. Art without effects has no effect-control: `(new 'process
+'effect-control proc)` returns `#f` when the art's `jgeo extra` has no `effect-name`
+(`engine/game/effect-control-h.gc`), so `skel effect` is `#f`, not 0. Test it as the stock does
+(`(if (-> self skel effect) ...)`, `process-taskable.gc`): `nonzero?` lets `#f` through, and
+`do-effect` looked up on a symbol jumps to address 0 (crashes on the guest when the copy of a
+barge, a KG hover or a Haven City citizen died). Vehicles keep their explosion in their own
+effects: skip the call for them anyway.
 
-Verified: jak3, seen in game in the multiplayer mod (`multiplayer-v1.0.0` crashed on the guest
-when a barge its gyro burster or plasmite RPG destroyed died; fixed by the vehicle test),
-2026-10-15.
+Verified: jak3, `engine/game/effect-control-h.gc`, `engine/process-drawable/process-taskable.gc`;
+the multiplayer mod's crash in `mp-replica-update` located with goalc's disassembly (the call
+right after reading `skel effect`), gone in Haven City's KG missions once tested as a symbol,
+2026-10-27. Replaces an earlier entry blaming a missing `death-default` in vehicle art.
 
 Cloth (Jak's scarf, `:clothing` in `target-util.gc`): its strips are drawn apart from the model
 and rebuilt by `cloth-on-skeleton` only while the owner is on screen. A copy moved far in one

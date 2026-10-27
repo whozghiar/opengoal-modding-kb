@@ -253,6 +253,13 @@ The multiplayer mod's `scripts/mp-test/run_mp_test.py` and `multiplayer-test.gc`
   return `EXCEPTION_CONTINUE_SEARCH`. A jump to EE offset 0 is a call through an unset function.
   The multiplayer mod's `report_goal_crash` (`game/kernel/jak3/kmultiplayer.cpp`) printed
   `vector<-cspace! +#xc` from `board-zap-track`, the first clue to a crash no log showed.
+- **The instruction behind `f +#x...`.** Anonymous code (state handlers, lambdas) has no symbol: it
+  is named after the last named function before it (`valid? +#x8b5`). goalc disassembles a file
+  with its source lines and IR: `goalc --user-auto --game jak3 --cmd "(begin (mi) (asm-file
+  \"goal_src/jak3/<path>.gc\" :color :disassemble \"<out>.asm\"))"` (without `:color` it only
+  warns). Each function is listed as `[name]`, its code from `0x10000`: `f +#x955` is the line
+  `[0x10955]` under `[f]`. A caller's offset is a return address: its call is the instruction
+  before.
 
 Verified: jak3, `game/main.cpp`, `common/util/FileUtil.cpp`, `game/graphics/pipelines/opengl.cpp`,
 `game/kernel/jak3/kmultiplayer.cpp`; used for every in-game check of the multiplayer mod,
