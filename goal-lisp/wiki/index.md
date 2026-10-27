@@ -64,7 +64,8 @@ subsystem differences, not restatements of the shared material.
   - [4.23 A borrowed level on demand, and an engine shadow crash](jak3.md#423-a-borrowed-level-on-demand-and-an-engine-shadow-crash)
   - [4.24 Mission failures: the resetter](jak3.md#424-mission-failures-the-resetter)
   - [4.25 Burning bush challenges (`bbush`)](jak3.md#425-burning-bush-challenges-bbush)
-  - [4.26 Places at the same coordinates](jak3.md#426-places-at-the-same-coordinates)
+  - [4.26 The jet-board, and Daxter on it](jak3.md#426-the-jet-board-and-daxter-on-it)
+  - [4.27 Places at the same coordinates](jak3.md#427-places-at-the-same-coordinates)
 - [How to contribute](../../kb/SKILL.md)
 
 

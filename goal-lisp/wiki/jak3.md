@@ -1193,7 +1193,29 @@ Verified: jak3, `levels/desert/des-burning-bush.gc`, `des-bbush-tasks.gc`, `des-
 multiplayer mod's `challenge`, `challenge-one` and `challenge-board` scenarios (the city's get-to challenge 26 started and reached on two machines, its
 3 orbs held and given), 2026-10-27.
 
-## 4.26 Places at the same coordinates
+## 4.26 The jet-board, and Daxter on it
+
+- **Taking it out:** `want-to-board?` (R2) in Jak's stance, or `'change-mode 'board` to the target,
+  goes to `target-board-start` (`engine/target/board/board-states.gc`), which leaves the current
+  mode (`target-exit`) and spawns the `board` process. Daxter's mode (`indax`) ignores both: a
+  replaced handler of his stance and walk can send him to `target-board-start` too; the game feature
+  `board` must be in `(-> *game-info* features)`.
+- **The clips** are external: `jak-board+0-ag` (target-anim `board`, `*target-anim-control*`)
+  holds Jak's `jakb-board-*` (jakb-ag 164-228) and 56 of Daxter's 67 `daxter-board-*` (daxter-ag
+  147-213, the same order, 17 below); they are loaded once the board is out and freed after it.
+- **The sidekick on the board** plays Daxter's board clips matched to Jak's, its root on Jak's joint
+  37 (`sidekick.gc`, `'matrix 'board`, sent by the get-on): Daxter clinging to Jak's back. A
+  `cspace` root function set in `(-> sidekick node-list data 0 param0)` places him elsewhere (on the
+  board: `board board-trans`, `board-quat`); the get-on sets it back, so set it every frame.
+- **The board** copies `board-scale` (the target's `control scale`, every frame) into its root
+  and hides whenever the target has `no-draw-bounds2` (`board-post`, `board-util.gc`): wrap its
+  `use` state's post (`(method-of-type board use)`) to scale or show it.
+
+Verified: jak3, `engine/target/board/*.gc`, `engine/target/sidekick.gc`,
+`engine/target/indax/target-indax.gc`; the multiplayer mod's `daxter-board` scenario (Daxter on a
+board at 60 %, stance, jump, put away; screenshots), 2026-10-27.
+
+## 4.27 Places at the same coordinates
 
 Several places share Haven's ground plan, reached through a loading transition (entity positions,
 `decompiler_out/jak3/entities/<level>-actors.json`, in meters): the volcano (`volcanoa`, x -250..129,
