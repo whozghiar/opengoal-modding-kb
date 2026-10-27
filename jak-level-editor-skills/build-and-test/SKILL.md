@@ -50,8 +50,8 @@ npx vite build                                # the interface builds
 They need no game data: the tests that read the extracted game skip themselves when
 `library/jak3/library.json` is missing. They check, among others: the scene, glTF round trips,
 prefabs and groups, the export for the game, the translations (every key of `lang/en.json` in every
-language, with the same `%` arguments), the game view, the holes finder, the weathers, the terrain
-brush, the nav meshes.
+language, with the same `%` arguments), the game view, the weathers, the terrain brush, the nav
+meshes.
 
 Every new piece of logic leaves one check: a `#[test]` in the `#[cfg(test)] mod tests` of its file
 (or `crates/core/tests/*.rs` for the whole engine).

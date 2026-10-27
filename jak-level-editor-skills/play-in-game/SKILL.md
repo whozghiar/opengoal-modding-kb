@@ -31,5 +31,5 @@ By hand:
 
 Checks worth doing in the game: the level loads (`(level-status? *level* '<name> #f)`), Jak stands
 on its floors (the export's report lists the places denser than the game's collision cache), doors
-open, and nothing shows the void (run `find_gaps` in the editor first). Close `gk` and `goalc` when
+open, and nothing shows the void (look around it in the editor's game rendering first). Close `gk` and `goalc` when
 done.

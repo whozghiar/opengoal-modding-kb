@@ -6,12 +6,12 @@ description: Make the screenshots of the documentation again (docs/user-guide.md
 # Documentation captures
 
 The pictures go in `docs/captures/<feature>/<name>.png`, one folder per feature of the user guide
-(getting-started, levels, selecting, groups, catalog, prefabs, building, holes, game-rendering,
+(getting-started, levels, selecting, groups, catalog, prefabs, building, game-rendering,
 behaviors, nav-meshes, export, mcp), 1600 x 900, the interface in English.
 
 ```bash
 python tools/capture_docs.py                            # all of them (needs Jak 3 extracted, the editor built)
-python tools/capture_docs.py --only groups,holes        # some features (first-start: the first-run assistant, the extraction)
+python tools/capture_docs.py --only groups,catalog      # some features (first-start: the first-run assistant, the extraction)
 python tools/capture_docs.py --only levels --out <dir>  # elsewhere, to compare before replacing
 ```
 
@@ -22,7 +22,7 @@ seen; never the user's preferences) and drives it two ways:
 
 - **The remote control** (`Editor.call`: the MCP server's tools, one JSON line per request on
   `--remote-port`) sets up the scene: `open_level`, `add_level`, `place`, `terrain`, `select`,
-  `set_camera`, `set_view`, `set_story`, `find_gaps`... `capture_view` gives a picture of the 3D view
+  `set_camera`, `set_view`, `set_story`... `capture_view` gives a picture of the 3D view
   alone; it answers once the interface is up (the script waits for it).
 - **The web view's DevTools** (`Editor.web`): the editor started with
   `WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS=--remote-debugging-port=<port>` and a
