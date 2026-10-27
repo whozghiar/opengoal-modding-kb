@@ -1201,8 +1201,14 @@ z -321..255), the mine (`minea`..`minee`) and the halfpipe lie on Haven's ruins 
 -500..420, z -384..882); the war factory (`factoryb`..`d`, y 274..566) and the precursor ship
 (`precura`..`d`, `lprecurc`, y 200..574) stand above them and overlap each other; the catacombs
 (`comb*`) and their rail (`rail*`, down to y -3780) run below; the nest (`nsta`, `nstb`) lies under
-Haven's industrial quarter. Haven (x about -880..1180) and the wasteland with Spargus (x above
-1170, or z above 2000) never overlap. Anything placed by position alone (a remote player, a copy,
+Haven's industrial quarter. Within Haven, the ruins (`rubble*`, `stadiumb`, `lpattack`,
+`lppatrol`: loaded with `stadiuma`, never with `ctywide`, reached through `stadium`) and the Metal
+Head city (`mhcity*` with `tower*`: loaded with `ctywide-mh`, reached from `ctyport`) both lie over
+the farms (`ctyfarm*`): a ruins gate panel at y 16 stands 4 m from a farm emitter at y 38. The
+test for two places: never in the same continue point's load list, and entities filling the same
+volume at heights one ground cannot hold (stacked levels such as the sewers under the city share
+one consistent space). Haven (x about -880..1180) and the wasteland with Spargus (x above 1170, or
+z above 2000) never overlap. Anything placed by position alone (a remote player, a copy,
 an effect, a distance check) must also compare the levels: the continue `volcano-flut-1` stands
 23.6 m from `ctygenb-stadium`.
 
