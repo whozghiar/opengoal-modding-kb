@@ -1171,15 +1171,26 @@ Verified: jak3, `engine/game/task/task-control.gc`; the multiplayer mod's `missi
   manager's child (`birth-pickup-at-point ... self`). `adjust-money-per-level` (`game-info.gc`)
   reads the parent of the handle's process with no check: never pass `#f` or a dead handle to
   `give 'skill`.
+- **The jet-board's judge** (`judge`, `engine/common-obs/voicebox.gc`) is spawned where the
+  player stands when the challenge starts, asleep in `wait`, and starts its 90 s only on a
+  `'touch` from the player (the stock collision). Daxter (`indax` mode) never touches it, and Jak
+  switched in inside its sphere gave no touch either: send it the touch yourself, an
+  `event-message-block` whose `from` is `(process->ppointer *target*)`. It copies
+  `(-> *target* fact trick-point)` into `*game-info*` `score` every frame; the manager gives
+  `(cups gained) x user-count` orbs, or fails without a new cup.
 - **Scores** live in level types: `task-manager-bbush-board` `score` at offset 240,
   `task-manager-vehicle-bbush` `score` at 304 (its report state sets it from the air time, the
   distance or the roll count), `node-info`, task-manager's first field, at 128
   (`decompiler/config/jak3/all-types.gc`). Code linked before those levels reads them at
   `(&+ (the-as pointer (&-> mgr node-info)) (- offset 128))`.
 
+- **Following a manager to its end:** keep its state and score every frame. Right after the
+  jet-board's manager gave its reward, its handle stopped answering on the next frame, while its
+  resolution still played its line (`bb17win`).
+
 Verified: jak3, `levels/desert/des-burning-bush.gc`, `des-bbush-tasks.gc`, `des-bush.gc`,
-`levels/city/ctywide-obs.gc`, `engine/game/game-info.gc`; the multiplayer mod's `challenge` and
-`challenge-one` scenarios (the city's get-to challenge 26 started and reached on two machines, its
+`levels/city/ctywide-obs.gc`, `engine/game/game-info.gc`, `engine/common-obs/voicebox.gc`; the
+multiplayer mod's `challenge`, `challenge-one` and `challenge-board` scenarios (the city's get-to challenge 26 started and reached on two machines, its
 3 orbs held and given), 2026-10-27.
 
 ## 4.26 Places at the same coordinates
