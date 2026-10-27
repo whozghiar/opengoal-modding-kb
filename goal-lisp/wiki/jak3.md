@@ -231,6 +231,12 @@ its action on confirm whatever the yes / no choice; subclass it and test `confir
 - **Text from the per-frame hook:** `print-game-text` adds its own DMA bucket. Called inside a
   `with-dma-buffer-add-bucket` block it nests two buckets and the game stops on the `!m_ended`
   assertion: call it after the block closes.
+- **Button icons are long.** `lookup-text!` returns a `<PAD_...>` icon expanded into its drawing
+  codes (`common/util/font/dbs/font_db_jak3.cpp`): about 40 characters for `<PAD_X>`, about 110
+  for `<PAD_DPAD_UP>`. A line formatted into a 64-character string stopped right after the D-pad
+  icon; give such lines a 256-character string. Jak 3's font has icons for the face buttons, L1,
+  L2, R1, R2 and the D-pad, none for L3 or R3. Verified: the multiplayer mod's challenge
+  invitation (`challenge` scenario screenshots), 2026-10-27.
 - **SELECT pauses** like START (`determine-pause-mode`, `engine/draw/drawable.gc`). To give it
   another use, wrap that function and clear SELECT from `(-> *cpad-list* cpads 0 button0-rel 0)`
   before calling the stock one.
@@ -1141,6 +1147,53 @@ spot, `lkleever` active) and the user's crash log, 2026-10-20.
   `set-master-mode 'freeze`). Hide those buttons from it (a process that runs before it) and give
   them back on one frame to drive it. Time it with `(-> *display* real-clock frame-counter)`
   against its `grabbed-time`: a process's `current-time` stays frozen meanwhile.
+- **`mission-fail-or-retry` never goes on by itself:** its `idle` loop reads only X and triangle;
+  `auto-reset` is honored by `mission-fail` and `mission-retry` alone. The burning bush challenges
+  fail with it (their `fail-info`): the game stays frozen until the player chooses (a test left on
+  it waited three minutes).
 
 Verified: jak3, `engine/game/task/task-control.gc`; the multiplayer mod's `mission-fail` and
-`mission-fail-retry` scenarios (a failure shown on two machines, decided together), 2026-10-21.
+`mission-fail-retry` scenarios (a failure shown on two machines, decided together), 2026-10-21;
+`challenge-one` (a challenge's failure, 2026-10-27).
+
+## 4.25 Burning bush challenges (`bbush`)
+
+- **Two task nodes,** both with `game-task-node-flag bbush` (`engine/game/task/game-task.gc`): the
+  introduction, which the bush's `talking` state closes (`task-node-close! current-node 'event`,
+  `levels/desert/des-burning-bush.gc`), and the resolution, whose `task-manager-info` runs the
+  challenge: `type-to-spawn`, `level` (the manager spawns once that level is active), `user-count`
+  (its reward in precursor orbs) and `reset restart-info retry continue` (the challenge's start).
+  The task's play-list entry names the introduction (`pre-play-node`). The skull gems are paid
+  once per bush, in its entity perm (`user-object 0` set to 1).
+- **The reward** is `(give *game-info* 'skill n handle)`: from the manager (`process->handle
+  this`: rings, chases, the jet-board, vehicle scores, the races' `race-manager`, a child of the
+  task manager), or from the precursor orb a get-to challenge leaves at its end, spawned as the
+  manager's child (`birth-pickup-at-point ... self`). `adjust-money-per-level` (`game-info.gc`)
+  reads the parent of the handle's process with no check: never pass `#f` or a dead handle to
+  `give 'skill`.
+- **Scores** live in level types: `task-manager-bbush-board` `score` at offset 240,
+  `task-manager-vehicle-bbush` `score` at 304 (its report state sets it from the air time, the
+  distance or the roll count), `node-info`, task-manager's first field, at 128
+  (`decompiler/config/jak3/all-types.gc`). Code linked before those levels reads them at
+  `(&+ (the-as pointer (&-> mgr node-info)) (- offset 128))`.
+
+Verified: jak3, `levels/desert/des-burning-bush.gc`, `des-bbush-tasks.gc`, `des-bush.gc`,
+`levels/city/ctywide-obs.gc`, `engine/game/game-info.gc`; the multiplayer mod's `challenge` and
+`challenge-one` scenarios (the city's get-to challenge 26 started and reached on two machines, its
+3 orbs held and given), 2026-10-27.
+
+## 4.26 Places at the same coordinates
+
+Several places share Haven's ground plan, reached through a loading transition (entity positions,
+`decompiler_out/jak3/entities/<level>-actors.json`, in meters): the volcano (`volcanoa`, x -250..129,
+z -321..255), the mine (`minea`..`minee`) and the halfpipe lie on Haven's ruins (`rubble*`, x
+-500..420, z -384..882); the war factory (`factoryb`..`d`, y 274..566) and the precursor ship
+(`precura`..`d`, `lprecurc`, y 200..574) stand above them and overlap each other; the catacombs
+(`comb*`) and their rail (`rail*`, down to y -3780) run below; the nest (`nsta`, `nstb`) lies under
+Haven's industrial quarter. Haven (x about -880..1180) and the wasteland with Spargus (x above
+1170, or z above 2000) never overlap. Anything placed by position alone (a remote player, a copy,
+an effect, a distance check) must also compare the levels: the continue `volcano-flut-1` stands
+23.6 m from `ctygenb-stadium`.
+
+Verified: jak3, the entity dumps above; the multiplayer mod's `places` and `places-before`
+scenarios, 2026-10-27.
