@@ -1165,6 +1165,10 @@ Verified: jak3, `engine/game/task/task-control.gc`; the multiplayer mod's `missi
   (its reward in precursor orbs) and `reset restart-info retry continue` (the challenge's start).
   The task's play-list entry names the introduction (`pre-play-node`). The skull gems are paid
   once per bush, in its entity perm (`user-object 0` set to 1).
+- **When a bush offers it:** `task-node-open?` (`game-task-node-info-method-12`) wants the parents
+  closed and no exclusive task running (`task-node-exclusive`, `exclusive-task-count`): during an
+  exclusive story mission no challenge's introduction is open. `task-node-close!` closes it anyway
+  (and the parents it needs).
 - **The reward** is `(give *game-info* 'skill n handle)`: from the manager (`process->handle
   this`: rings, chases, the jet-board, vehicle scores, the races' `race-manager`, a child of the
   task manager), or from the precursor orb a get-to challenge leaves at its end, spawned as the
