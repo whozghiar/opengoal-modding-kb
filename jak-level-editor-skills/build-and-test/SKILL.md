@@ -23,9 +23,6 @@ npx yarn tauri build                 # the release program and its installers (t
 - Several agents at once: each its own target dir (`CARGO_TARGET_DIR=target/<name> cargo ...`), and
   each running editor its own WebView2 data folder (`WEBVIEW2_USER_DATA_FOLDER=<folder>`), else a
   second instance shows no window.
-- ogle-extract (C++, only when `extractor/` changed): `cmake -S . -B build -G Ninja
-  -DCMAKE_BUILD_TYPE=Release` once, then `cmake --build build` (`build/bin/ogle-extract` and
-  `build/bin/ogle-extract-data/`, where the editor finds it).
 
 **The link fails with "Access is denied" / "failed to remove file"** when an editor is running
 (the user's, or one an MCP server started). Never kill it (it may hold unsaved work): rename the
@@ -35,8 +32,7 @@ running file, Windows allows it, and build again:
 mv target/debug/jak-level-editor.exe target/debug/jak-level-editor.inuse-1.exe
 ```
 
-The same for `jak-level-editor-mcp.exe` (Claude Code keeps it running) and for
-`build/bin/ogle-extract.exe` during an extraction.
+The same for `jak-level-editor-mcp.exe` (Claude Code keeps it running).
 
 ## Tests
 
