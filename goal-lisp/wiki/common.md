@@ -821,6 +821,17 @@ to the original's.
 Verified: jak3, the multiplayer mod's minimap probe: `(= (-> conn class name) "racer")` matched no
 connection while their class name printed `racer`, 2026-10-28.
 
+### 1.4.21 `time-elapsed?` reads the running process's game clock
+
+`(time-elapsed? t d)` expands to `(>= (- (current-time) t) d)`, and `current-time` is the clock
+of the process running the code (`(-> pp clock frame-counter)`): a game clock, which stops in the
+pause menu and slows down with the world. A time taken from another clock, such as the real clock
+`(-> *display* real-clock frame-counter)` that menus and network waits use, compared through
+`time-elapsed?` gives nonsense. Compare on the clock the time came from:
+`(>= (- (-> *display* real-clock frame-counter) t) d)`.
+
+Verified: jak3, goal_src/jak3/kernel/gkernel-h.gc (the macro, line 690), 2026-10-28.
+
 ### 1.4.19 A state keeps the event handler it was defined with
 
 `defstate` evaluates `:event`, `:enter`, `:trans`... once, when the state is defined: a state holds

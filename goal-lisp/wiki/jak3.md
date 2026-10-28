@@ -767,7 +767,17 @@ a co-op session the user played), three runs without a crash once those groups a
 - **Doors.** A `com-airlock` (`engine/common-obs/airlock.gc`) opens when `want-cross-airlock?` says
   so, computed from `(target-pos 0)`: distance to `active-distance`, `check-crossing-distance`
   under `open-distance`, `y-height`, `latch-closed-time`, `(script-eval open-test)`, the
-  `airlock` setting and `airlock-command-lookup`. Every door type of the game inherits it.
+  `airlock` setting and `airlock-command-lookup`. Every door type of the game inherits it, and
+  none of the level subtypes overrides it: a wrapper of the method reaches every door. In its
+  `open` state the door closes as soon as `want-cross-airlock?` says no (`:trans`); returning #t
+  there keeps an open door open, and `(= (-> door next-state name) 'open)` tells it apart from a
+  closed one (which the same answer would open). Closing runs the door's `on-exit`, `on-inside`
+  and `on-deactivate` scripts only when the player stands on its front side
+  (`com-airlock-method-26 'front`: `check-crossing-distance` above 0): they hide or unload the
+  level behind it, and some close a story step (the temple's `tpl-door-a`), after which the door
+  never opens again. `(check-crossing-distance door pos #f)` only measures the side (front
+  positive); with `#t` it also runs the `on-cross` scripts and overwrites `last-distance`, which
+  `'front` reads: never call it with `#t` for a position other than the player's.
 - **Elevators.** An `elevator` (`engine/common-obs/elevator.gc`) in its `waiting` or `arrived` state
   takes `(send-event elev 'move-to 'top)`, `'bottom` or a path position and runs there;
   `(-> elev move-pos 1)` is the stop it runs to, `bottom-top` its two ends. In `waiting` it has
@@ -797,7 +807,18 @@ a co-op session the user played), three runs without a crash once those groups a
 - **Cutscenes.** Every cutscene starts with `scene-player-init` (`engine/scene/scene.gc`, a
   `scene-player` behavior; scenes as a name, a scene, a list or an array, then the wait flag and a
   continue point name). `(process-spawn scene-player :init scene-player-init name #t #f
-  :name "scene-player")` plays one; `scene-lookup` finds it by name.
+  :name "scene-player")` plays one; `scene-lookup` finds it by name. Its `wait` state grabs the
+  player, then loops while `talking`, `spooling`, a hint or another movie runs: one more term in
+  that `while` holds a cutscene before it plays, nothing of it run yet (a mission's introduction
+  closes its node with the scene's last commands). A mission's introduction is the scene a node's
+  `when-open` event names (`(-> node when-open i scene)`, `game-task-event`). To drop a held one,
+  release the player (`process-release?`) and `deactivate` the scene player: `'abort` runs its
+  remaining commands, which close the introduction. Some givers (Kleiver at the arena) start their
+  scene by themselves when the player comes near: a player brought next to one plays it too.
+  Verified in game: the multiplayer mod's `mission-trigger` (the kanga-rat hunt's introduction
+  held on the host until the guest was brought there, then played on both machines) and
+  `door-wait` (a Spargus door kept open, its on-exit scripts not run, while a player stood behind
+  it), 2026-10-28.
 
 Verified: jak3, the files above, `levels/volcano/volcano-obs2.gc`, the palace elevator's res
 (`decompiler_out/jak3/entities/wascitya-actors.json`); seen in game in the multiplayer mod (a test
@@ -1090,6 +1111,22 @@ pushed with the menu open does not move the player, the menu still reads it), 20
   score. `update-rankings` sorts the racers by `lap-count` plus `lap-distance` (a part of the lap),
   finished ones by finish order; `finish-time` and `race-start-time` count `current-time` units.
   Damas's races (`artifact-race.gc`, DESRACE1-2) have no ranking.
+- **Any process can race.** A `racer-state` follows its `racer` handle's process: its
+  `root trans` counts the laps (`update-lap-distance`), and a process gone, `dead` or `inactive`
+  puts it out of the race (`rsf2`). `(init-racer! (-> rs racer-array i) proc)` binds any
+  `process-focusable` (another player's puppet) to slot `i` after the race spawned its racers
+  (`task-manager-race-method-33`, whose course and rally overrides cast slots 0-3 to `vehicle`),
+  once the AI there is removed with `'go-die` (as `'kill-npc-racers` does; non-vehicles ignore it).
+  `'force-start` sets `rf4`, which skips the racers' `'test-ready` (a process that does not answer
+  it would hold `rs0` forever). `i-player` is the slot the HUD, the place and the result read; the
+  race files are level code (WASLEAPR, DESRALLY, DESTRACK): code reading `race-state` goes above
+  `;; DECOMP BEGINS` of `race-manager.gc` or `course-race.gc`. The racers' AI
+  (`levels/desert/wvehicle/wvehicle-race.gc`, `v-marauder` method 177) reads every other racer's
+  `rbody matrix fvec` to steer clear of it: a racer that is not a `rigid-body-object` crashes
+  every AI racer (an access violation at address -1) unless that read is guarded.
+  Verified in game: the multiplayer mod's `race-finish` and `race-finish-win` scenarios (another
+  player's puppet in slot 3 of Kleiver's race, its laps, place and finish counted on the host),
+  2026-10-28.
 - **Running a race to the finish without a player** (a test): once the race runs (`*game-info*`
   `race-timer` above 0), `(send-event <player's vehicle> 'set-control-hook-race-ai)` hands the
   player's turtle to the racers' AI (`wvehicle-method-177`, `levels/desert/wvehicle/wvehicle.gc`),
@@ -1234,6 +1271,16 @@ Verified: jak3, `levels/desert/des-burning-bush.gc`, `des-bbush-tasks.gc`, `des-
 `levels/city/ctywide-obs.gc`, `engine/game/game-info.gc`, `engine/common-obs/voicebox.gc`; the
 multiplayer mod's `challenge`, `challenge-one` and `challenge-board` scenarios (the city's get-to challenge 26 started and reached on two machines, its
 3 orbs held and given), 2026-10-27.
+
+- **Playing a challenge again.** Once its resolution closed, `(task-node-open! <introduction> 'event)`
+  (as the bush's own menu does, `des-burning-bush.gc`) reopens the introduction and, through
+  `game-task-node-info-method-11`, its children: the bush offers it again (it reads its current
+  event every frame). A bush offering several challenges (`burning-bush-desc-4`) offers the first
+  open one: reopen them once all are done. A challenge paid by cups pays only the improvement over
+  `get-best-rank` (`*game-info*` `game-score`, 8 floats per score): zero those scores for a play to
+  pay its cups again.
+  Verified in game: the multiplayer mod's free roam (`challenge-free`: Haven's get-to challenge 26
+  offered again on both machines 5 s after it was decided), 2026-10-28.
 
 ## 4.26 The jet-board, and Daxter on it
 
