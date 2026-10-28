@@ -123,6 +123,14 @@ Verified: jak3, `kernel/gkernel.gc` (`compact`, `shrink-heap`), `engine/entity/r
 the multiplayer mod crashed once an arc wielder fired, and no longer did with this method,
 2026-10-15.
 
+The LZO cache of animations (`*anim-manager*`, `art-joint-anim-manager`, `engine/anim/joint.gc`:
+64 slots in #x30000 bytes) frees its oldest slot when full, even one used this frame. Jak 3
+compresses few animations that way (`frames flags` 1): a two-player session with Haven's traffic
+decompressed 2 in all, 1 slot used at most. Jak 2 compresses many more (himstan's Jak 2 mod had to
+grow it for its player replicas).
+
+Verified: jak3, `engine/anim/joint.gc`, `engine/process-drawable/process-drawable.gc`; a probe on
+`decompress` in the multiplayer mod's `tints` scenario, 2026-10-28.
 
 ## 4.7 Start menu: adding a page
 
@@ -292,6 +300,14 @@ anywhere, list the three objects in `game.gd` (the art after `daxter-ag.go`) and
 those level DGOs: a copy left in a level DGO would relink the states into that level's heap, and
 they would dangle once it unloads.
 
+- **Modes his handler refuses:** `target-indax-handler` takes only `'change-mode` `grab`,
+  `normal`, `falling`, `hang`, `tube` (and `indax`): a mission's turret (`'turret`), vehicle,
+  torpedo (`'pilot-daxter`), bomb robot (`'grab-ride`) or mech then waits for good. Forward those
+  to `target-standard-event-handler` (it leaves his mode through `target-indax-exit`), and only
+  those: the stock asks for `'gun` in any mode (`target-gun.gc`: the D-pad's mod choice and
+  `want-to-gun?` send `'change-mode 'gun` to the player), which his mode must keep ignoring.
+  `'turret` takes the player only while `on-surface` (`target-handler.gc`), and an idle turret
+  shoves whoever touches it.
 - **Daxter at the wheel:** `'change-mode 'pilot-daxter` (the parameters of `'pilot`) drives with
   the target's art swapped for Daxter's (`pilot` `as-daxter?`). Its clips are in
   `jak-pidax+0-ag.go`, which only LCTYPATK carries: elsewhere the target dies in
