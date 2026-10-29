@@ -234,10 +234,18 @@ player types in game:
 - GOAL reads the line through kernel functions (section 7) under a mutex: the game runs on
   another thread. A test pushes the same events with `SDL_PushEvent` (a `TEXT_INPUT` event's
   `text` must outlive it).
+- Windows: SDL's message pump runs `TranslateMessage`, so a `WM_KEYDOWN` alone gives its
+  character (`WM_CHAR`); posting a `WM_CHAR` as well types it twice. SDL sends a key event to any
+  window, but text only to the window with the keyboard focus, which it takes from
+  `GetForegroundWindow` (`WIN_UpdateFocus`): a posted `WM_SETFOCUS` does not give it. A test can
+  post `WM_KEYDOWN` and `WM_KEYUP` to its own window (`SDL_PROP_WINDOW_WIN32_HWND_POINTER`) and
+  type, while that window is the foreground one.
 
 Verified: jak3, `game/graphics/pipelines/opengl.cpp`, `game/system/hid/input_manager.cpp`,
 `devices/keyboard.cpp`; the multiplayer mod's chat (`kmultiplayer.cpp` "Chat", `chat` scenario:
-T, text and Enter through SDL's queue), 2026-10-29.
+T, text and Enter through SDL's queue, then as Windows key messages on the focused window;
+`third-party/SDL/src/video/windows/SDL_windowsevents.c`, `src/events/SDL_keyboard.c`),
+2026-10-29.
 
 ## 8. Automated in-game checks
 
