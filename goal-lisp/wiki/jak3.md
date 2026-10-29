@@ -68,6 +68,18 @@ Verified: jak3, `engine/target/gun/gun-blue-shot.gc` (`create-lightning-tracker-
 `active`), `engine/target/gun/gun-red-shot.gc`, `engine/target/gun/gun-dark-shot.gc`; arcs drawn
 on another machine in the multiplayer mod, 2026-10-15.
 
+**Which mods a player has.** A mod is offered (the D-pad's choice, the HUD, `target-gun.gc`
+picking the next gun type) when its `game-feature` bit is in both `(-> *game-info* features)` and
+`(-> *setting-control* user-current features)`. The twelve mods, pickup-type `gun-red-1` (26) to
+`gun-dark-3` (37), are game-feature bits 6 to 17: `(ash 1 (+ type -20))`. To keep mods from a
+player, clear their bits from `game-info` `features` every frame (a respawn or a loaded save puts
+the saved features back), and set `(-> *game-info* gun-type)` back to a mod it still has (the
+first of its color is `(+ 26 (* 3 (/ (+ type -26) 3)))`).
+
+Verified: jak3, `engine/game/settings-h.gc` (`game-feature`), `engine/game/game-info-h.gc`
+(`pickup-type`), `engine/target/target-gun.gc`; the multiplayer mod's free roam, each color at
+its first mod and the others bought (`free-shop` scenario, two machines), 2026-10-29.
+
 ## 4.5 Custom art-groups: no dynamic linking hook
 
 Unlike Jak 1 and Jak 2 ([1.2.8](common.md#128-custom-art-groups--dynamic-animation-linking-link-art)),
@@ -133,6 +145,14 @@ Verified: jak3, `engine/anim/joint.gc`, `engine/process-drawable/process-drawabl
 `decompress` in the multiplayer mod's `tints` scenario, 2026-10-28.
 
 ## 4.7 Start menu: adding a page
+
+The ring's Load Game and Save Game are `menu-main-menu-option`s named `progress-load-save` and
+`progress-save-game` (`*main-options*`). A `define-perm` wrapper of their `respond-progress` that
+takes `confirm` first, while the ring stands still (`(= (-> progress ring-angle) (-> progress
+ring-want-angle))`, as the stock does), keeps their memory card pages from opening: clear the
+button (`(cpad-clear! 0 confirm)`), act, return 0; call the stock for everything else.
+Verified: jak3, `engine/ui/progress/progress.gc`, `progress-static.gc`; the multiplayer mod's
+saves online (`coop-save` scenario), 2026-10-29.
 
 The ring of the START menu (`*main-options*`) has exactly ten slots: `ring-want-angle` is
 `36 degrees * option-index` (`engine/ui/progress/progress.gc:1246`) and the ring model has ten
@@ -949,6 +969,12 @@ into a heap carved from an active level instead, no level loaded: no crash), 202
   menu's saves, checkpoints, missions' `(auto-save 'auto-save)`, a new game's first save. A
   `define-perm` wrapper that returns `#f` for those turns saving off; tell the menu that asked
   with `(send-event menu 'notify 'error (mc-status-code no-process))`, or its "Saving" page waits.
+- **The save icon, from any process.** `auto-save-post` draws a `hud-sprite` (`new 'global`
+  works): texture `(get-texture checkpoint level-default-minimap)`, `pos` 440 210 (z `#xffffff`),
+  scale 2.0, its four `color-ptr` at 128, no flags, shown while
+  `(< (mod (-> *display* real-clock frame-counter) 300) 270)`. Draw it as that post does:
+  `(draw sprite buf (the-as level #f) #f)` into the frame's `global-buf`, then, if `base` moved,
+  a `next` `dma-packet` and `dma-bucket-insert-tag` into `hud-draw-hud-alpha` from the old base.
 - **Title screen or not.** `(= (level-status? *level* 'title #f) 'active)` while the title screen
   is up (`*game-info*` `mode` is `'play` there too).
 - **A new game somewhere, or at a mission.** `(initialize! *game-info* 'game (the-as game-save #f)
@@ -966,7 +992,8 @@ into a heap carved from an active level instead, no level loaded: no crash), 202
 
 Verified: jak3, `engine/game/game-save.gc`, `engine/game/game-info.gc`,
 `engine/ui/progress/progress.gc`, `engine/game/task/task-control.gc`, `engine/target/sidekick.gc`,
-`engine/target/logic-target.gc`; in the multiplayer mod's `coop-campaign` and `lobby` scenarios
+`engine/target/logic-target.gc`; the save icon drawn after the multiplayer mod's co-op saves
+(`coop-save` scenario, screenshot), 2026-10-29; in the multiplayer mod's `coop-campaign` and `lobby` scenarios
 (a mission started with 4 nodes closed, the story closed with 254, the sidekick off and back),
 2026-10-19; in game with the multiplayer mod (`join-world`: a guest in
 Haven loaded the host's 42928-byte save sent over the network, came out at the host's Spargus
@@ -1348,3 +1375,15 @@ An icon is a connection: `(add-icon! *minimap* proc class-index #f (the-as vecto
 
 Verified: jak3, `engine/ui/minimap.gc`, `engine/ui/bigmap.gc`; the multiplayer mod's players shown
 by a marker in their color (scenarios `minimap-cone`, `coop-roles`, screenshots), 2026-10-28.
+
+## 4.29 Text the game draws: the font's escapes
+
+`print-game-text` reads `~` codes in any string it draws, and the game's own texts are full of
+them: `lookup-text!` returns French "Appuyez" as `A~+7Vp~-7V~+7Vp~-7Vu~+7Vy~-7Vez` (letters
+with a descender moved down) and accents as `~Y~-26H~-5V~Z` sequences drawn over a letter. Keep
+the game's texts as they are, and strip or replace `~` in text a player typed (a chat line, a
+name), or it draws as codes. A custom text's `<PAD_X>`-style tags become button icons when the
+text compiler builds it.
+
+Verified: jak3, `game/assets/jak3/text/game_custom_text_fr-FR.json` compiled, the multiplayer
+mod's chat answers and lines (`chat` scenario, logs and screenshots), 2026-10-29.

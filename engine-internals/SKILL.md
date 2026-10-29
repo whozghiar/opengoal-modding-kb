@@ -215,6 +215,30 @@ multiplayer mod's outline of other players through walls (`outline` scenario: 90
 open, 920 behind a vehicle, screenshots), 2026-10-19; `TextureAnimator.cpp`, `merc2.frag`: another
 player's Dark Jak skin and outfit tints (`powers`, `skin` scenarios), 2026-10-19.
 
+## 7c. Taking the keyboard for typed text
+
+The renderer's thread (`GLDisplay::render`, `game/graphics/pipelines/opengl.cpp`) polls the
+keyboard into pad buttons every frame (`InputManager::poll_keyboard_data`, which reads
+`SDL_GetKeyboardState`), or releases them with `clear_keyboard_actions` while ImGui wants the
+keyboard; then `process_sdl_events` hands each SDL event to the input manager. For a line the
+player types in game:
+
+- Release the game's keys while the line is typed: call `clear_keyboard_actions` there instead of
+  polling.
+- Hand each SDL event to the line before the input manager, and skip the manager for the ones it
+  takes (every `SDL_EVENT_KEY_DOWN` while typing).
+- `SDL_StartTextInput(window)` (SDL3, the renderer's thread) turns on `SDL_EVENT_TEXT_INPUT`, its
+  `text` in UTF-8; `SDL_StopTextInput` when the line closes.
+- A key still held when the line closes reaches the game at the next poll (Enter is START by
+  default): keep releasing the keys until it is up.
+- GOAL reads the line through kernel functions (section 7) under a mutex: the game runs on
+  another thread. A test pushes the same events with `SDL_PushEvent` (a `TEXT_INPUT` event's
+  `text` must outlive it).
+
+Verified: jak3, `game/graphics/pipelines/opengl.cpp`, `game/system/hid/input_manager.cpp`,
+`devices/keyboard.cpp`; the multiplayer mod's chat (`kmultiplayer.cpp` "Chat", `chat` scenario:
+T, text and Enter through SDL's queue), 2026-10-29.
+
 ## 8. Automated in-game checks
 
 When the user allows the game to be launched for tests, several instances can run side by side,

@@ -67,6 +67,7 @@ subsystem differences, not restatements of the shared material.
   - [4.26 The jet-board, and Daxter on it](jak3.md#426-the-jet-board-and-daxter-on-it)
   - [4.27 Places at the same coordinates](jak3.md#427-places-at-the-same-coordinates)
   - [4.28 The minimap: icon classes, the turned marker, the big map](jak3.md#428-the-minimap-icon-classes-the-turned-marker-the-big-map)
+  - [4.29 Text the game draws: the font's escapes](jak3.md#429-text-the-game-draws-the-fonts-escapes)
 - [How to contribute](../../kb/SKILL.md)
 
 

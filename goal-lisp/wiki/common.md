@@ -832,6 +832,18 @@ pause menu and slows down with the world. A time taken from another clock, such 
 
 Verified: jak3, goal_src/jak3/kernel/gkernel-h.gc (the macro, line 690), 2026-10-28.
 
+### 1.4.22 A null pointer is 0, not `#f`: test it with `nonzero?`
+
+Only `#f` is false: a pointer field holding 0 passes `and`, `when` and `if`. A process's
+`parent` (a `(pointer process-tree)`) can be 0, for example a pickup taken whose `give` runs as it
+leaves its tree, and `(ppointer->process (-> proc parent))` then reads address 0, the start of
+the game's memory, and the game stops (access violation). Test such fields with
+`(nonzero? (-> proc parent))`, and only when the code needs them.
+
+Verified: jak3, the multiplayer mod's `mp-challenge-take`, called by `game-info` `give` for every
+precursor orb taken: `(and (-> proc parent) ...)` crashed the `economy` scenario's host on an orb,
+`nonzero?` fixed it, 2026-10-29.
+
 ### 1.4.19 A state keeps the event handler it was defined with
 
 `defstate` evaluates `:event`, `:enter`, `:trans`... once, when the state is defined: a state holds
