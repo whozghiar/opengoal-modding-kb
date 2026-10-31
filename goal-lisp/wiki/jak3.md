@@ -1509,10 +1509,13 @@ Verified: jak3, `engine/gfx/font.gc`, `pc/pckernel-impl.gc`; the battlefront mod
   replaced and 13 of 14 guards slept. A mod that needs a steady crowd can wake units itself:
   search the pedestrian segments of an area with `callback-on-nav-segments-in-sphere` (tracker 1),
   keep one that passes the stock tests (`nav-mesh-id` nonzero, branch `density` below 128,
-  `can-dest-be-used?` false) away from the player, and call `activate-one-vehicle` on it; it picks
-  the type and keeps every stock check. The battlefront mod does it four times a second within
-  its battlefield, with the picker's count replaced by its caps: 4 to 12 units awake per side at
-  the Port, losses on both sides.
+  `can-dest-be-used?` false) away from the player, and call
+  `(activate-by-type (-> *traffic-engine* tracker1) type segment 0.0)` on it, which keeps every
+  stock check of a spawn. Choose the type yourself: the stock picker `activate-one-vehicle` weighs
+  every traffic type and left guards asleep in the Industrial Zone. The battlefront mod does it four
+  times a second within its battlefield: 4 to 12 units awake per side at the Port, losses on both
+  sides. Some places have no unit lanes at all: in the town center around `ctygenb-bbush-1` and
+  `ctygenb-bbush-3` no segment passed, and no unit ever woke.
 - **`start` while the city alias changes.** A `borrow` setting that changes Haven City's alias
   (ctywide-ff, -kg, -ff-kg) makes `start` reload ctywide; Jak can be placed before the ground's
   collision is back, fall, and die some 25 m down. Hold him at the spawn (`move-to-point!` each
