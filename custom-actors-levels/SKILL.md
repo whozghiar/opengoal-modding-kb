@@ -334,12 +334,22 @@ you need multiple LODs, several named animations, or non-default naming.
 
 Where the `.glb` must live depends on where the object needs to render:
 - To use it **inside existing (vanilla) levels**, `task extract`'s level
-  baker only picks up textures/geometry from
-  `custom_assets/jak[x]/models/common/` (the pseudo-level shared by every
-  level). Place a copy there, named after the merc geometry
-  (`<ag>-lod0.glb`, not the art-group name) — `build-actor` and
-  `task extract` use different naming conventions for the same file, and a
-  mismatch leaves the model invisible with no error.
+  baker reads every `.glb` of `custom_assets/jak[x]/models/<level>/` into
+  that level's `.fr3` (`<level>` is the level name, e.g. `ctypesa`), and of
+  `models/common/` into the `.fr3` shared by every level. Place a copy in
+  the folder of the level whose `.gd` lists the art group, named after the
+  merc geometry (`<ag>-lod0.glb`, not the art-group name) — `build-actor`
+  and `task extract` use different naming conventions for the same file,
+  and a mismatch leaves the model invisible with no error. The extract log
+  prints `Adding custom model <ag>-lod0 to <level>`. A model texture whose
+  name already exists in the level with other pixels is renamed (log line
+  `clashes with a level texture, renamed to ...`), so a recolored copy of a
+  stock model keeps its own colors. Verified: jak3,
+  `decompiler/level_extractor/extract_merc.cpp`, the battlefront mod's
+  extraction (ctypesa, ctypesc), 2026-10-31.
+- The art group of a vanilla level `.gd` must also be pre-marked in
+  `game.gp`, see the Lisp wiki,
+  [Registering a new source file](../goal-lisp/wiki/common.md#registering-a-new-source-file).
 - To ship it **only inside a purpose-built custom level**, a single copy
   under `models/custom_levels/` is enough (see §9).
 - Either way, the `build-actor` declaration in `game.gp` always reads its
@@ -421,6 +431,50 @@ the JSON chunk, with only vertex/index data in the binary chunk.
 This is strictly for simple, unskinned/unanimated content — a real
 character, vehicle, or anything needing a joint hierarchy still goes
 through the Blender workflow in §6.
+
+### 10.5 A character from another game on a stock skeleton and stock AI
+When a destination-game unit shares its rig with the source model, the
+cheapest port keeps the destination's skeleton and clips and swaps only the
+mesh and textures: the stock AI then drives the imported model unchanged.
+
+- **Check the rigs from the rips.** The `.glb` rips name every joint and
+  carry the inverse bind matrices. Jak 3's `crimson-guard` (41 joints, 52
+  clips) is Jak 2's `crimson-guard` (38 joints, 40 clips) plus `back`,
+  `right_wrist` and `left_wrist` inserted after `dirblast`, with identical
+  bind poses for the shared joints, the same 40 clip names first, and the
+  same texture names (`cguardgame-*`, red in Jak 2, blue in Jak 3).
+- **Remap, don't rebuild.** Re-skin the source mesh to the destination
+  joint order by name (`JOINTS_0` index map) and keep the destination's
+  skin, nodes and clips.
+- **Match the art-group indices.** `build-actor` stores the mesh at index 1
+  (a dummy merc-ctrl) and clip k of the `.glb` at index 2 + k; stock code
+  plays clips by index (`(-> self draw art-group data N)`). Put padding
+  clips first so each clip lands at the index the stock code uses (stock
+  `crimson-guard-ag` starts its clips at 4: two padding clips). Order the
+  clips of a model meant for another type's code (the Jak 2 jetpack guard on
+  Jak 3's `flying-turret`, which plays 2, 3 and 4) the same way.
+- **Shared vertex buffers.** A rip's vertex attributes cover every merc
+  model of its level (2447 of 107332 vertices for Jak 2's jetpack guard in
+  drillmtn); keep only the vertices the mesh's indices reach.
+- **Mesh segments are lost.** The rips carry every merc effect (variant
+  helmets, alternative weapons) with no segment flag, and a `build-actor`
+  model draws all its primitives: drop the primitives of the variants the
+  port does not use, and force the stock code to the kept variant.
+- **Same level as the process.** The skeleton group may live anywhere (a
+  GAME file is fine), but the art group must be in the level the drawing
+  process belongs to: a Haven City traffic unit takes the level of its
+  traffic type (`traffic-entity-hack`), e.g. CTYPESA for guards, CTYPESC
+  for flying turrets.
+- **Frame rate.** The rips sample the clips at 15 frames per second
+  (`times[i] = i / framerate` in `fr3_to_gltf.cpp`): give `build-actor`
+  `:framerate 15.0` to keep each clip's frame count.
+
+Verified: jak2/jak3 rips compared by script (joint names, bind poses,
+clips, textures), `goalc/build_actor/jak3/build_actor.cpp`,
+`goalc/build_actor/common/build_actor.cpp`,
+`decompiler/level_extractor/fr3_to_gltf.cpp`, compiled and extracted in the
+battlefront mod (`scripts/battlefront/make_models.py` there), not yet seen
+in game, 2026-10-31.
 
 ---
 

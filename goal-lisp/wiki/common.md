@@ -517,6 +517,24 @@ a `.gd` list. Whether `game.gp` needs a line too depends on the game:
 
 In the `.gd` list itself, a Mods-menu file goes after `"mods-menu.o"`.
 
+**A `build-actor` art group in a vanilla level `.gd` must be pre-marked.**
+`cgo-file` gives every `.go` of a `.gd` that is not in `*file-entry-map*` a
+copy step from the decompiler output (`$DECOMP/raw_obj/<name>.go`); with the
+`build-actor` step for the same output the build stops on `There are
+multiple ways to make output out/<game>/obj/<name>-ag.go`. Mark it before the
+first `cgo-file` line, next to the stock `dir-tpages.go` mark:
+
+```lisp
+;; goal_src/jak3/game.gp, before (cgo-file "game.gd" ...)
+(hash-table-set! *file-entry-map* "my-model-ag.go" #f)
+;; further down, with the other build steps
+(build-actor "my-model" :framerate 15.0)
+```
+
+Verified: jak3, `goal_src/jak3/lib/project-lib.gp` (`cgo-file`), the
+battlefront mod's build (three art groups in `ctypesa.gd`/`ctypesc.gd`),
+2026-10-31.
+
 Verified: `get-gsrc-path` and `set-gsrc-folder!` in `goalc/make/MakeSystem.cpp`,
 used by `cgo-file` in `goal_src/jak2/lib/project-lib.gp` and
 `goal_src/jak3/lib/project-lib.gp`; jak3, two new files built with `.gd` lines
