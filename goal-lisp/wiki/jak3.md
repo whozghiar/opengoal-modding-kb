@@ -39,6 +39,22 @@ Menu entries are `secret-item-option` instances in static arrays like
 `*menu-secrets-array*` (`secrets-menu.gc`). Custom/unlocalized labels are
 mapped dynamically during option rendering in `progress-draw-pc.gc`.
 
+**Endless dark and light eco refill every frame.** `target-eco-process` (`powerups.gc`) sets
+`(-> *game-info* eco-pill-dark)` to its maximum (100) each frame while `endless-dark` is set, and
+`eco-pill-light` while `endless-light` is set. A mod that spends or converts that eco sees it
+come back at once: clear the bit for the mod's time and set it back after.
+
+```lisp
+(set! saved? (logtest? (-> *game-info* secrets) (game-secrets endless-dark)))
+(logclear! (-> *game-info* secrets) (game-secrets endless-dark))
+;; ... later
+(if saved? (logior! (-> *game-info* secrets) (game-secrets endless-dark)))
+```
+
+Verified: jak3, `engine/common-obs/powerups.gc` (`target-eco-process`); the battlefront mod's
+runs on a 100 % save with the secret on: dark eco back at 100 every frame, jetpack fuel stuck
+full until the mod cleared the bit, 2026-10-31.
+
 ## 4.3 Powers/weapons interplay
 
 Modifying `*target*` states can disrupt weapon transitions (`gun-states`)
@@ -91,6 +107,25 @@ and get the pickups for free.
 Verified: jak3, `engine/game/game-info.gc`, `engine/common-obs/collectables.gc`
 (`birth-pickup-at-point`, `verify-pickup-type`); the battlefront mod's in-game runs (up to 12
 pickups left by dead units, counters spent by its class weapons), 2026-10-31.
+
+**Free aim through the camera.** The ray behind a fixed crosshair at screen point (x, y) of the
+512 x 416 screen: project the spot 1 m ahead of the camera and the spots 1 m to its right and
+above it (`transform-point-vector!`, origin (1792, 1840), as in 4.31); the direction is `fvec` plus
+`rvec` times `(x + 1792 - s0.x) / (sr.x - s0.x)` plus `uvec` times `(s0.y - (y + 1840)) / (s0.y -
+su.y)`. Cast it with a `collide-query` (`start-pos` the camera's `trans`, `move-dist` the
+direction at the reach, `collide-with` `backgnd civilian enemy obstacle hit-by-others-list
+vehicle-sphere bot`, `ignore-process0` `*target*`) and `fill-and-probe-using-line-sphere`; the
+unit met is `(-> (as-type (-> cq best-other-tri collide-ptr) collide-shape-prim) cshape process)`.
+The hit point projected back lands on the crosshair within 0.07 screen units.
+
+**Pointing Jak's gun elsewhere.** The gun post (`gun-util.gc`) computes `fire-dir` and
+`fire-dir-out` of `(-> *target* gun)`, then calls `target-gun-check`, which fires along them.
+Rewriting both (unit vectors) from a function called just before that call turns every shot; a
+`define-extern`'d mod function there is a two-line hook.
+
+Verified: jak3, `engine/target/gun/gun-util.gc`, `engine/collide/collide-cache.gc`; the
+battlefront mod's runs: rifle shots and grenades on the crosshair's point (a grenade 0.73 m from
+it), Jak's plain blaster shot flying straight at it (dot 1.000), 2026-10-31.
 
 ## 4.5 Custom art-groups: no dynamic linking hook
 
@@ -1516,6 +1551,12 @@ Verified: jak3, `engine/gfx/font.gc`, `pc/pckernel-impl.gc`; the battlefront mod
   times a second within its battlefield: 4 to 12 units awake per side at the Port, losses on both
   sides. Some places have no unit lanes at all: in the town center around `ctygenb-bbush-1` and
   `ctygenb-bbush-3` no segment passed, and no unit ever woke.
+- **Lane data lives in each city section.** The traffic's segments come from the
+  `city-level-info` of each loaded level's `bsp` (`ctyport`, `ctyinda`...), registered in the
+  engine's two `level-data-array` slots when the level logs in. `callback-on-nav-segments-in-sphere`
+  only sees the sections loaded: from the Port, a sphere over the Industrial Zone, the Slums or
+  Freedom HQ returned no segment. A mod that needs another area's lanes must read them while that
+  area is loaded (the battlefront mod read each zone's once in game and stores them).
 - **`start` while the city alias changes.** A `borrow` setting that changes Haven City's alias
   (ctywide-ff, -kg, -ff-kg) makes `start` reload ctywide; Jak can be placed before the ground's
   collision is back, fall, and die some 25 m down. Hold him at the spawn (`move-to-point!` each
@@ -1523,9 +1564,12 @@ Verified: jak3, `engine/gfx/font.gc`, `pc/pckernel-impl.gc`; the battlefront mod
   the continue state leaves a stale `on-surface` bit.
 
 Verified: jak3, `levels/city/traffic/traffic-manager.gc`, `traffic-engine.gc`,
-`citizen/citizen.gc`, `levels/city/common/ctywide-init.gc`; the battlefront mod's in-game runs
-(pools respawned with the battle's skins on half of the 13 guards, stock skins after the
-battle, wastelanders from 0 to 8 active, deployments without a fall), 2026-10-31.
+`citizen/citizen.gc`, `levels/city/common/ctywide-init.gc`, `levels/wascity/traffic-util.gc`
+(`callback-on-nav-segments-in-sphere`); the battlefront mod's in-game runs (pools respawned with
+the battle's skins on half of the 13 guards, stock skins after the battle, wastelanders from 0 to
+8 active, deployments without a fall; lanes of each war zone read only once it was loaded: 43
+segments at the Port from `ctyport`, 188 in the Industrial Zone from `ctyinda` and `ctyport`),
+2026-10-31.
 
 ## 4.31 A model over the game: HUD icons, a preview in front of the camera
 
@@ -1569,11 +1613,31 @@ A process that must move while a menu pauses the game clears the `menu`, `pause`
 bits of its mask and runs on `(-> *display* real-clock)` (moving the clock's `ref-count`, as
 `hud-init-by-other` does).
 
+**A preview on black.** `drawable.gc` copies `(-> *display* vu1-enable-user-menu)` into the
+frame's renderer mask every frame (the stock progress menu's "menu mode" sets it to merc alone,
+`blit-displays.gc`). Setting it to the foreground renderers only turns off the sky, the scenery,
+the ocean, the particles and the shadows; the screen behind is black. The other models still draw:
+set `no-draw` on every drawn `process-drawable` but the preview, and keep their handles to clear
+the flag on exactly those afterwards (a model hidden before must stay hidden).
+
+```lisp
+(set! saved (-> *display* vu1-enable-user-menu))
+(set! (-> *display* vu1-enable-user-menu) (vu1-renderer-mask generic merc emerc))
+(iterate-process-tree *active-pool* (the-as (function object object) hide-one) *kernel-context*)
+```
+
+**Room in Jak's health HUD.** `hud-health` uses sprites 0 to 4 and 7 to 22 (the pips); 5 and 6
+keep the `#f` texture of `hud-init-by-other`, so its `draw` skips them. A mod can give them a
+texture (`(get-texture common-white common)`, the eco gauges' own), a color, a negative `scale-y`
+to grow upward like the stock gauges, and a place from the ring's corner each frame
+(`set-as-offset-from!` with sprite 3's `pos`): the battlefront mod's fuel bar.
+
 Verified: jak3, `engine/ui/hud.gc`, `engine/draw/drawable.gc`
 (`dma-add-process-drawable-hud`), `game/mips2c/jak3_functions/foreground.cpp`,
 `game/graphics/opengl_renderer/OpenGLRenderer.cpp`, `engine/target/target-util.gc`
-(`target-skel-group`), `engine/process-drawable/process-drawable.gc`; the battlefront mod's class
-page preview and health HUD icon, measured and seen in game, 2026-10-31.
+(`target-skel-group`), `engine/process-drawable/process-drawable.gc`, `engine/gfx/blit-displays.gc`,
+`engine/ui/hud-classes.gc` (`hud-health`); the battlefront mod's class page preview, health HUD
+icon and gauges, and its pages on black, measured and seen in game, 2026-10-31.
 
 ## 4.32 Stopping attacks on the player: the shield level
 
