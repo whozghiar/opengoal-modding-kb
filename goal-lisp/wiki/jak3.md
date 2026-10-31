@@ -1497,6 +1497,22 @@ Verified: jak3, `engine/gfx/font.gc`, `pc/pckernel-impl.gc`; the battlefront mod
   change the value in that loop (one `define-extern`'d call there). The battlefront mod caps
   guard-a 14, flying-turret 6, roboguard 2, spydroid 2; units awake on the street then stayed at
   12 per side or fewer.
+- **Waking units.** `activate-one-vehicle` (the unit picker, `traffic-engine.gc`) wakes a type
+  only while its awake count is below its `target-counts` entry for the faction mode of the
+  segment's territory (`cty-faction-manager` method 10), and the squad controls
+  (`ff-squad-control.gc`, `kg-squad-control.gc`) rewrite those entries from their alert state: at
+  the Port they allowed 7 guards, 1 flying turret and no roboguard, whatever the pool size. The
+  traffic also wakes units in two places only: on the segments of cells that just became active
+  (`handle-new-vis-cell`), and each frame on one random segment entering the active cells from an
+  inactive one (`update-traffic-amount`). Around some places (the Port's `ctyport-warzone` and
+  `ctyport-bombbot`) such segments are rare: with the player standing, dead units were not
+  replaced and 13 of 14 guards slept. A mod that needs a steady crowd can wake units itself:
+  search the pedestrian segments of an area with `callback-on-nav-segments-in-sphere` (tracker 1),
+  keep one that passes the stock tests (`nav-mesh-id` nonzero, branch `density` below 128,
+  `can-dest-be-used?` false) away from the player, and call `activate-one-vehicle` on it; it picks
+  the type and keeps every stock check. The battlefront mod does it four times a second within
+  its battlefield, with the picker's count replaced by its caps: 4 to 12 units awake per side at
+  the Port, losses on both sides.
 - **`start` while the city alias changes.** A `borrow` setting that changes Haven City's alias
   (ctywide-ff, -kg, -ff-kg) makes `start` reload ctywide; Jak can be placed before the ground's
   collision is back, fall, and die some 25 m down. Hold him at the spawn (`move-to-point!` each
