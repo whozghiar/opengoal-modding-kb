@@ -459,7 +459,16 @@ mesh and textures: the stock AI then drives the imported model unchanged.
 - **Mesh segments are lost.** The rips carry every merc effect (variant
   helmets, alternative weapons) with no segment flag, and a `build-actor`
   model draws all its primitives: drop the primitives of the variants the
-  port does not use, and force the stock code to the kept variant.
+  port does not use, and force the stock code to the kept variant. For two
+  variants, build two models and pick the skeleton group per process.
+- **One primitive per material.** Both custom merc loaders (the decompiler's
+  `extract` in `decompiler/level_extractor/merc_replacement.cpp`, used by
+  `task extract`, and `goalc/build_actor/common/MercExtract.cpp`) key their
+  draws by material (`build-actor`: material and node) and keep only the
+  index range of the last primitive of a key, while adding up the triangle
+  counts: earlier primitives sharing that material are not drawn. The rips
+  give every primitive its own material; a hand-made `.glb` must do the
+  same, or merge the primitives of a material into one.
 - **Same level as the process.** The skeleton group may live anywhere (a
   GAME file is fine), but the art group must be in the level the drawing
   process belongs to: a Haven City traffic unit takes the level of its
