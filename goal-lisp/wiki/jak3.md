@@ -80,6 +80,18 @@ Verified: jak3, `engine/game/settings-h.gc` (`game-feature`), `engine/game/game-
 (`pickup-type`), `engine/target/target-gun.gc`; the multiplayer mod's free roam, each color at
 its first mod and the others bought (`free-shop` scenario, two machines), 2026-10-29.
 
+**Ammo and its pickups.** `(-> *game-info* gun-ammo i)` holds the ammo, 0 yellow, 1 red, 2 blue,
+3 dark, capped by `get-max-ammo-for-gun` (100, 50, 100 and 5 before upgrades). The stock pickups
+refill it: from a process, `(birth-pickup-at-point pos (pickup-type ammo-red) 1.0 #t *entity-pool*
+(the-as fact-info #f))` spawns one `ammo-collectable`, worth 10 (5 for red, 1 for dark), and
+`(pickup-type health)` with 1.0 one health pickup worth 1. `verify-pickup-type` turns red, blue
+and dark into yellow when the player lacks that gun. A mod's own weapons can spend these counters
+and get the pickups for free.
+
+Verified: jak3, `engine/game/game-info.gc`, `engine/common-obs/collectables.gc`
+(`birth-pickup-at-point`, `verify-pickup-type`); the battlefront mod's in-game runs (up to 12
+pickups left by dead units, counters spent by its class weapons), 2026-10-31.
+
 ## 4.5 Custom art-groups: no dynamic linking hook
 
 Unlike Jak 1 and Jak 2 ([1.2.8](common.md#128-custom-art-groups--dynamic-animation-linking-link-art)),
@@ -134,6 +146,16 @@ there: zeroed fields in random processes, crashes in their code (a projectile's 
 Verified: jak3, `kernel/gkernel.gc` (`compact`, `shrink-heap`), `engine/entity/relocate.gc`;
 the multiplayer mod crashed once an arc wielder fired, and no longer did with this method,
 2026-10-15.
+
+The same goes for any `(new 'process ...)` object a field of the process points to, such as a
+`lightning-control` (crimson-guard's relocate moves its `l-control`). The object's own pointers
+(the lightning arrays) are relocated by its own method; the field is the process's job. The
+battlefront mod's avatar kept the guards' tazer arc in a field without moving it: its first
+tazer shot read the old address and crashed the game (access violation in the avatar's code),
+and no longer did with the method.
+
+Verified: jak3, `levels/city/traffic/citizen/guard.gc` (crimson-guard `relocate`); a crash
+reporter's stack, then the battlefront mod's runs, 2026-10-31.
 
 The LZO cache of animations (`*anim-manager*`, `art-joint-anim-manager`, `engine/anim/joint.gc`:
 64 slots in #x30000 bytes) frees its oldest slot when full, even one used this frame. Jak 3
@@ -1467,6 +1489,14 @@ Verified: jak3, `engine/gfx/font.gc`, `pc/pckernel-impl.gc`; the battlefront mod
   whole process tree from a hook in `init-enemy!` ended the game (illegal instruction) as a zone
   loaded; the same walk from the mod's own process every frame ran ten minutes. Count in your own
   process and only read the counts in the init.
+- **Capping a pool.** For the pedestrian and robot types (traffic types below 17: guards, Metal
+  Heads, roboguards, spydroids...), `activate-by-type` wakes a unit while `active-count` is below
+  `want-count`, without looking at `target-count`; `want-count` is also the pool size the manager
+  spawns and trims to. `traffic-manager-method-22` writes every `want-count` from the faction
+  spawn levels (`*want-count-levels*`) every frame, so a cap set from outside lasts one frame:
+  change the value in that loop (one `define-extern`'d call there). The battlefront mod caps
+  guard-a 14, flying-turret 6, roboguard 2, spydroid 2; units awake on the street then stayed at
+  12 per side or fewer.
 - **`start` while the city alias changes.** A `borrow` setting that changes Haven City's alias
   (ctywide-ff, -kg, -ff-kg) makes `start` reload ctywide; Jak can be placed before the ground's
   collision is back, fall, and die some 25 m down. Hold him at the spawn (`move-to-point!` each
@@ -1477,3 +1507,73 @@ Verified: jak3, `levels/city/traffic/traffic-manager.gc`, `traffic-engine.gc`,
 `citizen/citizen.gc`, `levels/city/common/ctywide-init.gc`; the battlefront mod's in-game runs
 (pools respawned with the battle's skins on half of the 13 guards, stock skins after the
 battle, wastelanders from 0 to 8 active, deployments without a fall), 2026-10-31.
+
+## 4.31 A model over the game: HUD icons, a preview in front of the camera
+
+**The HUD's models are not drawn by Merc2.** `hud-create-icon` (`engine/ui/hud.gc`) gives a
+`manipy` the draw function `dma-add-process-drawable-hud`, which calls `foreground-draw-hud`
+(mips2c), which calls `foreground-generic-merc`: the PS2 generic renderer, whose output the PC
+renderer draws as direct GS packets (`hud-draw-pris2`, a `ProgressRenderer`). A build-actor model
+has no data for it: the battlefront mod's red guard drawn that way crashed the game in native code
+at once (a stock model, the robotguard, drew). Stock icons also flip the model with a negative y
+scale (`hud-skill` 0.009 x -0.018).
+
+**Draw it with the world instead, in front of the camera.** `*math-camera*` `trans` is the eye,
+`inv-camera-rot` rows `rvec`, `uvec`, `fvec` its right, up and forward axes.
+`transform-point-vector!` gives a world point's screen position in the 512 x 416 screen, offset
+by (1792, 1840) (as `engine/ui/bigmap.gc` does), and #f off screen. To show a model at screen
+point (x, y), h screen units tall: take the point d meters ahead (`trans + fvec * d`), project it
+and the points 1 m to its right and above it, which gives the screen units per meter at that depth
+across and up (`per-x` is negative: `rvec` points left on screen), move the point by
+`(x - sx) / per-x` meters along `rvec` and `(sy - y) / per-y` along `uvec`, and scale the model
+by `h / per-y / model-height`. Face the camera with
+`(forward-up->quaternion q (vector-negate! v fvec) uvec)`. Place it from the owner every frame
+before the model's own `ja-post`: a child process runs after its parent.
+
+Model heights in game meters, from the bind pose of the rips: crimson-guard 3.8 (the Jak 2 red
+guard the same), Jak 2 jetpack guard 4.3, wastelander 3.1, roboguard-city 4.8, spydroid 2.0,
+Jak about 3. Taking human heights (2 m) draws a guard twice too large.
+
+Such a model is lit by the level, and scenery nearer than d covers it. HUD sprites are drawn after
+the world, so they cover it too: a HUD sprite with `scale-x` 0 is skipped (`hud` `draw`), which
+lets a mod clear room (Jak's health HUD keeps its pips with sprites 0 to 4 at 0; stock scales
+11.0, 8.0, 8.0, 1.0, 1.3). A hidden HUD shows again on `'show`; it stays 2 seconds, so a mod that
+wants it up sends `'show` every second.
+
+**A copy of Jak** needs `(target-skel-group)`, the skeleton group of his current outfit's geometry
+(as his mirror image, `logic-target.gc`): `skel-jchar` alone draws one flat quad. The outfit has
+cloth (`skel-jchar-c`): `initialize-skeleton` makes the cloth instances, so give the process a
+large heap (`:stack-size #x20000`, as the mirror) and set their flags `need-reset active`
+(`target-continue-init-art`). With a 16 KB heap nothing was drawn.
+
+A process that must move while a menu pauses the game clears the `menu`, `pause` and `progress`
+bits of its mask and runs on `(-> *display* real-clock)` (moving the clock's `ref-count`, as
+`hud-init-by-other` does).
+
+Verified: jak3, `engine/ui/hud.gc`, `engine/draw/drawable.gc`
+(`dma-add-process-drawable-hud`), `game/mips2c/jak3_functions/foreground.cpp`,
+`game/graphics/opengl_renderer/OpenGLRenderer.cpp`, `engine/target/target-util.gc`
+(`target-skel-group`), `engine/process-drawable/process-drawable.gc`; the battlefront mod's class
+page preview and health HUD icon, measured and seen in game, 2026-10-31.
+
+## 4.32 Stopping attacks on the player: the shield level
+
+While `(-> *target* fact shield-level)` is above 0, `target-attacked`
+(`engine/target/target-handler.gc`) ignores every attack and flashes `(-> *target* lightjak
+shield)` with `'hit`; the `'touched` handlers turn an enemy's touch into a `'shield` attack on it.
+That is all of Light Jak's shield the rest of the game sees, so a mod gets the same shield by
+setting the level and spawning its model like `target-lightjak.gc` does:
+`(process-spawn lightjak-shield :init lightjak-shield-init :name "lightjak-shield" :to *target*)`
+stored in `(-> *target* lightjak shield)`, `'open` to raise it again, `'close` to fade it out (it
+dies at the end). Its `hit` state takes light eco from the player on each stopped hit.
+
+To stop some attacks only, wrap `target-attacked` (a GAME function: `define-perm` the stock one,
+[4.10](#410-wrapping-a-stock-method-from-a-game-file)) and set the level before calling it, from
+the attacker: shots and blasts arrive from a `projectile` or an `explosion` process (`guard-shot`
+mode `guard-shot`, `explosion` mode `explode`), blows from the attacker itself (a crimson-guard,
+mode `generic`). Do not restore the level after the call: the stock handler may change state
+(`go target-hit`), and the code after it may not run.
+
+Verified: jak3, `engine/target/target-handler.gc`, `engine/target/target-lightjak.gc`; the
+battlefront mod's robotguard shield, with a logging wrapper (guard shots and a blast in at level
+1 and stopped, a guard's blow in at level 0), 2026-10-31.

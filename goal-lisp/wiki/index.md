@@ -69,6 +69,8 @@ subsystem differences, not restatements of the shared material.
   - [4.28 The minimap: icon classes, the turned marker, the big map](jak3.md#428-the-minimap-icon-classes-the-turned-marker-the-big-map)
   - [4.29 Text the game draws: the font's escapes](jak3.md#429-text-the-game-draws-the-fonts-escapes)
   - [4.30 Haven City traffic: unit pools, their skins, rebuilding them](jak3.md#430-haven-city-traffic-unit-pools-their-skins-rebuilding-them)
+  - [4.31 A model over the game: HUD icons, a preview in front of the camera](jak3.md#431-a-model-over-the-game-hud-icons-a-preview-in-front-of-the-camera)
+  - [4.32 Stopping attacks on the player: the shield level](jak3.md#432-stopping-attacks-on-the-player-the-shield-level)
 - [How to contribute](../../kb/SKILL.md)
 
 

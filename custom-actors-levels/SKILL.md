@@ -383,6 +383,10 @@ Decision rule:
   uses. Jak 2 ships a ready pattern for exactly this: `hud-create-icon`
   (`engine/ui/hud.gc`) spawns a process holding a named `defskelgroup`
   art-group, screen-locks it, and renders it through the normal Merc2 path.
+  Not in Jak 3: there `hud-create-icon` draws through the PS2 generic
+  renderer, which a build-actor model crashes; draw the model with the world
+  in front of the camera instead (Lisp wiki
+  [jak3 4.31](../goal-lisp/wiki/jak3.md#431-a-model-over-the-game-hud-icons-a-preview-in-front-of-the-camera)).
 - Need to repaint an *existing* retail texture instead? Use the
   `texture_replacements`/`texture_merges` pipeline (see the
   `texture-modding` skill) — it repaints a texture that already has a real
