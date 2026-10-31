@@ -68,6 +68,7 @@ subsystem differences, not restatements of the shared material.
   - [4.27 Places at the same coordinates](jak3.md#427-places-at-the-same-coordinates)
   - [4.28 The minimap: icon classes, the turned marker, the big map](jak3.md#428-the-minimap-icon-classes-the-turned-marker-the-big-map)
   - [4.29 Text the game draws: the font's escapes](jak3.md#429-text-the-game-draws-the-fonts-escapes)
+  - [4.30 Haven City traffic: unit pools, their skins, rebuilding them](jak3.md#430-haven-city-traffic-unit-pools-their-skins-rebuilding-them)
 - [How to contribute](../../kb/SKILL.md)
 
 

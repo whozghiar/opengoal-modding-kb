@@ -1227,6 +1227,13 @@ out of the count, hidden and shown for another player), 2026-10-20.
   skips nothing, and `dispatch_buckets_jak3` then stops on `dma.current_tag_offset() ==
   m_render_state.next_bucket` (OpenGLRenderer.cpp). The fix is `!=`. Seen on a guest's game in the
   palace ruins (`rubblea2`), right after the overflow message.
+- **Engine: the shadow vertex buffers.** `Shadow2` gathers every shadow volume of a frame in fixed
+  buffers (`kMaxVerts` = 8192 * 3 * 2 vertices, `Shadow2.h`). A crowd of shadow casters (a few
+  dozen guards and robots on screen) fills them and `alloc_verts` asserts
+  (`m_vertex_buffer_used <= m_vertex_buffer.size()`), which closes the game. Before each upload,
+  skip it when less than its worst case is left (255 triangles of 4 vertices and 5 indices, top and
+  bottom), and make the buffers larger: the battlefront mod does both (2026-10-31), and the
+  assertion did not come back.
 
 Verified: jak3, `engine/game/settings.gc`, `engine/game/task/task-control.gc`,
 `engine/entity/entity.gc`; the multiplayer mod's `merchant` scenario (Kleiver's model at his
@@ -1387,3 +1394,86 @@ text compiler builds it.
 
 Verified: jak3, `game/assets/jak3/text/game_custom_text_fr-FR.json` compiled, the multiplayer
 mod's chat answers and lines (`chat` scenario, logs and screenshots), 2026-10-29.
+
+**A page drawn by GAME code.** `draw-string-adv` with `(font-flags middle)` centers the text on
+`origin x`: the screen is 512 units wide, so x 256 centers it on the screen (`width` plays no
+part). Draw the panel (`draw-sprite2d-xy`) and its texts into one `with-dma-buffer-add-bucket`,
+panel first: from separate buffers of the same bucket, the panel covered the text. Nothing wraps:
+break long lines yourself. The game's texts follow `(-> *pc-settings* text-language)`
+(`pc-language`), not `*setting-control*` `language`, which a loaded save sets to its own. The
+game's font draws the ASCII apostrophe as an acute accent (`d'autrefois` showed `d´autrefois`).
+
+```lisp
+(with-dma-buffer-add-bucket ((buf (-> (current-frame) global-buf)) (bucket-id debug-no-zbuf2))
+  (draw-sprite2d-xy buf 56 70 400 250 (static-rgba 0 0 0 200) #x3fffff) ;; panel first
+  (let ((font (new 'stack 'font-context *font-default-matrix* 0 0 0.0 (font-color default)
+                   (font-flags shadow kerning large middle))))
+    (set! (-> font scale) 0.6)
+    (set! (-> font origin x) 256.0) ;; centered on the screen
+    (set! (-> font origin y) 100.0)
+    (pc-encode-utf8-string "Choisissez la zone de guerre" *pc-encoded-temp-string*)
+    (draw-string-adv *pc-encoded-temp-string* buf font)
+    )
+  )
+(= (-> *pc-settings* text-language) (pc-language french)) ;; the language the game's texts use
+```
+
+Verified: jak3, `engine/gfx/font.gc`, `pc/pckernel-impl.gc`; the battlefront mod's menu pages
+(screenshots before and after each fix), 2026-10-31.
+
+## 4.30 Haven City traffic: unit pools, their skins, rebuilding them
+
+- **A unit is spawned once.** The traffic manager fills each type's pool up to its `want-count`
+  (`spawn-all`, `get-process *default-dead-pool* <type> #x4000`, `traffic-manager.gc`) and trims
+  the inactive ones above it (method 18). A unit that dies sends `'child-killed` and goes back to
+  its pool (`go-inactive`, `citizen/citizen.gc`); it comes out again later and is never respawned.
+  What its init picked (the skeleton of `init-enemy!`, its mesh masks) stays for its whole life.
+  The pools still churn: the manager trims and spawns units as the wanted counts move (faction
+  state, sections), so a mod that gives new units a look in turn drifts (a battlefront guard pool
+  went from 7 blue of 14 to none); count the live units of each look and give the rarest.
+- **Sleeping units.** A pooled unit waits in state `inactive`, hidden, at its last place or at the
+  origin. A search for live units skips the state name `inactive`.
+- **Rebuilding the pools: respawn the player like a death.** A death in the game calls
+  `initialize!` with `'life` (`target-death-reset`, `engine/target/target-death.gc`), whose
+  `reset-actors` (`engine/entity/entity.gc`) kills every entity actor and every process of
+  `*entity-pool*` and `*pusher-pool*` (the traffic manager and its units among them), then runs the
+  activate function of each active level: `ctywide-activate` restarts the traffic manager, and each
+  unit level (ctypesa, ctypesc, ctypepa...) gives it its types from `lwide-activate`
+  (`*traffic-info*` `traffic-object-levels`, copied into the engine by `update-level-info`), so
+  every pool is spawned again. Do the same from a mod:
+
+  ```lisp
+  (set-continue! *game-info* (get-continue-by-name *game-info* "ctyinda-bbush-1") #f)
+  (initialize! *game-info* 'life (the-as game-save #f) (the-as string #f) (the-as resetter-spec #f))
+  ```
+
+  A `start` alone does not reset the actors: to a continue of an already active Haven City it
+  does not even run `ctywide-activate`. `ctywide-activate` called on its own leaves the restarted
+  engine with no unit level, so no pool (the unit levels stay active and do not run
+  `lwide-activate` again); `update-level-info` after it brings the pools back (all seen in game).
+- **Waking a pedestrian type.** `activate-one-vehicle` (the pedestrian picker, `traffic-engine.gc`)
+  wakes the type furthest below its `target-counts` entry for the section's faction state
+  (`cty-faction-manager` method 10). The faction manager writes them for its own types only:
+  another type (wastelanders brought into Haven City) needs its three `target-counts` as well as
+  its `want-count`, or it never wakes.
+- **Wastelanders do not hold up in Haven City's traffic.** Woken that way (code and art in
+  CTYPESA, a pool of 8), they went with three failures in the battlefront mod's long runs: two
+  freezes and one crash of the engine thread inside the background collision query
+  `fill-bg-using-line-sphere-new` (mips2c, `game/mips2c/jak3_functions/collide_hash.cpp`). No run
+  without them failed there. The cause inside was not found: keep them out of Haven City's
+  traffic.
+- **No process-tree walk in a unit's init.** The traffic manager spawns its units on its own small
+  stack (`stack-size-set!` 128 in `traffic-manager.gc`), so `init-enemy!` runs there. A walk of the
+  whole process tree from a hook in `init-enemy!` ended the game (illegal instruction) as a zone
+  loaded; the same walk from the mod's own process every frame ran ten minutes. Count in your own
+  process and only read the counts in the init.
+- **`start` while the city alias changes.** A `borrow` setting that changes Haven City's alias
+  (ctywide-ff, -kg, -ff-kg) makes `start` reload ctywide; Jak can be placed before the ground's
+  collision is back, fall, and die some 25 m down. Hold him at the spawn (`move-to-point!` each
+  frame while he is not `on-surface` and below it) and count him landed in `target-stance` only:
+  the continue state leaves a stale `on-surface` bit.
+
+Verified: jak3, `levels/city/traffic/traffic-manager.gc`, `traffic-engine.gc`,
+`citizen/citizen.gc`, `levels/city/common/ctywide-init.gc`; the battlefront mod's in-game runs
+(pools respawned with the battle's skins on half of the 13 guards, stock skins after the
+battle, wastelanders from 0 to 8 active, deployments without a fall), 2026-10-31.

@@ -297,6 +297,42 @@ Verified: jak3, `game/main.cpp`, `common/util/FileUtil.cpp`, `game/graphics/pipe
 `game/kernel/jak3/kmultiplayer.cpp`; used for every in-game check of the multiplayer mod,
 2026-10-15.
 
+**Without C++: a scenario compiled into GAME.** A mod that adds no kernel function can be checked
+the same way from GOAL alone:
+
+- **Pad.** `cpad-get-data` is a kernel function that `service-cpads` (`engine/ps2/pad.gc`) calls
+  through its symbol: keep the stock one in a `define-perm`, `set!` the symbol to a function that
+  calls it, then, for pad 0, sets `valid` 0 and `status` `#x73`, ORs bits into `button0` and writes
+  the sticks.
+- **Screenshots in a retail boot.** `capture-pc.gc` is debug only. Register a structure of the same
+  layout (`width`, `height`, `msaa` as int32, then a 244-byte `name`) with
+  `pc-register-screen-shot-settings`, write the name, call `pc-screen-shot`.
+- **The REPL and the boot modes.** `-boot` closes the REPL port (`sceDeci2Disable` when
+  `MasterDebug` is 0, `game/kernel/jak3/kmachine.cpp`); `-boot -debug-mem` keeps the retail code
+  path (no debug segment) and opens it. For a check where the REPL takes no part, list a scenario
+  file in `game.gd` (out of any commit) and boot `-boot -fakeiso`: the scenario starts itself, for
+  example from the pad hook on its first call, and writes its results with `(format 0 ...)`.
+- **From a retail boot into a save.** The first boot plays the opening scenes: triangle skips one
+  (twice), START opens the title menu, X on "Load Game" (already selected), X on slot 1.
+- **Running under menus.** A process that must go on under the menus clears `menu`, `pause`,
+  `progress` and `freeze` from its mask: the title's progress menu stopped one that only cleared
+  `menu` and `pause`.
+- **`*pc-dead-pool*` holds 4 processes** of 128 KB (`pc/pckernel.gc`); the subtitles, the Mods menu
+  popup and a mod's own process take 3. Take test processes from `*default-dead-pool*`.
+- **Symbol names in the log.** In a retail boot the printed name of a symbol (`~A`) can come out
+  garbled after level loads while its value is right: the kernel keeps some names above
+  `kglobalheap->top_base`, the area DGO loading reuses (`game/kernel/jak3/kscheme.cpp`). Compare
+  symbols, never their printed names.
+- **"#<#... has invalid type ptr #x...>".** The kernel prints an object through
+  `call_method_of_type` (`game/kernel/jak3/kscheme.cpp`), which calls any type above `0x7ffffff`
+  invalid and prints that line, then "[ERROR] call_method_of_type failed!". Jak 3 PC level heaps
+  can sit above 128 MB: a live unit of a level type (seen: Haven City robots at `#xa7b3324`) prints
+  this way. It is a printing limit, not a corrupted object.
+
+Verified: jak3, `engine/ps2/pad.gc`, `pc/debug/capture-pc.gc`, `game/kernel/jak3/kmachine.cpp`,
+`kscheme.cpp`, `pc/pckernel.gc`; the battlefront mod's scenario runs (retail boot, every class
+tested, screenshots), 2026-10-31.
+
 ---
 
 ## See also
