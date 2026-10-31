@@ -1590,8 +1590,28 @@ and the points 1 m to its right and above it, which gives the screen units per m
 across and up (`per-x` is negative: `rvec` points left on screen), move the point by
 `(x - sx) / per-x` meters along `rvec` and `(sy - y) / per-y` along `uvec`, and scale the model
 by `h / per-y / model-height`. Face the camera with
-`(forward-up->quaternion q (vector-negate! v fvec) uvec)`. Place it from the owner every frame
-before the model's own `ja-post`: a child process runs after its parent.
+`(forward-up->quaternion q (vector-negate! v fvec) uvec)`.
+
+Place it after the frame's camera is set, not from a process. The display loop runs
+`execute-math-engine` (the joints of every `ja-post` of the last process run), then
+`update-camera` (`*math-camera*` from the camera processes), then the drawing (`main.gc`); the
+processes run after that. A model placed from a process uses the previous frame's camera and is
+drawn with joints computed before the camera moved: it trails a moving camera. Connect the model
+to `*cam-post-hook-engine*` (run right after `update-camera`, 4 slots, a dead process's
+connection goes with it) and, there, place it again and redo its joints:
+
+```lisp
+(add-connection *cam-post-hook-engine* self my-cam-post #f #f #f)   ;; in its init
+(defun my-cam-post ((proc process))
+  (place-in-front-of-camera proc)
+  (do-joint-math (-> (the-as process-drawable proc) draw) (-> (the-as process-drawable proc) node-list)
+                 (-> (the-as process-drawable proc) skel))
+  0)
+```
+
+Measured with the camera swung at full right stick and after a camera teleport: the drawn model
+stayed within 0.06 screen units of its spot; placed from the process run, a screenshot taken
+while the camera settled showed it half its height off.
 
 Model heights in game meters, from the bind pose of the rips: crimson-guard 3.8 (the Jak 2 red
 guard the same), Jak 2 jetpack guard 4.3, wastelander 3.1, roboguard-city 4.8, spydroid 2.0,
