@@ -1268,7 +1268,8 @@ battles (open task nodes: 15 before, 0 during, 15 after), 2026-11-01.
 **No vehicle either.** `(set-setting! 'pilot #f 0.0 0)` keeps the player out of every vehicle:
 vehicle `check-player-get-on` (`levels/city/traffic/vehicle/vehicle-util.gc`) wants
 `user-current pilot`, as do the flut, mech and turret mounts. `vehicle-hijacking` only decides
-whether a moving traffic vehicle can be taken; it does not stop the parked ones.
+whether a vehicle without the `waiting-for-player` flag can be taken; one waiting for the player
+is taken without it.
 
 Verified: jak3, `levels/city/traffic/vehicle/vehicle-util.gc`, `engine/game/settings.gc`; the
 battlefront mod's battles (`user-current pilot` #f during a fight), 2026-11-01.
