@@ -1153,6 +1153,13 @@ are made in that order under `*active-pool*`: `*pc-pool*`, `*camera-pool*`, `*ta
 `*pc-pool*` last. A process in `*pc-pool*` runs after the player and its children (gun,
 sidekick) every frame, before anything is drawn: it can undo what their posts set.
 
+A process in `*entity-pool*` runs before the player: a model that copies `(-> *target* root trans)`
+there draws him where he was the frame before, while the camera follows him where he is. The gap
+is his speed times a frame, so it changes with every change of speed and the model shakes (the
+battlefront mod's jetpack). Place it again from a `*cam-post-hook-engine*` connection, then
+`do-joint-math` (4.31): its drawn root then matched the player's height of that frame exactly
+(gap 0.0000 m with the player climbing 0.10 to 0.19 m a frame).
+
 To run before every pool, make a pool of your own with `change-parent` under `*active-pool*`
 after boot: it becomes the first child. Make it with `define-perm` so a reload keeps one:
 
@@ -1497,9 +1504,25 @@ upload only what the stock menu mode does, `(texture-enable-mask shrub water hud
 `*texture-pool*` `texture-enable-user-menu` and `texture-enable-user` (`blit-displays.gc`), and put
 the saved value back after `disable-drawing` (which waits until the page is dropped).
 
+**A part of the world map, framed by you.** The same load brings the START menu's map image,
+`(-> *bigmap* bigmap-image art-group)`: a `(pointer uint32)` header (palette offset, image offset,
+width, height) then 8-bit pixels in 256-wide columns, each column the image's full height. Haven
+City's is 512 x 832 pixels of 4 m: pixel x is `(world x - offset x) * offset w`, pixel y `(world z -
+offset y) * offset w`, `offset` being `(-> *bigmap* offset)` (`*bigmap-info-array*`'s city entry).
+Its art is the in-game minimap's. `draw!` always shows 512 pixels from `scroll`, the whole width of
+that image, and `bigmap-method-20` reads 512 pixels from the scroll whatever the box: neither can
+frame a district. Draw the columns yourself, in a bucket of your own (`tex-hud-hud-alpha`): set
+`draw!`'s scissor (your box), test, alpha and clamp registers; per column, `pc-upload-map-texture`
+256 x 416 rows from the row you need (`image offset + column * height * 256 + row * 256 + 16`, the
+palette at `palette offset + 16`, tbp 8), the `tex0-1`/`tex1-1`/`texflush` set of
+`bigmap-method-20`, and a copy of `sprite-dma` that takes the texture rows as arguments (its own
+always start at row 0); then `(set-dirty-mask! (-> *level* level-default) 4 #x1a400 0)` as `draw!`
+does. Scale the sprite's width and height to zoom.
+
 Verified: jak3, `engine/ui/bigmap.gc`, `engine/gfx/blit-displays.gc`, `pc/progress/progress-draw-pc.gc`,
 `engine/gfx/texture/texture-h.gc`; the battlefront mod's zone pages (the assertion without the
-mask, the picture drawn with it), 2026-11-01.
+mask, the picture drawn with it; the world map framed on each war zone, its spawns on the streets),
+2026-11-01.
 
 ## 4.29 Text the game draws: the font's escapes
 
@@ -1800,6 +1823,17 @@ came on for a frame about once a second, which reset the held height each time a
 jetpack sink a step. Count him landed only when it is set and his feet are within half a meter of
 the ground probe's point, `(-> *target* control gspot-pos y)`.
 
+The flag also goes off for single frames on the run: a model that picks a jump clip from it alone
+flashed that clip (the battlefront mod's spider robot looked as if it hopped). The same test, off a
+surface and more than 0.6 m above `gspot-pos`, keeps the run clip.
+
+**Holding the player still.** `speed-mult` (`user-default`, read every frame) scales his surfaces'
+`target-speed` and `transv-max` (`engine/target/logic-target.gc`); his walk then divides by them:
+with 0 the game crashed once while he walked. A small value (0.01) and his horizontal `transv` set
+to 0 each frame on the ground hold him (0.1 m/s with the stick pushed); `(set-setting! 'jump #f 0.0
+0)` stops his jump.
+
 Verified: jak3, `engine/collide/collide-shape-h.gc` (`gspot-pos`); the battlefront mod's jetpack
 (climb at 6 m/s, hover still, Circle down at 7 m/s, out of fuel down at 4 m/s, a 1 Hz sink before
-the ground probe test, none after), 2026-11-01.
+the ground probe test, none after; the spider's clips; the robotguard standing still behind its
+shield), 2026-11-01.
