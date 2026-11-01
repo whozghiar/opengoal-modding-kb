@@ -338,6 +338,17 @@ lobby page and SELECT player list driven by the `lobby` and `player-list` scenar
 the multiplayer mod's START menu over a running world (`pause` scenario: clocks running, no still
 copy) and the `print-game-text` crash, 2026-10-19.
 
+**Greying an option of the ring.** Only the selected option's name is drawn, by
+`menu-main-menu-option` `draw-option` (`pc/progress/progress-draw-pc.gc`, color `font-color-32`);
+the ring has no disabled state. A `define-perm` wrapper of `draw-option` that draws the stock label
+itself for that option with `font-color-44` (the PC generic pages' disabled color,
+`progress-generic-draw-pc.gc`) and calls the stock for the rest greys it; pair it with the
+`respond-progress` wrapper above, playing the stock refusal beep `(sound-play "generic-beep"
+:pitch -0.6)`.
+
+Verified: jak3, `pc/progress/progress-draw-pc.gc`, `engine/ui/progress/progress.gc`; the
+battlefront mod's Save during a battle ("Save Game" grey, X left the ring as it was), 2026-11-01.
+
 ## 4.8 Making the player follow another process: `target-grab-ride`
 
 `target-grab-ride` (`engine/target/target2.gc:631`) disables the player's collision, sets no
@@ -1057,6 +1068,20 @@ Haven loaded the host's 42928-byte save sent over the network, came out at the h
 checkpoint with the host's progress, its language kept, an auto-save refused; `join-title`: the
 same from the title screen), 2026-10-15.
 
+**Telling a load from a respawn.** Every reset goes through `game-info` `initialize!`
+(`engine/game/game-info.gc`). A save loaded from the START menu arrives as `'game` with a non-#f
+`game-save` (`game-save.gc` `restore` state, the only such call); a new game or the title as
+`'game` with #f; deaths and `initialize!` calls of a mod as `'life` (`'dead` becomes `'life`); a
+mission retry as `'try`. A `define-perm` wrapper of the method sees the call before the reset and
+before the save's data (`load-game` runs a frame later in the `'play` branch's thread): a mod that
+stops its mode there, synchronously (deactivate its process, so its settings go too), lets the save
+set everything afterwards. Processes in `*pc-pool*` outlive the load; only `*entity-pool*` and
+`*pusher-pool*` are reset.
+
+Verified: jak3, `engine/game/game-info.gc`, `engine/game/game-save.gc`, `engine/entity/entity.gc`;
+the battlefront mod (a load of slot 1 during a battle: mode off, its director and avatar gone, Jak
+at the save's place, the stock city units back), 2026-11-01.
+
 ## 4.18 What the game removes out of its player's view
 
 The city's NPCs leave when the local player does not see them, which another viewer of the same
@@ -1228,6 +1253,17 @@ sent to `done` (`race-real`, `race-real-daxter`, `beam-real`), the intro skipped
 `engine/util/script.gc`, `levels/desert/wvehicle/wvehicle.gc`; the mod's `mission-start`,
 `race-result`, `race-board`, `race-finish`, `race-finish-win` scenarios (Kleiver's race driven to
 the finish by the racers' AI on two machines), 2026-10-20.
+
+**Closing every mission and activity.** `(set-setting! 'exclusive-task #f 0.0 (game-task none))`
+makes every task node count as not open: `game-task-node-info-method-12` (`task-node-open?`,
+`engine/game/task/task-control.gc`) lets a node through only if its task is one the setting names,
+and no node has the task none. NPC prompts (`process-taskable`), burning bushes, task managers and
+their minimap icons all go through that gate. A node already in progress (flag `exclusive`) stays
+open. The setting goes with the process that set it. `task-mask` is not a mission switch: it
+decides which entities are born.
+
+Verified: jak3, `engine/game/task/task-control.gc`, `engine/game/settings.gc`; the battlefront mod's
+battles (open task nodes: 15 before, 0 during, 15 after), 2026-11-01.
 
 ## 4.22 Leaper lizards (`flut`): where their code lives, spawning one
 
@@ -1440,6 +1476,22 @@ An icon is a connection: `(add-icon! *minimap* proc class-index #f (the-as vecto
 Verified: jak3, `engine/ui/minimap.gc`, `engine/ui/bigmap.gc`; the multiplayer mod's players shown
 by a marker in their color (scenarios `minimap-cone`, `coop-roles`, screenshots), 2026-10-28.
 
+**The save menu's pictures outside the menu.** A save slot's picture is
+`(-> *progress-icon-arrays* task-level)` (`draw-icon-array!`, four tiles making 96 x 96; every
+Haven City section is task-level 1, `city`), in the progress-minimap texture page. `*bigmap*`
+loads that page only while its drawing is on and the blit count-down reaches 1 (`bigmap.gc`
+`update`): `(enable-drawing *bigmap*)` then `(set! (-> *blit-displays-work* count-down) (the-as uint
+1))`, wait for `(loaded? *bigmap*)`, `(disable-drawing *bigmap*)` after. It links the page as the
+default level's pris2 page, whose upload goes to `tex-lcom-pris2`, a bucket the PC renderer wants
+empty: the game stops on "Bucket renderer 456 was supposed to be empty". While the page is held,
+upload only what the stock menu mode does, `(texture-enable-mask shrub water hud)` in both
+`*texture-pool*` `texture-enable-user-menu` and `texture-enable-user` (`blit-displays.gc`), and put
+the saved value back after `disable-drawing` (which waits until the page is dropped).
+
+Verified: jak3, `engine/ui/bigmap.gc`, `engine/gfx/blit-displays.gc`, `pc/progress/progress-draw-pc.gc`,
+`engine/gfx/texture/texture-h.gc`; the battlefront mod's zone pages (the assertion without the
+mask, the picture drawn with it), 2026-11-01.
+
 ## 4.29 Text the game draws: the font's escapes
 
 `print-game-text` reads `~` codes in any string it draws, and the game's own texts are full of
@@ -1646,18 +1698,30 @@ the flag on exactly those afterwards (a model hidden before must stay hidden).
 (iterate-process-tree *active-pool* (the-as (function object object) hide-one) *kernel-context*)
 ```
 
-**Room in Jak's health HUD.** `hud-health` uses sprites 0 to 4 and 7 to 22 (the pips); 5 and 6
-keep the `#f` texture of `hud-init-by-other`, so its `draw` skips them. A mod can give them a
-texture (`(get-texture common-white common)`, the eco gauges' own), a color, a negative `scale-y`
-to grow upward like the stock gauges, and a place from the ring's corner each frame
-(`set-as-offset-from!` with sprite 3's `pos`): the battlefront mod's fuel bar.
+**Jak's health HUD and its eco gauges.** `hud-health` draws its sprites in index order with depth:
+0 the dark disc, 1 and 2 the light and dark eco gauges (white squares with a negative `scale-y`
+from the eco amount), 3 the ring, 4 the shine, 7 to 22 the pips. The ring writes its depth on its
+whole square, so its windows shape gauges drawn before it, and a sprite drawn after it (5 or 6,
+which keep the `#f` texture of `hud-init-by-other`) is hidden wherever the ring is; 5 and 6 only
+show with the ring hidden (`scale-x` 0). To show a gauge of the mod's own in the ring, take one of
+the stock gauges: a one-line hook in `hud-health` `draw`, just before `((method-of-type hud draw)
+this)`, can set sprite 1's or 2's `scale-y` (-9.8 or -9.7 for a full one) and color after the
+stock code set them. The stock pulse, `0.5 + 0.5 sin`, takes the color to black: keep it at 0.5
+or more for a gauge that must stay readable. The `endless-dark` and `endless-light` secrets keep
+Jak's eco, so the stock gauges, full (4.2).
+
+**One DMA bucket at a time.** A `with-dma-buffer-add-bucket` opened inside another one's body, on
+the same frame buffer, froze the game: draw sprites and text in separate blocks, one after the
+other.
 
 Verified: jak3, `engine/ui/hud.gc`, `engine/draw/drawable.gc`
 (`dma-add-process-drawable-hud`), `game/mips2c/jak3_functions/foreground.cpp`,
 `game/graphics/opengl_renderer/OpenGLRenderer.cpp`, `engine/target/target-util.gc`
 (`target-skel-group`), `engine/process-drawable/process-drawable.gc`, `engine/gfx/blit-displays.gc`,
 `engine/ui/hud-classes.gc` (`hud-health`); the battlefront mod's class page preview, health HUD
-icon and gauges, and its pages on black, measured and seen in game, 2026-10-31.
+icon and gauges, and its pages on black, measured and seen in game, 2026-10-31; its class gauges
+in the stock gauges and its gun icon (a sprite 5 gauge hidden by the ring, a nested bucket freeze),
+2026-11-01.
 
 ## 4.32 Stopping attacks on the player: the shield level
 
@@ -1680,3 +1744,21 @@ mode `generic`). Do not restore the level after the call: the stock handler may 
 Verified: jak3, `engine/target/target-handler.gc`, `engine/target/target-lightjak.gc`; the
 battlefront mod's robotguard shield, with a logging wrapper (guard shots and a blast in at level
 1 and stopped, a guard's blow in at level 0), 2026-10-31.
+
+**A shield that breaks: the Dark Makers' sphere.** `shield-sphere` (`engine/common-obs/shield-sphere.gc`,
+GAME code; its three art groups are in CTYPESA, also in the far levels of the `dp-bipedal`
+troopers) is a process with a collision sphere: shots hit it and heat it by damage over strength,
+the heat decays at 0.2 a second, and past 1.0 it goes to `explode` (its shard model). Around the
+player, use a subtype with the mech shield's collision (`target-mech.gc` `mech-shield`: collide-as
+`obstacle impenetrable-obj`, no collide-with, no action): the stock one is deadly to Jak. Spawn it
+`:to *target*` with a `shield-sphere-spawn-params` (owner `*target*`, `track-joint` -1 and an
+`offset-vec` up, `shield-type-0`, a strength), from an init that first sets `(-> self level)` to
+the level holding the art and then calls `shield-sphere-init-by-other`: `initialize-skeleton` looks
+the art up in the process's level, and without it the process goes straight to
+`process-drawable-art-error`. Its stock post tints it red as it heats (`color-emissive`); a
+`shield-post` override that calls the parent can keep a constant red. `'active` answers #t while it
+stands and nothing once it explodes or dies.
+
+Verified: jak3, `engine/common-obs/shield-sphere.gc`, `engine/target/mech/target-mech.gc`,
+`goal_src/jak3/dgos/ctypesa.gd`; the battlefront mod's robotguard shield (strength 3: a guard shot
+heated it to 0.42, the second broke it into red shards, Jak's health untouched), 2026-11-01.
