@@ -1710,6 +1710,20 @@ stock code set them. The stock pulse, `0.5 + 0.5 sin`, takes the color to black:
 or more for a gauge that must stay readable. The `endless-dark` and `endless-light` secrets keep
 Jak's eco, so the stock gauges, full (4.2).
 
+**A mod's weapon in Jak's gun HUD.** `hud-gun` (top right: the gun icon, a column of shells and an
+"ammo/max" count) shows only while Jak's gun is out: its `update-values!` copies
+`*target* gun using-gun-type` into `values 0` and that gun's ammo into `values 1`, and hides the
+HUD otherwise. A `define-perm` wrapper of that method can feed it instead, while the mod needs it:
+set `(-> this values 0 target)` to a gun pickup-type (26 to 37: 29 yellow 1, 33 blue 2, 28 red 3),
+`values 1 target` to the ammo, clear `(hud-flags disable)`, set `(hud-flags show)`, then call
+`(method-of-type hud update-values!)`; call the stock method the rest of the time, so it hides
+again. The stock `draw` picks the textures, scales, shells and count from those two values. With
+`(set-setting! 'gun #f ...)` its gun arrows stay hidden.
+
+Verified: jak3, `engine/ui/hud-classes.gc` (`hud-gun` `draw`, `update-values!`), `engine/ui/hud.gc`;
+the battlefront mod's guards (yellow 1, blue 2, red 3 with their shells and counts, gun HUD
+`hud-in`, hidden for a class with no ammo weapon), 2026-11-01.
+
 **One DMA bucket at a time.** A `with-dma-buffer-add-bucket` opened inside another one's body, on
 the same frame buffer, froze the game: draw sprites and text in separate blocks, one after the
 other.
