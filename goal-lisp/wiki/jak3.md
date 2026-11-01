@@ -1723,9 +1723,12 @@ Verified: jak3, `engine/gfx/font.gc`, `pc/pckernel-impl.gc`; the battlefront mod
   `can-dest-be-used?` false) away from the player, and call
   `(activate-by-type (-> *traffic-engine* tracker1) type segment 0.0)` on it, which keeps every
   stock check of a spawn. Choose the type yourself: the stock picker `activate-one-vehicle` weighs
-  every traffic type and left guards asleep in the Industrial Zone. The battlefront mod does it four
-  times a second within its battlefield: 4 to 12 units awake per side at the Port, losses on both
-  sides. Some places have no unit lanes at all: in the town center around `ctygenb-bbush-1` and
+  every traffic type and left guards asleep in the Industrial Zone. `activate-by-type` returns
+  nothing and can refuse a spawn (a unit on the spot, the territory's faction rules): compare the
+  type's `active-count` before and after, and try another segment. The battlefront mod wakes up to
+  three units four times a second within its battlefield, three segments tried for each: its armies
+  of 20 per side (pools 22 guards, 10 flying turrets, 4 roboguards, 4 spydroids) reached 20 per side
+  in all four of its zones; one unit a tick, with no retry, held them at 14 to 19. Some places have no unit lanes at all: in the town center around `ctygenb-bbush-1` and
   `ctygenb-bbush-3` no segment passed, and no unit ever woke.
 - **Lane data lives in each city section.** The traffic's segments come from the
   `city-level-info` of each loaded level's `bsp` (`ctyport`, `ctyinda`...), registered in the
