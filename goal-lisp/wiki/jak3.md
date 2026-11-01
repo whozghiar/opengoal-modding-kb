@@ -376,8 +376,9 @@ to follow, and left with the grab exit:
 
 `get-trans` mode 0 only reads `(-> root trans)`, so the followed process may have a plain `trsqv`
 root and no skeleton. The player's model stays visible in its last pose: hide it with
-`(send-event *target* 'draw #f)`. Only the position follows: the player keeps the facing it had
-when it got in (`control quat`).
+`(send-event *target* 'draw #f)` (`no-draw`: his bones stop too, see 4.34 before moving him while
+hidden). Only the position follows: the player keeps the facing it had when it got in (`control
+quat`).
 
 Verified: jak3, `engine/target/target2.gc`, `engine/target/target-handler.gc` (`'grab-ride`
 branch), `engine/process-drawable/process-focusable.gc` (`get-trans`), 2026-10-14; the facing in
@@ -969,11 +970,24 @@ continue point unchanged), 2026-10-15.
   frame (`update!` of `load-state` in `level.gc`); `target` is rebuilt from `want-exp` only when
   the wanted levels change (`add-borrow-levels`). A level whose `master-level` is not loaded
   stops the game when asked for (`level-get-for-use`: "is loading before master-level").
+- A respawn at a continue point (`target-continue`, `engine/target/target-death.gc`) writes the
+  point's `want` list into `*load-state*`, calls `add-borrow-levels`, then waits until every level
+  of that list shown (`display?`) is `active`. A wrapper of `add-borrow-levels` that drops one of
+  them leaves the respawn waiting for ever: the battlefront mod's level filter hung its Krimzon
+  Guard camp in the Port, `ctyport-warzone`, which lists `ctyinda`.
+- `*load-state*` `vis-nick` is the level the game sees the player in (`level-get-target-inside`).
+  While `*level*` `border?` is on, the load-state update switches it (`want-vis-level`) to an
+  active level with continue points whose boxes hold him (`inside-boxes?`), once the current one's
+  no longer do; a continue point sets it from its own `vis-nick`. It is not a map of the districts:
+  moved to `ctyinda-bbush-5` (Industrial Zone) with `ctyinda` loaded, Jak stood there 8 s and it
+  stayed `ctyport`. The battlefront mod also tests his minimap cell (4.28, `city-map-bits`).
 
 Verified: jak3, `engine/level/level.gc`, `engine/load/load-state.gc`; seen in game in the
 multiplayer mod (the bank error and crash when loading wascityb next to wascitya; crashes at a
 level unload until copies and part-trackers of the level, active or only loaded, were dropped
-first), 2026-10-14.
+first), 2026-10-14; `engine/target/target-death.gc` (`target-continue`); the battlefront mod's runs
+(a respawn waiting for ever on a level its filter dropped; vis-nick kept on `ctyport` with Jak 8 s
+in the Industrial Zone), 2026-11-01.
 
 ## 4.16 Drawing the objects of another place, outside the banks
 
@@ -1600,21 +1614,26 @@ mask, the picture drawn with it; the world map framed on each war zone, its spaw
 **The minimap's own textures differ from that map.** The START menu's map lays the streets over a
 textured ground; the in-game minimap's textures have a flat dark gray ground (same streets, water
 and scale). Haven City's minimap is a grid of 5 x 7 cells of 384 m: column `(x + 768 m) / 384 m`,
-row `(z + 768 m) / 384 m`; each cell names a 256 x 256 texture of 4 m a texel
-(`*minimap-texture-name-array*`, `map-ctyportc`...) whose top left corner is
-`*minimap-corner-array*` (-1088 m + 384 m per column or row), so neighbouring cells overlap. Each
+row `(z + 768 m) / 384 m`; each cell names a texture covering 1024 m
+(`*minimap-texture-name-array*`, `map-ctyportc`...), 256 x 256 texels of 4 m, or 256 x 128 texels
+8 m tall on the city's south row (`map-ctyportd`, `-e`, `-f`), whose top left corner is
+`*minimap-corner-array*` (-1088 m + 384 m per column or row), so neighbouring cells overlap. A level
+lists the cells it covers in its `city-map-bits` (`level-info.gc`). Each
 texture lives in its city section's own `<section>-minimap` page, loaded only with the section
 (`lookup-minimap-texture-by-name`). To show another section's, carry its texels: 8-bit indices plus a
 16 x 16 ct32 palette with entry i at position i with bits 3 and 4 swapped (the PS2 order, as in the
 world map's palette), uploaded with `pc-upload-map-texture` like the map above (`tex0` `:tbw` the
 width / 64, `:tw` and `:th` its log2) and drawn as one sprite. The battlefront mod's
-`scripts/battlefront/make_minimaps.py` cuts 128 x 128 texels per war zone from the decompiled PNGs
-(25 colors for four zones).
+`scripts/battlefront/make_minimaps.py` builds each war zone's whole district from the decompiled
+PNGs: the bounding box of its sections' cells (`city-map-bits`), each texel taken from its cell's
+texture sampled at that texture's own size, other levels' cells black, at most 256 texels a side
+(34 colors for four zones).
 
 Verified: jak3, `engine/ui/minimap.gc`; `iso_data/jak3/STR/WOMAP.STR` compared with
 `decompiler_out/jak3/textures/ctyport-minimap/map-ctyportc.png` (same streets at the same place,
 different ground); the battlefront mod's four zone pages drawn from that data (screenshots,
-2026-11-01).
+2026-11-01); `decompiler_out/jak3/textures/ctyport-minimap/` (`map-ctyportd`, `-e`, `-f` 256 x
+128), `engine/level/level-info.gc` (`city-map-bits`), 2026-11-01.
 
 ## 4.29 Text the game draws: the font's escapes
 
@@ -1736,6 +1755,16 @@ Verified: jak3, `engine/gfx/font.gc`, `pc/pckernel-impl.gc`; the battlefront mod
   only sees the sections loaded: from the Port, a sphere over the Industrial Zone, the Slums or
   Freedom HQ returned no segment. A mod that needs another area's lanes must read them while that
   area is loaded (the battlefront mod read each zone's once in game and stores them).
+- **Two sections at most.** Haven City keeps ctywide and two city sections loaded, as the traffic
+  engine's two `level-data-array` slots do; walking toward a third unloads one. A section's edge
+  can stand on the next section's collision: at the Port's war zone (`ctyport-warzone`, vis-nick
+  `ctyport`) Jak had ground only with `ctyinda` loaded, which the stock loads there.
+- **Which section a lane belongs to.** `level-link` points each segment's `branch` into its
+  section's nav-graph `branch-array`; a lane belongs to the section whose array holds its address
+  (`branch-count` entries of 16 bytes). A unit's lane is its `controller` `branch`. `nav-node`
+  `level` is read by `deactivate-all-from-level`, but nothing in the code writes it. The
+  battlefront mod keeps its reinforcements and its units kept out of view on its district's lanes
+  this way: 0 awake units on another section's lanes in each zone.
 - **`start` while the city alias changes.** A `borrow` setting that changes Haven City's alias
   (ctywide-ff, -kg, -ff-kg) makes `start` reload ctywide; Jak can be placed before the ground's
   collision is back, fall, and die some 25 m down. Hold him at the spawn (`move-to-point!` each
@@ -1745,10 +1774,13 @@ Verified: jak3, `engine/gfx/font.gc`, `pc/pckernel-impl.gc`; the battlefront mod
 Verified: jak3, `levels/city/traffic/traffic-manager.gc`, `traffic-engine.gc`,
 `citizen/citizen.gc`, `levels/city/common/ctywide-init.gc`, `levels/wascity/traffic-util.gc`
 (`callback-on-nav-segments-in-sphere`); the battlefront mod's in-game runs (pools respawned with
-the battle's skins on half of the 13 guards, stock skins after the battle, wastelanders from 0 to
-8 active, deployments without a fall; lanes of each war zone read only once it was loaded: 43
+the battle's skins on half of the 13 guards, stock skins after the battle, wastelanders from 0 to 8
+active, deployments without a fall; lanes of each war zone read only once it was loaded: 43
 segments at the Port from `ctyport`, 188 in the Industrial Zone from `ctyinda` and `ctyport`),
-2026-10-31.
+2026-10-31; `traffic-engine.gc` (`level-link`, `deactivate-all-from-level`,
+`sphere-in-loaded-city-infos?`); the battlefront mod's district runs (ground at `ctyport-warzone`
+only with `ctyinda` loaded; 0 awake units on another section's lanes in each of its four zones),
+2026-11-01.
 
 ## 4.31 A model over the game: HUD icons, a preview in front of the camera
 
@@ -1932,3 +1964,41 @@ Verified: jak3, `engine/collide/collide-shape-h.gc` (`gspot-pos`); the battlefro
 (climb at 6 m/s, hover still, Circle down at 7 m/s, out of fuel down at 4 m/s, a 1 Hz sink before
 the ground probe test, none after; the spider's clips; the robotguard standing still behind its
 shield), 2026-11-01.
+
+
+## 4.34 The player hidden: his bones, and his collision
+
+`no-draw` (the target's `'draw #f` event sets it) hides a model, and also stops its bones:
+`evaluate-joint-control` skips its clips and `do-joint-math` returns at once while `no-draw` or
+`no-draw-temp` is set (`engine/process-drawable/process-drawable.gc`). The player's collision
+follows his bones: hidden by a mod that draws another model in his place, Jak walked as usual, but
+once moved by `move-to-point!` or by a stock respawn (`target-continue`) he fell through the ground
+at many places (5 of the Port's 9 continue points). The same points held him outside the mod's
+hiding, and with his bones computed each frame while hidden:
+
+```lisp
+;; once a frame, after the player moved and before drawing (a *cam-post-hook-engine* connection)
+(when (and *target*
+           (= *master-mode* 'game)
+           (not (focus-test? *target* dead))
+           (nonzero? (-> *target* skel))
+           (> (-> *target* skel active-channels) 0)
+           (not (logtest? (-> *target* draw status) (draw-control-status uninited))))
+  (let ((hidden? (logtest? (-> *target* draw status) (draw-control-status no-draw))))
+    (logclear! (-> *target* draw status) (draw-control-status no-draw))
+    (update-anim-data (-> *target* skel)) ; as Jak's edge-grab code does (logic-target.gc)
+    (do-joint-math (-> *target* draw) (-> *target* node-list) (-> *target* skel))
+    (if hidden?
+        (logior! (-> *target* draw status) (draw-control-status no-draw)))))
+```
+
+Keep the tests: the same math without them, run from the frames after a menu page closed on a
+deployment, crashed the game (twice, at the same moment); with them it ran through the battlefront
+mod's proof runs.
+
+Verified: jak3, `engine/process-drawable/process-drawable.gc` (`evaluate-joint-control`,
+`do-joint-math`), `engine/target/target-handler.gc` (`'draw`), `engine/target/logic-target.gc`;
+the battlefront mod's runs: Jak hidden, falling through at the Port's `ctyport-start`,
+`-bbush-1`, `-bbush-5`, `-gungame`, `-bbush-8` after `move-to-point!` and after `'continue`; a ray
+down found the ground 0.01 m under each; standing and running 20 to 30 m from each with Jak drawn,
+or hidden with the bones computed, 2026-11-01.
