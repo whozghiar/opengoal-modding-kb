@@ -1265,6 +1265,14 @@ decides which entities are born.
 Verified: jak3, `engine/game/task/task-control.gc`, `engine/game/settings.gc`; the battlefront mod's
 battles (open task nodes: 15 before, 0 during, 15 after), 2026-11-01.
 
+**No vehicle either.** `(set-setting! 'pilot #f 0.0 0)` keeps the player out of every vehicle:
+vehicle `check-player-get-on` (`levels/city/traffic/vehicle/vehicle-util.gc`) wants
+`user-current pilot`, as do the flut, mech and turret mounts. `vehicle-hijacking` only decides
+whether a moving traffic vehicle can be taken; it does not stop the parked ones.
+
+Verified: jak3, `levels/city/traffic/vehicle/vehicle-util.gc`, `engine/game/settings.gc`; the
+battlefront mod's battles (`user-current pilot` #f during a fight), 2026-11-01.
+
 ## 4.22 Leaper lizards (`flut`): where their code lives, spawning one
 
 - **Type in GAME, code in the levels.** `deftype flut` is in `flut-h.gc` (GAME): a GAME file can
@@ -1776,3 +1784,21 @@ stands and nothing once it explodes or dies.
 Verified: jak3, `engine/common-obs/shield-sphere.gc`, `engine/target/mech/target-mech.gc`,
 `goal_src/jak3/dgos/ctypesa.gd`; the battlefront mod's robotguard shield (strength 3: a guard shot
 heated it to 0.42, the second broke it into red shards, Jak's health untouched), 2026-11-01.
+
+## 4.33 Holding the player in the air: a jetpack
+
+A mod can fly Jak by setting `(-> *target* control transv y)` every frame while he is in the air;
+his air state integrates it with gravity after. To hold a height, set it from the gap to that
+height rather than switching a thrust on and off (which jerked up and down): `4.0 * (held - y)`,
+clamped, settles within a second and stays still (the battlefront mod's jetpack held 10.4058 m to
+the 0.1 mm for 4 s). Keep a faster jump's own speed on take-off (`fmax` with the climb speed), and
+cap the fall when the fuel is out (`fmax` with minus the sink speed) for a slow descent.
+
+Do not trust `(collide-status on-surface)` alone to tell he landed: held 2 m above the ground, it
+came on for a frame about once a second, which reset the held height each time and let the
+jetpack sink a step. Count him landed only when it is set and his feet are within half a meter of
+the ground probe's point, `(-> *target* control gspot-pos y)`.
+
+Verified: jak3, `engine/collide/collide-shape-h.gc` (`gspot-pos`); the battlefront mod's jetpack
+(climb at 6 m/s, hover still, Circle down at 7 m/s, out of fuel down at 4 m/s, a 1 Hz sink before
+the ground probe test, none after), 2026-11-01.
