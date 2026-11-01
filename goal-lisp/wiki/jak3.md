@@ -240,7 +240,13 @@ to it through the generic history stack, which calls `set-menu-options` again wi
 
 Labels of generic options are `text-id`s: add them at the end of the `text-id` enum
 (`engine/ui/text-h.gc`) and their strings to `game/assets/jak3/text/game_custom_text_<lang>.json`
-(English is loaded as the fallback for every language). That English fallback goes into
+(English is loaded as the fallback for every language). A mod that keeps those files as they are
+can answer ids past the enum's last (`#x136c`) itself: every label goes through `lookup-text!` on
+`*common-text*`, so a `define-perm` wrapper of `game-text-info` `lookup-text!` (4.10) returns its own
+string for its range, `pc-encode-utf8-string`-encoded into a string of its own per label (two
+labels can be drawn from one format), and calls the stock for the rest. In `new 'static` option
+pages give the id as a plain integer (`:name #x7f00`, or a `defconstant`):
+`(the-as text-id #x7f00)` stops the compiler ("Could not evaluate ... at compile time"). That English fallback goes into
 `*fallback-text-heap*` (`text-h.gc`, PC port), only 80 KB against 128 KB for the language's own
 text: once `out/jak3/iso/0COMMON.TXT` reached 78.6 KB, its link overran that heap and every boot
 stopped in `c_symlink2` (`val is 0x1010101`, `klink.cpp:289`) right after loading `0common.TXT`,
@@ -255,7 +261,12 @@ arrives with `selected?` `#t` (commit there).
 Two traps of the stock generic options: a `menu-generic-button-option` fires again on the confirm
 that deselects it (guard actions that must not run twice), and `menu-generic-confirm-option` runs
 its action on confirm whatever the yes / no choice; subclass it and test `confirmed?` in
-`call-on-confirm` when "no" must do nothing.
+`call-on-confirm` when "no" must do nothing. A button that closes the START menu calls
+`(set-next-state progress 'go-away 0)`; a mod's own process then waits for `*master-mode*` `'game`
+before opening its own page. The generic pages read no input while the menu still moves
+(`menu-transition` not 0.0, `respond-to-cpad`, `progress-generic-pc.gc`), and keep the hovered line
+of the last visit (`*progress-pc-generic-store*` `current-menu-hover-index`): a test that presses
+down counts from there, not from the top.
 
 - **Title screen.** Its list is `*title-pc*` (New Game, Load Game, Options, Secrets, Quit); it
   opens on Load Game when a save exists, and only after the title screen's first press
@@ -549,6 +560,29 @@ target-stance)`), brings the player back elsewhere with the mission still runnin
 Verified: jak3, `engine/target/target-death.gc`; the multiplayer mod's co-op return next to a
 teammate (scenario `coop-respawn`: each player killed, back next to the other in `target-stance`,
 health full), 2026-10-19.
+
+**The whole death replaced: a state's code.** `target-death-reset` comes last: before it the
+stock death freezes enemies, platforms, projectiles and guards (a `'process-mask` setting) and may
+play a death movie (`target-death-main`). A state is an object whose `code` slot is called with the
+`go` arguments, so keep the stock code, `(define-perm *stock* function (-> target-death code))`, and
+`(set! (-> target-death code) my-code)`, a `defbehavior` of `target` taking the death mode, which
+calls `((the-as (function symbol none :behavior target) *stock*) mode)` when it does not apply. To
+die without the freeze, set what the stock death sets that the game reads, `(focus-status dead)`
+and `(target-flags disable-attacks)` (attacks are refused while it is on), put the gun away, wait
+(`suspend` in a loop: the world runs), then `move-to-point!`, health, and `(go target-stance)`: the
+state's `:exit` clears the flags. Meanwhile `(send-event *camera* 'change-target proc)` gives the
+camera to any `process-focusable` (cam-master.gc, as `camera-look-at` does) and `*target*` gives
+it back; a unit taller than Jak fills the screen behind the default string, so set
+`'string-min-length`, `'string-max-length`, `'string-min-height` and `'string-max-height` (`'abs`,
+10, 14, 4 and 6 m) from the target meanwhile and remove them after.
+`(send-event *camera* 'teleport-to-vector-start-string pos)` puts it at POS looking at the target.
+
+Verified: jak3, `engine/target/target-death.gc`, `engine/target/target-handler.gc`,
+`engine/camera/cam-master.gc`, `kernel/gkernel-h.gc` (`state`); the battlefront mod's deaths (dead
+4 s with the camera on a guard of the player's side, then back at the spawn in `target-stance` with
+full health; 20 of 21 and 18 of 23 units the same processes before and after), 2026-11-01. A save
+with the "invulnerable" secret refuses plain attacks (`target-attacked`): a test that must kill
+the player sends `'attack-invinc`.
 
 Only for functions of GAME files. A file whose header lists level DGOs (`;; dgos: HGA, LPATK,
 RAILA, ...`, as `engine/target/target-pilot.gc`) is level code: its object is linked again each
@@ -1032,6 +1066,12 @@ into a heap carved from an active level instead, no level loaded: no crash), 202
   those tags' `elt-type` to `(game-save-elt sfx-volume)`, which `load-game` skips (the PC port
   keeps volumes in `pc-settings`). Tags follow each other at
   `(logand -16 (+ (* elt-size elt-count) 31))` bytes.
+- **The last save, again.** `(auto-save-command 'restore 0 (-> *game-info* auto-save-which) proc
+  #f)` loads the slot the game last loaded or saved, as the START menu's Load Game does
+  (`progress.gc`); the auto-save process's `done` keeps that slot in `*game-info*` `auto-save-which`
+  and sets `(-> *setting-control* user-default auto-save)`, so that flag says a slot was loaded or
+  saved since the boot. The load's `initialize!` 'game resets the game at the save (the battlefront
+  mod's battle ends there: back at the save's place within a second, 2026-11-01).
 - **No save.** Every card write goes through `auto-save-command` (`'save`, `'save-last`,
   `'auto-save`, `'create-file`, `'format-card`, `'unformat-card`; `'restore` reads): the pause
   menu's saves, checkpoints, missions' `(auto-save 'auto-save)`, a new game's first save. A
@@ -1100,6 +1140,14 @@ world (a second player, a spectator camera) can see happen:
   (`in-ditch`, `check-water`), a fall from a quay included.
 - **Crimson guards** off screen, not in formation nor in a mission, can be retired by their
   squad (`crimson-guard-method-270`).
+- **Every awake pedestrian of the traffic** (citizens, guards, flying turrets, roboguards,
+  spydroids: tracker 1), every frame: outside the city cells marked `active-pedestrian` it is sent
+  `'traffic-off` and goes back to its pool, unless it is `persistent` (`traffic-engine.gc`, the
+  `sphere-in-loaded-city-infos?` test with bit 1). Those cells are the ones the camera's cell can
+  see: a crowd fighting 100 m away behind buildings vanished. One `or` with a mod's own test in that
+  `if` keeps the units of an area awake (the battlefront mod: units standing on its battlefield,
+  during a fight); the stock `persistent` flag is no help, the guards' and turrets' own states set
+  and clear it.
 
 A citizen that goes inactive is still a process: test `focus-status inactive` or `no-draw`, not
 whether its handle resolves, to tell it vanished.
@@ -1111,7 +1159,10 @@ an idle enemy off screen (`engine/ai/enemy.gc`). The kernel asks it each frame, 
 methods (4.10) keeps the actors near another viewpoint running.
 
 Verified: jak3, the files above; seen in the multiplayer mod's tests (flitters going inactive in
-the port's water, copies hidden when the host walked away), 2026-10-15.
+the port's water, copies hidden when the host walked away), 2026-10-15; the traffic's cell test in
+`levels/city/traffic/traffic-engine.gc` and `levels/wascity/traffic-util.gc` (`sphere-in-grid?`),
+the battlefront mod's armies with the battlefield kept awake (up to 17 units a side awake with
+Jak at the battlefield's edge, 12 before), 2026-11-01.
 
 ## 4.19 A clip on part of a skeleton
 
@@ -1143,6 +1194,28 @@ Verified: jak3, `engine/anim/joint.gc`, `engine/process-drawable/process-drawabl
 `engine/target/sidekick.gc`; the multiplayer mod's `daxter-fire-anim` scenario (Daxter's upper body
 in his gun clips over his mode's legs, screenshots; without the function, the channel had no
 effect), 2026-10-19.
+
+**The engine's own way: `top-anim`.** Any `process-drawable` can carry a
+`top-anim-joint-control` in `(-> self skel top-anim)` (Jak's gun clips on his arms,
+`target-gun.gc`); `evaluate-joint-control` updates it every frame before the joints are computed,
+so the locomotion code keeps its own channels (`ja-channel-push!` and `ja-channel-set!` move the
+float channels it adds). Make it in the process's init, `(new 'process 'top-anim-joint-control
+self)`, with `interp-select 0` the joints' mask and `base-anim` a clip of the model. To play a clip:
+`interp` 1.0 first (`push-anim-to-targ` does nothing while it is 0), then `(push-anim-to-targ top
+clip start-frame blend-in post-blend speed post-end #f)` (frames counted as `artist-step` times the
+frame index); set `frame-post-put-away` (a `basic`: `(the-as basic #t)`) right after the push, as
+the push clears it: at the clip's end `interp` goes to 0 and the upper body blends back into the
+legs' clip. Without it the clip holds its end, then plays `base-anim`; never leave `base-anim` #f
+there, `update` would make a channel of `#f`. `(-> top frame-targ)` turns #f when a pushed clip
+ends: the moment to push the next one. The joint-control's `relocate` moves the top-anim with a
+heap that compacts. Crimson guard skeleton (`crimson-guard-lod0`): above the hips are swivelMe 3 to
+left_wrist 17, the fingers 25 to 27 and the head, ears and thumbs 29 to 40, `#x1ffee03fff8`; the
+hips 18 hold the legs (18 to 24, 28).
+
+Verified: jak3, `engine/process-drawable/process-drawable.gc` (`top-anim-joint-control` `update`),
+`engine/target/target-gun.gc`, `engine/entity/relocate.gc`; the battlefront mod's guard class
+(rifle, grenade and reload clips on the upper body while the legs walk, logged clip by clip and
+seen in screenshots), 2026-11-01.
 
 ## 4.20 The order processes run in
 
@@ -1523,6 +1596,25 @@ Verified: jak3, `engine/ui/bigmap.gc`, `engine/gfx/blit-displays.gc`, `pc/progre
 `engine/gfx/texture/texture-h.gc`; the battlefront mod's zone pages (the assertion without the
 mask, the picture drawn with it; the world map framed on each war zone, its spawns on the streets),
 2026-11-01.
+
+**The minimap's own textures differ from that map.** The START menu's map lays the streets over a
+textured ground; the in-game minimap's textures have a flat dark gray ground (same streets, water
+and scale). Haven City's minimap is a grid of 5 x 7 cells of 384 m: column `(x + 768 m) / 384 m`,
+row `(z + 768 m) / 384 m`; each cell names a 256 x 256 texture of 4 m a texel
+(`*minimap-texture-name-array*`, `map-ctyportc`...) whose top left corner is
+`*minimap-corner-array*` (-1088 m + 384 m per column or row), so neighbouring cells overlap. Each
+texture lives in its city section's own `<section>-minimap` page, loaded only with the section
+(`lookup-minimap-texture-by-name`). To show another section's, carry its texels: 8-bit indices plus a
+16 x 16 ct32 palette with entry i at position i with bits 3 and 4 swapped (the PS2 order, as in the
+world map's palette), uploaded with `pc-upload-map-texture` like the map above (`tex0` `:tbw` the
+width / 64, `:tw` and `:th` its log2) and drawn as one sprite. The battlefront mod's
+`scripts/battlefront/make_minimaps.py` cuts 128 x 128 texels per war zone from the decompiled PNGs
+(25 colors for four zones).
+
+Verified: jak3, `engine/ui/minimap.gc`; `iso_data/jak3/STR/WOMAP.STR` compared with
+`decompiler_out/jak3/textures/ctyport-minimap/map-ctyportc.png` (same streets at the same place,
+different ground); the battlefront mod's four zone pages drawn from that data (screenshots,
+2026-11-01).
 
 ## 4.29 Text the game draws: the font's escapes
 
