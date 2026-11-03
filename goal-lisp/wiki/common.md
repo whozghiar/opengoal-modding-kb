@@ -862,6 +862,18 @@ Verified: jak3, the multiplayer mod's `mp-challenge-take`, called by `game-info`
 precursor orb taken: `(and (-> proc parent) ...)` crashed the `economy` scenario's host on an orb,
 `nonzero?` fixed it, 2026-10-29.
 
+### 1.4.23 A `lambda` is not a closure: it cannot read the caller's locals
+
+A `lambda` is compiled as a separate function. When its body names a variable of the enclosing
+`let` or function, for example a counter or a "best so far" handed to `iterate-process-tree`, goalc
+stops on an assertion inside its x86 emitter (`goalc/emitter/IGenX86.cpp`,
+`load32u_gpr64_gpr64_plus_gpr64_plus_s8`) and names no form. Keep such state in a global
+structure (1.4.17) and read it back after the walk. `(let () ...)`, with no binding, does not
+compile either: use `begin`.
+
+Verified: jak3, goalc on a temporary test file of the Haven City: New Dawn mod (two
+`iterate-process-tree` lambdas updating a local count and a nearest process), 2026-11-03.
+
 ### 1.4.19 A state keeps the event handler it was defined with
 
 `defstate` evaluates `:event`, `:enter`, `:trans`... once, when the state is defined: a state holds
