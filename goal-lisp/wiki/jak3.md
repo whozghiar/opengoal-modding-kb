@@ -1682,7 +1682,10 @@ Verified: jak3, `engine/gfx/font.gc`, `pc/pckernel-impl.gc`; the battlefront mod
   What its init picked (the skeleton of `init-enemy!`, its mesh masks) stays for its whole life.
   The pools still churn: the manager trims and spawns units as the wanted counts move (faction
   state, sections), so a mod that gives new units a look in turn drifts (a battlefront guard pool
-  went from 7 blue of 14 to none); count the live units of each look and give the rarest.
+  went from 7 blue of 14 to none); count the live units of each look and give the rarest. Rarest
+  in proportion to each look's share (live / share, compared as `live_a * share_b < live_b *
+  share_a`), not in units missing: with shares 10 blue, 4, 3, 2, 1 red, the units missing gave the
+  first six units of a new pool the blue look, and the traffic wakes a pool's first units first.
 - **Sleeping units.** A pooled unit waits in state `inactive`, hidden, at its last place or at the
   origin. A search for live units skips the state name `inactive`.
 - **Rebuilding the pools: respawn the player like a death.** A death in the game calls
@@ -2044,6 +2047,18 @@ so launch it through `merc-death-spawn`; `launch-particles` with part 53 draws n
 Run it for 15 frames from a small process holding the dying one's handle, and set the draw's
 `no-draw` status from the fourth frame, as the generic renderer hides the mesh.
 
+**A `nav-enemy` playing a guard's death clip.** The clip does not run `death-default` itself: it
+sends its process `'event-death`, and Jak 3's guard runs the effect from its event handler
+(`crimson-guard` `event-handler`, `levels/city/traffic/citizen/guard.gc`). A `nav-enemy` of a mod
+that borrows the guard's clips ignores the event, so it dies without the cloud. Handle it the same
+way in the mod's own `event-handler` (before passing the other events to `nav-enemy`'s):
+
+```lisp
+(('event-death)
+ (if (and (= (-> this hit-points) 0.0) (-> this skel effect))
+     (do-effect (-> this skel effect) "death-default" 0.0 -1)))
+```
+
 **Another mesh at runtime.** Two build-actor models made from the same rip (a recolored copy) share
 their skeleton and clips: a process can switch to the other one without a second
 `initialize-skeleton`, which would allocate on a heap already shrunk. Look the art group up in the
@@ -2120,8 +2135,89 @@ the weapon the hook would give in method 270 instead:
   (return #t))
 ```
 
-Verified: jak3, `levels/city/traffic/citizen/guard.gc` (methods 267, 270),
+**A guard type no guard on foot has kills the guard.** A guard woken with the spawn params'
+`guard-type` 11 ("keep yours", a transport's drop, behavior 6) keeps the type `citizen-method-194`
+gave it from the squad (`ff-squad-control-method-54` for the traffic type), which can be a vehicle
+gunner's. Landing from its jump, `go-hostile` (`guard-states.gc`) picks its state by weapon with a
+`case` over rifle, tazer and grenade only: with any other type it goes nowhere, the jump's code runs
+to its end, and a process whose state code returns is deactivated (the guard calls `deactivate` on
+itself, hit points intact). A weapon hook must map every type that is not a ped weapon to one.
+
+Verified: jak3, `levels/city/traffic/citizen/guard.gc` (methods 267, 270, 194, `go-from-behavior`),
 `levels/city/common/guard-states.gc`, `levels/city/common/ff-squad-control.gc`; Haven City: New
 Dawn's war mode: with the Krimzon Guards' weapons forced, 8 runs of 17 crashed; with the squad's
 weapons, 4 of 4 went through; rifles only, 3 of 4 crashed; with the test in method 270, 16 of 16
-went through (60 to 90 s of war each), 2026-11-04.
+went through (60 to 90 s of war each); the blue guards of a transport deactivated by themselves in
+state `jump`, 8 of 8, then landing and fighting with the hook mapping every other type to the
+rifle or the launcher, 2026-11-04.
+
+## 4.38 A guard that hunted the player: letting it go
+
+Jak 3's attack controller (`*cty-attack-controller*`, `wascity/mission-squad-control.gc`) gives each
+guard its enemy. A guard Jak hits gets a hatred callback (`'member-attacked`: `attacker-info`
+`hatred-map-callback`, `guard.gc`) that makes the player its enemy; the stock hatred table has no
+entry from a guard to the player. `mission-squad-control-method-12` looks for a new enemy only while
+the guard keeps some hatred for its current one (a table entry, or the callback). Clearing the
+callback alone leaves the player as its enemy for good: the guard goes on attacking, and goes back
+to its attack each time `'end-pursuit` sends it to `active` (`active` goes hostile again while the
+guard's `target-status` holds a process). Drop the enemy the way `remove-attacker` does, then clear
+the target and send `'end-pursuit`:
+
+```lisp
+;; g: a crimson-guard; the player's own entry loses one attacker
+(let ((ai (-> g attacker-info))
+      (ctrl *cty-attack-controller*))
+  (when ai
+    (set! (-> ai hatred-map-callback) #f)
+    (when (= (handle->process (-> ai enemy)) *target*)
+      (let ((k (-> ai enemy-index)))
+        (if (and (>= k 0) (< k (-> ctrl attackers length)) (> (-> ctrl attackers data k num-current-attackers) 0))
+            (+! (-> ctrl attackers data k num-current-attackers) -1)))
+      (set! (-> ai enemy-index) -1)
+      (set! (-> ai enemy) (the-as handle #f))
+      (set! (-> ai enemy-type) -1)
+      (logior! (-> ai flags) (city-attacker-info-flag cai2))))
+  (if (= (handle->process (-> g target-status handle)) *target*)
+      (set! (-> g target-status handle) (the-as handle #f)))
+  (send-event g 'end-pursuit))
+```
+
+The city's own alert end does not work either: `ff-squad-control-method-45` waits during its ending
+for `ff-squad-control-method-48`, the count of guards still in the alert, which is decompiled as
+returning `none`: the value is whatever its last expression left.
+
+Verified: jak3, `levels/wascity/mission-squad-control.gc` (methods 12, 13, `remove-attacker`),
+`levels/city/traffic/citizen/guard.gc` (`'member-attacked`, `'end-pursuit`),
+`levels/city/common/guard-states.gc` (`active`), `levels/city/common/ff-squad-control.gc`; Haven
+City: New Dawn's alert: with the callback cleared, 5 guards kept the player as enemy and target for
+70 s after the alert ended; with the enemy dropped, none, 2026-11-04.
+
+## 4.39 Haven City traffic: what comes out on which street
+
+- **The street's territory.** Each street of the city's navigation graph is a `nav-branch`, whose
+  `clock-type` is its territory (`nav-territory-type`, `city/common/cty-faction-h.gc`: `port-*`,
+  `inda-*`, `indb-*`, `sluma-*` to `slumc-*`, `genc*`, `mhcity-*`, `special*`). The faction manager
+  groups them in four (`cty-faction-manager-method-16`: port, industrial, slums with genc, Metal
+  Head city).
+- **Who may come out.** `activate-by-type` (`traffic-tracker`, `city/traffic/traffic-engine.gc`)
+  asks the faction manager, for the street's territory and the unit type's level
+  (`cty-faction-manager-method-9`, cached; computed by method 14 from the faction, territory and
+  global strengths: positive spawns, zero only fights). The same answers decide which borrow levels
+  load (method 20: `ctypesa` for the Freedom League's guards, `ctypesc` for the KG's, `ctypesb` for
+  the Metal Heads) and which territories are at war (method 13). A hook at the top of method 14
+  overrides a territory for every type of a faction; a test in `activate-by-type` itself, which
+  knows the traffic type, tells types of one faction apart (a KG robot from a flying turret).
+- **Which sleeping unit.** `activate-from-params` wakes the first unit of the type's inactive array
+  (`get-from-inactive-by-type`). To choose (a look, a side), scan that array, move the chosen handle
+  to index 0, then call `get-from-inactive-by-type`, which keeps the pool's counts.
+- **The street is only known in `activate-by-type`.** It sets the spawn params' `nav-branch` before
+  calling `activate-from-params`; the other callers (`'activate-object` from a parking spot, a
+  transport, a mission) leave the field unset, garbage on the stack. Reading
+  `(-> params nav-branch clock-type)` in `activate-from-params` crashed on the first parked car.
+  Pass the territory from `activate-by-type` instead (a global set around its call).
+
+Verified: jak3, `levels/city/traffic/traffic-engine.gc` (`activate-by-type`,
+`activate-from-params`, `get-from-inactive-by-type`), `levels/wascity/cty-faction.gc` (methods 9,
+13, 14, 16, 20), `levels/city/common/cty-faction-h.gc`; Haven City: New Dawn's Praxis KG invasion
+(Krimzon Guards woken only on the port's streets, by side), and the crash reading the branch of a
+parking spot's spawn params, 2026-11-04.
