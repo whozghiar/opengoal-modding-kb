@@ -2207,6 +2207,11 @@ City: New Dawn's alert: with the callback cleared, 5 guards kept the player as e
   the Metal Heads) and which territories are at war (method 13). A hook at the top of method 14
   overrides a territory for every type of a faction; a test in `activate-by-type` itself, which
   knows the traffic type, tells types of one faction apart (a KG robot from a flying turret).
+- **Which type comes out next.** `activate-one-vehicle` picks, on a street, the type furthest below
+  its count (active / wanted) among those the faction check allows, then `activate-by-type` sends
+  one. A type refused only in `activate-by-type` stays the pick: with none out it wins every time,
+  and nothing comes out on that street. Test the type in the pick too (Haven City: New Dawn's
+  conflict zones: KG robots refused, 1 guard out in 2 minutes; tested in the pick as well, 15 to 17).
 - **Which sleeping unit.** `activate-from-params` wakes the first unit of the type's inactive array
   (`get-from-inactive-by-type`). To choose (a look, a side), scan that array, move the chosen handle
   to index 0, then call `get-from-inactive-by-type`, which keeps the pool's counts.
