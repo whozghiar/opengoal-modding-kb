@@ -2097,3 +2097,31 @@ keep a test in its `on-confirm` (the cursor can still rest on it when it was the
 Verified: jak3, `pc/util/popup-menu.gc` (`draw-entry` of both types, `move-up!`, `move-down!`);
 Haven City: New Dawn's war entry, greyed out with the mod off (screenshot) and inert when confirmed,
 2026-11-04.
+
+## 4.37 Forcing a guard's weapon: the off-screen weapon change
+
+Every weapon change of a Jak 3 guard goes through `crimson-guard-method-267`
+(`levels/city/traffic/citizen/guard.gc`), so a mod that forces a weapon puts its hook at the top
+of that method. Read its callers too. Off screen, every 16 frames, `crimson-guard-method-270` asks
+the squad for another weapon (`ff-squad-control-method-55`), calls method 267 when it differs from
+the guard's, and answers `#t`; its callers (`guard-states.gc`) then send the guard to its hostile
+state again (`go-hostile`). With the weapon forced, method 267 changes nothing, yet 270 still
+answers `#t`: every guard out of view restarts its hostile state 4 times a second. In Haven City:
+New Dawn's war (Krimzon Guards forced to the rifle) the game crashed within one or two minutes,
+in places unrelated to the guards (the kernel's dispatcher resuming a guard, a transport or the
+minimap whose saved thread held floats; a guard whose squad target was a `part-tracker`). Compare
+the weapon the hook would give in method 270 instead:
+
+```lisp
+;; crimson-guard-method-270, the off-screen change (my-forced-guard-type: the mod's hook, which
+;; returns its second argument when the mod is off)
+(when (!= (my-forced-guard-type this (the-as int a1-3)) (the-as int (-> this guard-type)))
+  (crimson-guard-method-267 this (the-as guard-type a1-3) #f)
+  (return #t))
+```
+
+Verified: jak3, `levels/city/traffic/citizen/guard.gc` (methods 267, 270),
+`levels/city/common/guard-states.gc`, `levels/city/common/ff-squad-control.gc`; Haven City: New
+Dawn's war mode: with the Krimzon Guards' weapons forced, 8 runs of 17 crashed; with the squad's
+weapons, 4 of 4 went through; rifles only, 3 of 4 crashed; with the test in method 270, 16 of 16
+went through (60 to 90 s of war each), 2026-11-04.

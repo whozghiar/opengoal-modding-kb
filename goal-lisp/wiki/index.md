@@ -75,6 +75,7 @@ subsystem differences, not restatements of the shared material.
   - [4.34 The player hidden: his bones, and his collision](jak3.md#434-the-player-hidden-his-bones-and-his-collision)
   - [4.35 Build-actor models: their effects, the death cloud, another mesh at runtime](jak3.md#435-build-actor-models-their-effects-the-death-cloud-another-mesh-at-runtime)
   - [4.36 The Mods menu: a greyed-out flag](jak3.md#436-the-mods-menu-a-greyed-out-flag)
+  - [4.37 Forcing a guard's weapon: the off-screen weapon change](jak3.md#437-forcing-a-guards-weapon-the-off-screen-weapon-change)
 - [How to contribute](../../kb/SKILL.md)
 
 
