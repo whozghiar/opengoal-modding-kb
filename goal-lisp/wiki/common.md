@@ -874,6 +874,22 @@ compile either: use `begin`.
 Verified: jak3, goalc on a temporary test file of the Haven City: New Dawn mod (two
 `iterate-process-tree` lambdas updating a local count and a nearest process), 2026-11-03.
 
+### 1.4.24 A hook in shared level code must not call another DGO's function
+
+Many level files are linked in several DGOs (`;; dgos:` at the top of each file): Jak 3's
+`traffic-engine.gc` runs in Haven City (CWI) and in Spargus (WWD). A `define-extern` in such a file
+only promises the function; its symbol is set when the file that defines it links. If that file is
+in one DGO only (a mod's `levels/city/...` file in CWI), the hook calls an unset symbol in the other
+city: the game jumps to garbage and stops with a native access violation (`0xC0000005`), with no
+GOAL error and nothing in the log. Define what such a hook calls in GAME, or guard the call with a
+test defined in GAME (a mode flag) that is false wherever the defining level isn't loaded. A symbol
+set by a level that has since unloaded points into freed memory just the same.
+
+Verified: jak3, Battlefront mod: `traffic-engine.gc` called `bf-keep-unit?` (defined in
+`battlefront-city.gc`, CWI) for a unit outside the loaded city cells; a boot whose save starts in
+Spargus crashed in 2 of 4 runs right after `wasstadb` loaded, none once the call was guarded by
+`bf-fighting?` (GAME), 2026-11-05.
+
 ### 1.4.19 A state keeps the event handler it was defined with
 
 `defstate` evaluates `:event`, `:enter`, `:trans`... once, when the state is defined: a state holds
