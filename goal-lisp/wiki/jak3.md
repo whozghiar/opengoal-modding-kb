@@ -2002,3 +2002,98 @@ the battlefront mod's runs: Jak hidden, falling through at the Port's `ctyport-s
 `-bbush-1`, `-bbush-5`, `-gungame`, `-bbush-8` after `move-to-point!` and after `'continue`; a ray
 down found the ground 0.01 m under each; standing and running 20 to 30 m from each with Jak drawn,
 or hidden with the bones computed, 2026-11-01.
+
+## 4.35 Build-actor models: their effects, the death cloud, another mesh at runtime
+
+**No effect control.** A model built by `build-actor` has no `effect-name` lump, so
+`initialize-skeleton` leaves `(-> skel effect)` at `#f` (4.12): the effect frames of the clips it
+plays (footsteps, gun sounds, `death-default`) never run, even when its draw borrows a stock art
+group for its clips. Make one by hand right after `initialize-skeleton`, on the process's own heap
+(from its init, before the heap is shrunk to fit):
+
+```lisp
+;; after (initialize-skeleton this <skeleton-group> (the-as pair 0)), in the process's init
+(when (not (-> this skel effect))
+  (let ((ec (the-as effect-control ((method-of-type object new) 'process effect-control
+                                                             (the-as int (-> effect-control size))))))
+    (set! (-> ec process) this)
+    (set! (-> ec last-frame-group) #f)
+    (set! (-> this skel effect) ec)))
+```
+
+The process heap walk and `relocate` (`engine/entity/relocate.gc`) then move it like a stock one.
+
+**`death-default` crashes a custom model.** The effect sets the draw's `death-timer`, which sends the
+mesh to the generic renderer for 15 frames (`merc-death.gc`); the generic renderer cannot draw a
+build-actor mesh and `gk` crashes in native code. Clear the timer when the enemy gets
+`'death-start` (`enemy.gc`'s handler, after the stock flags) and launch the cloud yourself. Part 53,
+the purple spark, has no texture of its own: `sp-launch-particles-death` gives it the death texture,
+so launch it through `merc-death-spawn`; `launch-particles` with part 53 draws nothing:
+
+```lisp
+;; one frame of the cloud: a spark by each joint, scattered by up to 30 cm
+(let ((pos (new 'stack-no-clear 'vector)))
+  (dotimes (i (-> pd node-list length))
+    (vector<-cspace! pos (-> pd node-list data i))
+    (+! (-> pos x) (rand-vu-float-range -1228.8 1228.8))
+    (+! (-> pos y) (rand-vu-float-range -1228.8 1228.8))
+    (+! (-> pos z) (rand-vu-float-range -1228.8 1228.8))
+    (merc-death-spawn 53 pos pos)))
+```
+
+Run it for 15 frames from a small process holding the dying one's handle, and set the draw's
+`no-draw` status from the fourth frame, as the generic renderer hides the mesh.
+
+**Another mesh at runtime.** Two build-actor models made from the same rip (a recolored copy) share
+their skeleton and clips: a process can switch to the other one without a second
+`initialize-skeleton`, which would allocate on a heap already shrunk. Look the art group up in the
+process's level, rebuild the lods from it, and set `mgeo` yourself: `lod-set!` only sets it when the
+lod index changes, so with one lod the old mesh stays drawn:
+
+```lisp
+(let ((ag (load-to-heap-by-name (-> this level art-group) (-> sg art-group-name) 'test global
+                                (-> sg version))))
+  (when (and ag (setup-lods! (-> this draw lod-set) sg ag (-> this entity)))
+    (set! (-> this draw art-group) ag)
+    (set! (-> this draw mgeo) (-> this draw lod-set lod 0 geo))))
+```
+
+Both art groups must be in the process's level (`'test` only looks; it loads nothing).
+
+**A particle takes the clock of the process that launches it.** The time-of-day process launches
+the weather's rain and snow on `bg-clock` (`*display*` clock 9): a mod that stops that clock to hold
+the hour freezes the drops in the air. Give them `part-clock` (8) back, or launch from a process on
+another clock.
+
+Verified: jak3, `engine/gfx/foreground/merc/merc-death.gc` (`death-default`, part 53,
+`merc-death-spawn`), `engine/gfx/sprite/particles/sparticle-launcher.gc`
+(`sp-launch-particles-death`), `engine/process-drawable/process-drawable.gc` (`setup-lods!`,
+`lod-set!`, `skeleton-group->draw-control`), `engine/ai/enemy.gc`; Haven City: New Dawn's war mode
+(Jak 2's Krimzon Guards as build-actor models on Jak 3's `crimson-guard`): the crash in `gk` on the
+first `death-default`, then the cloud invisible with `launch-particles`, seen in screenshots through
+`merc-death-spawn`; its guard turrets switched from red to blue (the art group changed, the red mesh
+drawn until `mgeo` was set), 2026-11-04.
+
+## 4.36 The Mods menu: a greyed-out flag
+
+The shared popup menu (`pc/util/popup-menu.gc`) skips an entry whose `entry-disabled?` answers `#t`
+when the cursor moves, and `popup-menu-entry`'s `draw-entry` greys it out. `popup-menu-flag`'s
+`draw-entry` doesn't look at it: a disabled flag is drawn like an enabled one. Without editing the
+shared file, give the flag a subtype of your own that draws like a plain entry while disabled, and
+keep a test in its `on-confirm` (the cursor can still rest on it when it was the first entry):
+
+```lisp
+(deftype my-slug-menu-flag (popup-menu-flag) ())
+
+(defmethod draw-entry ((this my-slug-menu-flag) (font-ctx font-context) (dma-buf dma-buffer) (hovering? symbol))
+  (if (and (nonzero? (-> this entry-disabled?)) ((-> this entry-disabled?)))
+      ((method-of-type popup-menu-entry draw-entry) this font-ctx dma-buf hovering?)
+      ((method-of-type popup-menu-flag draw-entry) this font-ctx dma-buf hovering?))
+  (none))
+
+;; in the menu: (new 'static 'my-slug-menu-flag :label "..." :entry-disabled? (lambda () ...) ...)
+```
+
+Verified: jak3, `pc/util/popup-menu.gc` (`draw-entry` of both types, `move-up!`, `move-down!`);
+Haven City: New Dawn's war entry, greyed out with the mod off (screenshot) and inert when confirmed,
+2026-11-04.

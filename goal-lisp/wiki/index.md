@@ -73,6 +73,8 @@ subsystem differences, not restatements of the shared material.
   - [4.32 Stopping attacks on the player: the shield level](jak3.md#432-stopping-attacks-on-the-player-the-shield-level)
   - [4.33 Holding the player in the air: a jetpack](jak3.md#433-holding-the-player-in-the-air-a-jetpack)
   - [4.34 The player hidden: his bones, and his collision](jak3.md#434-the-player-hidden-his-bones-and-his-collision)
+  - [4.35 Build-actor models: their effects, the death cloud, another mesh at runtime](jak3.md#435-build-actor-models-their-effects-the-death-cloud-another-mesh-at-runtime)
+  - [4.36 The Mods menu: a greyed-out flag](jak3.md#436-the-mods-menu-a-greyed-out-flag)
 - [How to contribute](../../kb/SKILL.md)
 
 
