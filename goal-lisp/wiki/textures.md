@@ -1,8 +1,3 @@
----
-name: texture-modding
-description: Guide to custom texture replacement, directory layout, PNG format requirements, texture merging, and task extract baking in OpenGOAL.
----
-
 # Texture Modding & Replacement
 
 OpenGOAL features native texture replacement and texture merging
@@ -123,5 +118,6 @@ and attaches it to the GitHub Release assets.
 
 ## See also
 
-- [`custom-actors-levels`](../custom-actors-levels/SKILL.md) — the wider asset pipeline this texture workflow is part of.
-- [`docs/modding/guides/mod_distribution_guide.md`](../../../docs/modding/guides/mod_distribution_guide.md) — the full release packaging and launcher catalog pipeline.
+- [`assets.md`](assets.md) — the wider asset pipeline this texture workflow is part of.
+- [`docs/modding/guides/mod_distribution_guide.md`](../../../../docs/modding/guides/mod_distribution_guide.md) — the full release packaging and launcher catalog pipeline.
+- [`docs/modding/guides/texture_packs.md`](../../../../docs/modding/guides/texture_packs.md) — the same choices in plain language, for a mod author.

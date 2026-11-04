@@ -1,21 +1,15 @@
----
-name: custom-actors-levels
-description: "Comprehensive guide to custom entities, 3D asset pipelines, adapting/backporting Blender 3D models between Jak games (Jak 1, 2, 3), Blender glTF/GLB exports, armatures, joint channels, non-destructive texture injection, custom sound banks (SBK), Merc .FR3 injection, and custom levels."
----
-
 # Custom Actors, Entities, 3D Assets, Rig Adapter & Levels
 
 OpenGOAL allows importing custom 3D models, skeletal meshes, custom
 animations, dedicated sound effect banks (SBK), adapting models across
 games, and building entire custom levels into Jak 1, Jak 2, and Jak 3. This
-skill covers the 4-layer entity pipeline, cross-game model adaptation and
+page covers the 4-layer entity pipeline, cross-game model adaptation and
 retargeting, non-destructive texture workflows, the two-circuit rendering
 model, Blender glTF/GLB export rules, audio bank packaging, and level
 creation.
 
-GOAL/Lisp code examples belong in the Lisp wiki, not here — this skill
-explains the pipeline and points to the exact call syntax in
-[`goal-lisp/wiki/`](../goal-lisp/wiki/index.md).
+This page explains the pipeline; the exact call syntax is in the other wiki pages
+([`index.md`](index.md)).
 
 ---
 
@@ -175,7 +169,7 @@ burning scarce level-borrow slots:
    exact binding calls (`ctywide-entity-hack` for Haven City,
    `process-entity-set!` elsewhere) and a troubleshooting table for
    invisible/white/zone-limited models are in
-   [3.5 of the Lisp wiki](../goal-lisp/wiki/jak2.md#35-merc-geometry--fr3-residency).
+   [3.5 of the Lisp wiki](jak2.md#35-merc-geometry--fr3-residency).
 
 ---
 
@@ -228,7 +222,7 @@ An art group built with `:master-art-group` needs an explicit registration
 call at file load — without it, the engine's native "does this need
 linking" check returns false and the animations never attach at level
 load. The registration and the actual linking hook are documented in
-[1.2.8 of the Lisp wiki](../goal-lisp/wiki/common.md#128-custom-art-groups--dynamic-animation-linking-link-art)
+[1.2.8 of the Lisp wiki](common.md#128-custom-art-groups--dynamic-animation-linking-link-art)
 (Jak 1 has the same hook; Jak 3's engine code does not carry it — see that
 game's wiki file for the alternative).
 
@@ -272,7 +266,7 @@ flags per sound.
   level-scoped.
 
 The exact `append-sbk`/`build-sbk` call syntax is in
-[1.2.12 of the Lisp wiki](../goal-lisp/wiki/common.md#1212-static-props-custom-levels-and-audio-banks).
+[1.2.12 of the Lisp wiki](common.md#1212-static-props-custom-levels-and-audio-banks).
 
 ### Looping sounds
 For looped or frame-updated sounds, pre-allocate the sound ID once in the
@@ -296,7 +290,7 @@ custom_assets/jak[x]/levels/<level_name>/
 ### Build & registration
 1. Declare the custom level build targets in `goal_src/jak[x]/game.gp`
    — the exact macro calls are in
-   [1.2.12 of the Lisp wiki](../goal-lisp/wiki/common.md#1212-static-props-custom-levels-and-audio-banks).
+   [1.2.12 of the Lisp wiki](common.md#1212-static-props-custom-levels-and-audio-banks).
 2. Add level metadata (symbol, name string, bounding box, loading
    conditions, music/ambient sound) in
    `goal_src/jak[x]/engine/level/level-info.gc`.
@@ -328,7 +322,7 @@ own simple static props use. A from-scratch, hand-authored, unanimated mesh
 For the common single-LOD, single-pose case, a one-call macro
 (`def-actor`, present in every game's `engine/data/art-h.gc`) expands to the
 full art-group registration boilerplate — see
-[1.2.12 of the Lisp wiki](../goal-lisp/wiki/common.md#1212-static-props-custom-levels-and-audio-banks)
+[1.2.12 of the Lisp wiki](common.md#1212-static-props-custom-levels-and-audio-banks)
 for the exact call. Reach for the manual multi-line registration only when
 you need multiple LODs, several named animations, or non-default naming.
 
@@ -349,7 +343,7 @@ Where the `.glb` must live depends on where the object needs to render:
   extraction (ctypesa, ctypesc), 2026-10-31.
 - The art group of a vanilla level `.gd` must also be pre-marked in
   `game.gp`, see the Lisp wiki,
-  [Registering a new source file](../goal-lisp/wiki/common.md#registering-a-new-source-file).
+  [Registering a new source file](common.md#registering-a-new-source-file).
 - To ship it **only inside a purpose-built custom level**, a single copy
   under `models/custom_levels/` is enough (see §9).
 - Either way, the `build-actor` declaration in `game.gp` always reads its
@@ -386,10 +380,10 @@ Decision rule:
   Not in Jak 3: there `hud-create-icon` draws through the PS2 generic
   renderer, which a build-actor model crashes; draw the model with the world
   in front of the camera instead (Lisp wiki
-  [jak3 4.31](../goal-lisp/wiki/jak3.md#431-a-model-over-the-game-hud-icons-a-preview-in-front-of-the-camera)).
+  [jak3 4.31](jak3.md#431-a-model-over-the-game-hud-icons-a-preview-in-front-of-the-camera)).
 - Need to repaint an *existing* retail texture instead? Use the
   `texture_replacements`/`texture_merges` pipeline (see the
-  `texture-modding` skill) — it repaints a texture that already has a real
+  [textures](textures.md)) — it repaints a texture that already has a real
   `texture-page`, so it reaches the classic lookup for free.
 - A "dynamic" runtime name lookup is not a fix for a custom-baked texture —
   it only bypasses the compile-time-symbol problem, not the reachability
@@ -493,6 +487,6 @@ in game, 2026-10-31.
 
 ## See also
 
-- [`goal-lisp/wiki/`](../goal-lisp/wiki/index.md) — every GOAL code example this skill references.
-- [`texture-modding`](../texture-modding/SKILL.md) — the texture replacement/merge pipeline for repainting existing retail textures.
-- [`docs/modding/guides/mods_menu.md`](../../../docs/modding/guides/mods_menu.md) — required in-game toggle for any new mod, including ones built with this skill.
+- [`index.md`](index.md) — every GOAL code example this page references.
+- [`textures.md`](textures.md) — the texture replacement/merge pipeline for repainting existing retail textures.
+- [`docs/modding/guides/mods_menu.md`](../../../../docs/modding/guides/mods_menu.md) — required in-game toggle for any new mod, including ones built this way.

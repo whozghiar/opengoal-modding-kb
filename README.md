@@ -9,16 +9,17 @@ the fork to record its own discoveries (`git submodule set-url .agents/skills <f
 
 | Skill | Use it for |
 |---|---|
-| [`goal-lisp`](goal-lisp/SKILL.md) | GOAL syntax, types, processes and states; the Lisp wiki lives in [`goal-lisp/wiki/`](goal-lisp/wiki/index.md) |
-| [`engine-internals`](engine-internals/SKILL.md) | The C++ runtime, compiler, decompiler and build workflow |
-| [`custom-actors-levels`](custom-actors-levels/SKILL.md) | Custom models, animations, sound banks, FR3 injection and custom levels |
-| [`texture-modding`](texture-modding/SKILL.md) | Texture replacement, merging and texture packs |
 | [`documentalist`](documentalist/SKILL.md) | Documentation standards for these repositories |
 | [`kb`](kb/SKILL.md) | Recording a verified discovery here without duplicating or contradicting an entry |
-| [`verification-before-completion`](verification-before-completion/SKILL.md) | Evidence before any "done" or "fixed" claim (imported, MIT) |
+| [`smoke-tests`](smoke-tests/SKILL.md) | In-game smoke tests of a mod: scenarios that drive the game, the mod's test notebook |
 | [`writing-for-agents`](writing-for-agents/SKILL.md) | Writing skills and agent instruction files that agents follow reliably (imported, MIT) |
 | [`remotion/`](remotion/remotion-best-practices/SKILL.md) | Making videos with Remotion, one skill per folder, `remotion-best-practices` routing to the others (imported from [remotion-dev/skills](https://github.com/remotion-dev/skills), v4.0.537) |
 | [`jak-level-editor-skills/`](jak-level-editor-skills/README.md) | Working on [Jak Level Editor](https://github.com/whozghiar/jak-level-editor): building and testing it, its interface texts, its game data, its screenshots, building levels through its MCP tools, adding an exported level to the game |
+
+The Lisp wiki, [`goal-lisp/wiki/`](goal-lisp/wiki/index.md), is not a skill: it is the verified
+reference every skill and mod points to. Besides its GOAL pages (common, then one per game), it
+holds background pages on GOAL's concepts, the engine and build, the REPL, custom assets and
+textures.
 
 ## Which agents read it
 

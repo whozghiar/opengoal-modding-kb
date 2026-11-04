@@ -97,7 +97,7 @@ build it during a clean boot. Whenever you create a new `.gc` file:
    - Jak 3: `goal_src/jak3/game.gp`
 2. Add your file under the appropriate CGO/DGO group — the exact lines
    for each game are in the Lisp wiki,
-   [Registering a new source file](../goal-lisp/wiki/common.md#registering-a-new-source-file).
+   [Registering a new source file](common.md#registering-a-new-source-file).
 3. Ensure dependent type definitions are declared in files listed above
    your file in `.gp`.
 

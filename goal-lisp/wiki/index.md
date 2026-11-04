@@ -17,6 +17,12 @@ subsystem differences, not restatements of the shared material.
 
 ## Contents
 
+- **Background pages** (no code; read when the task touches their subject)
+  - [Concepts](concepts.md): the mental model behind GOAL's syntax, types, processes and states
+  - [Engine](engine.md): the C++ runtime, the compiler, the decompiler, the build layers, kernel functions
+  - [REPL workflow](repl-workflow.md): the REPL's lifecycle, the heaps, the hot-reload pitfall
+  - [Assets](assets.md): custom models, animations, sound banks, FR3 injection, custom levels
+  - [Textures](textures.md): texture replacement, merging, texture packs
 - **Part 1 — Common to all games**
   - [1.1 Vocabulary](common.md#11-vocabulary)
   - [1.2 Core Lisp patterns](common.md#12-core-lisp-patterns)
@@ -26,7 +32,7 @@ subsystem differences, not restatements of the shared material.
   - [2.1 Vocabulary delta](jak1.md#21-vocabulary-delta)
   - [2.2 Memory](jak1.md#22-memory)
   - [2.3 Compile / validate loop](jak1.md#23-compile--validate-loop)
-  - [2.4 In-game Mods toggle: not ported](jak1.md#24-in-game-mods-toggle-not-ported)
+  - [2.4 In-game Mods toggle: the same registry, a smaller popup](jak1.md#24-in-game-mods-toggle-the-same-registry-a-smaller-popup)
   - [2.5 The debug root menu is fragile at link time](jak1.md#25-the-debug-root-menu-is-fragile-at-link-time)
 - **Part 3 — Jak 2 specifics**
   - [3.1 Vehicles: flags, grab rails, driver methods](jak2.md#31-vehicles-flags-grab-rails-driver-methods)

@@ -8,7 +8,7 @@ description: Documentation standards for this repository — English only, conci
 This skill is the checklist an agent applies while writing or reviewing any
 documentation file in this repository. It does not write documentation
 content itself — it is the ruleset that keeps content written elsewhere
-compliant, the same way `goal-lisp` informs mods without writing them.
+compliant, the same way the Lisp wiki informs mods without writing them.
 
 Load this skill before creating a new `.md` file, editing an existing one,
 or auditing the docs tree for compliance.

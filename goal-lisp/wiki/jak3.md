@@ -134,7 +134,7 @@ Jak 3's engine code has no `register-custom-art-group` / `link-art!` /
 `needs-link?` hook. Build a self-contained art-group instead
 (`build-actor` without `:master-art-group`), or attach the entity through
 `target-set-lod`-style skeleton swapping if it must ride on Jak/Daxter's
-own skeleton (see the `custom-actors-levels` skill for the general asset
+own skeleton (see [assets.md](assets.md) for the general asset
 pipeline).
 
 ## 4.6 Memory
@@ -776,7 +776,7 @@ A `manipy` of Jak's model (a preview in a menu) needs the room a player's model 
 the target (`setup-masks`), and no cloth (its scarf strips stretch away from a model placed in
 front of the camera). To be seen under the START menu it must run there (a pool not masked
 `progress`, 4.7) and be drawn in the 3D scene: a model drawn in the HUD goes through the generic
-renderer, not Merc2 (no per-model flags, engine-internals 7b).
+renderer, not Merc2 (no per-model flags, [engine.md 7b](engine.md#7b-merc2-per-model-data-from-goal-and-a-pass-after-the-3d-scene)).
 
 Verified: jak3, the multiplayer mod's Appearance page preview (`skin` scenario), 2026-10-19.
 
@@ -2091,27 +2091,20 @@ drawn until `mgeo` was set), 2026-11-04.
 
 ## 4.36 The Mods menu: a greyed-out flag
 
-The shared popup menu (`pc/util/popup-menu.gc`) skips an entry whose `entry-disabled?` answers `#t`
-when the cursor moves, and `popup-menu-entry`'s `draw-entry` greys it out. `popup-menu-flag`'s
-`draw-entry` doesn't look at it: a disabled flag is drawn like an enabled one. Without editing the
-shared file, give the flag a subtype of your own that draws like a plain entry while disabled, and
-keep a test in its `on-confirm` (the cursor can still rest on it when it was the first entry):
+Since master-dev `9c3fc0d4c`, the shared popup menu (`pc/util/popup-menu.gc`, Jak 2 and Jak 3) honors
+an entry's `entry-disabled?` everywhere: while it answers `#t`, the cursor skips the entry, it is
+drawn grey (a `popup-menu-flag` without its check mark), and `confirm!` ignores it, even when the
+cursor rests on it as the first row. A plain `popup-menu-flag` with an `:entry-disabled?` lambda is
+enough. Jak 1's port always did all three ([2.4](jak1.md#24-in-game-mods-toggle-the-same-registry-a-smaller-popup)).
 
-```lisp
-(deftype my-slug-menu-flag (popup-menu-flag) ())
+A mod branch older than that master-dev draws a disabled flag like an enabled one and runs its
+`on-confirm`: give the flag a subtype whose `draw-entry` calls `popup-menu-entry`'s while it is
+disabled, and test the condition again in `on-confirm` (Haven City: New Dawn's `hj2-menu-flag`).
+Merging master-dev makes both unnecessary.
 
-(defmethod draw-entry ((this my-slug-menu-flag) (font-ctx font-context) (dma-buf dma-buffer) (hovering? symbol))
-  (if (and (nonzero? (-> this entry-disabled?)) ((-> this entry-disabled?)))
-      ((method-of-type popup-menu-entry draw-entry) this font-ctx dma-buf hovering?)
-      ((method-of-type popup-menu-flag draw-entry) this font-ctx dma-buf hovering?))
-  (none))
-
-;; in the menu: (new 'static 'my-slug-menu-flag :label "..." :entry-disabled? (lambda () ...) ...)
-```
-
-Verified: jak3, `pc/util/popup-menu.gc` (`draw-entry` of both types, `move-up!`, `move-down!`);
-Haven City: New Dawn's war entry, greyed out with the mod off (screenshot) and inert when confirmed,
-2026-11-04.
+Verified: jak2 compiled, jak3 written to the same lines (`draw-entry` of `popup-menu-flag`,
+`confirm!`), 2026-11-04; the subtype: Haven City: New Dawn's war entry, greyed out with the mod off
+(screenshot), 2026-11-04.
 
 ## 4.37 Forcing a guard's weapon: the off-screen weapon change
 

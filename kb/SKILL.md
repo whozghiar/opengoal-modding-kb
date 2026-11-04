@@ -27,8 +27,10 @@ game, or when it was read in the actual `goal_src/` of the game it is attributed
    `grep -rniE "<two or three keywords>" .agents/skills`. For GOAL facts, start from
    [`goal-lisp/wiki/index.md`](../goal-lisp/wiki/index.md).
 2. **Pick its one home.** Shared by the three games: `goal-lisp/wiki/common.md`. One
-   game: `goal-lisp/wiki/jak1.md`, `jak2.md` or `jak3.md`. Asset pipeline: the owning
-   skill (`custom-actors-levels`, `texture-modding`, `engine-internals`).
+   game: `goal-lisp/wiki/jak1.md`, `jak2.md` or `jak3.md`. Asset pipeline:
+   `goal-lisp/wiki/assets.md` (models, animations, sound banks, levels) or `textures.md`.
+   C++ runtime, compiler and build: `goal-lisp/wiki/engine.md`. Driving the game for a test:
+   the [`smoke-tests`](../smoke-tests/SKILL.md) skill.
 3. **Edit in place.** When the topic exists, update its entry. When the new fact
    contradicts it, replace the old statement: one version only. Add an entry only when
    nothing covers the topic, and list it in `goal-lisp/wiki/index.md` if it is a wiki

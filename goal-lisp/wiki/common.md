@@ -273,8 +273,8 @@ not a kill).
 
 ### 1.2.11 Register an in-game Mods toggle
 
-Available in **Jak 2 and Jak 3 only** — Jak 1 has no port yet, see
-[2.4](jak1.md#24-in-game-mods-toggle-not-ported) for the workaround. Every mod
+Available in the three games (Jak 1's smaller popup: see
+[2.4](jak1.md#24-in-game-mods-toggle-the-same-registry-a-smaller-popup)). Every mod
 must expose an on/off switch in the in-game **Mods** menu, opened with
 **L3 + SELECT**. That menu is not the debug menu: it works in a retail
 boot, which is how the launcher starts the game. This is a project rule,
@@ -356,7 +356,7 @@ LODs, several named animations, or non-default naming.
 (bg-custom 'my-level-vis)
 ```
 
-See the `custom-actors-levels` skill for the full directory layout
+See [assets.md, section 9](assets.md#9-custom-level-creation) for the full directory layout
 (`custom_assets/jak[x]/levels/<name>/`) and `level-info.gc` registration
 steps this depends on. Working example to copy from:
 `custom_assets/jak1/levels/test-zone/`.
@@ -382,7 +382,7 @@ Route A unless the bank is genuinely level-scoped. Source audio (16-bit
 PCM WAV + a `metadata.txt` manifest) and the full extraction pipeline —
 including the standalone `extract_sbk` tool for pulling a handful of
 sounds out of another game without a full decompiler pass — are
-documented in the `custom-actors-levels` skill.
+documented in [assets.md, section 8](assets.md#8-custom-sound-banks-sbk-audio-pipeline).
 
 ## 1.3 Engine model
 
@@ -593,7 +593,7 @@ engine. Jak 2 and 3 provide fixed dedicated slots for resident banks
 by active level banks. The exact Lisp calls are in
 [1.2.12](#1212-static-props-custom-levels-and-audio-banks); the full
 audio pipeline (source WAV placement, `metadata.txt` format, extraction
-tooling) is documented in the `custom-actors-levels` skill.
+tooling) is documented in [assets.md, section 8](assets.md#8-custom-sound-banks-sbk-audio-pipeline).
 
 ## 1.4 Known pitfalls
 

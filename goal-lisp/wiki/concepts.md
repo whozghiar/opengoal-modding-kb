@@ -1,21 +1,15 @@
----
-name: goal-lisp
-description: Conceptual guide to OpenGOAL LISP syntax, typing system, processes, behaviors, virtual states, macros, and common language traps. Points to the per-game Lisp wiki for worked code examples.
----
-
 # GOAL Lisp & Syntax — Conceptual Reference
 
 OpenGOAL is an x86-64 native port and extension of GOAL (Game Oriented
 Assembly Lisp), the compiled LISP dialect Naughty Dog wrote for the Jak &
-Daxter series. This skill explains the mental model behind GOAL's syntax,
+Daxter series. This page explains the mental model behind GOAL's syntax,
 type system, process model, and state machine semantics.
 
-It intentionally carries no code. Every GOAL/Lisp code example in this
-project lives in the Lisp wiki:
-[`goal-lisp/wiki/`](wiki/index.md). `common.md` is shared by all three
-games; `jak1.md`, `jak2.md` and `jak3.md` cover each game's specifics.
-Start from `index.md` and open only the file the task needs. Read this
-skill for the "why" and the wiki for the "exact syntax to write".
+It intentionally carries no code: the code examples are in the wiki's other
+pages. `common.md` is shared by all three games; `jak1.md`, `jak2.md` and
+`jak3.md` cover each game's specifics. Start from [`index.md`](index.md) and
+open only the file the task needs. Read this page for the "why" and those
+for the "exact syntax to write".
 
 ---
 
@@ -122,13 +116,13 @@ game behavior unless a player explicitly turns it on. The mechanism is the
 unified in-game Mods menu, opened with L3 + SELECT in both retail and debug
 boots on Jak 2 and Jak 3 (Jak 1 does not have this menu yet — see the
 wiki's Jak 1 section for the workaround). See
-[`docs/modding/guides/mods_menu.md`](../../../docs/modding/guides/mods_menu.md)
+[`docs/modding/guides/mods_menu.md`](../../../../docs/modding/guides/mods_menu.md)
 for the architecture, the copy-paste template at
-[`docs/modding/templates/mod_menu.template.gc`](../../../docs/modding/templates/mod_menu.template.gc),
+[`docs/modding/templates/mod_menu.template.gc`](../../../../docs/modding/templates/mod_menu.template.gc),
 and the exact registration call in the Lisp wiki ("Register an in-game Mods
 toggle").
 
 ## See also
 
-- [`goal-lisp/wiki/`](wiki/index.md) — every worked code example and trap, common patterns plus per-game specifics (including the engine model: memory heaps, DGOs, process lifecycle).
-- [`engine-internals`](../engine-internals/SKILL.md) — the C++ runtime/compiler/build system this language compiles to and runs on.
+- [`index.md`](index.md) — every worked code example and trap, common patterns plus per-game specifics (including the engine model: memory heaps, DGOs, process lifecycle).
+- [`engine.md`](engine.md) — the C++ runtime/compiler/build system this language compiles to and runs on.

@@ -40,20 +40,19 @@ task repl                 # then (mi) — incremental compile + hot reload
 task boot-game             # boot and check the log
 ```
 
-## 2.4 In-game Mods toggle: not ported
+## 2.4 In-game Mods toggle: the same registry, a smaller popup
 
 The unified `mods-menu.gc` registry ([1.2.11](common.md#1211-register-an-in-game-mods-toggle))
-is live for Jak 2 and Jak 3 only. Jak 1 is not ported: it has no
-`popup-menu` in `pc/util/`, and appending an item to its debug root menu
-at link time segfaults the boot (see [2.5](#25-the-debug-root-menu-is-fragile-at-link-time)).
-Until a port lands, a Jak 1 mod adds its toggle to
-`goal_src/jak1/engine/debug/default-menu.gc` /
-`pc/debug/default-menu-pc.gc` with a mod-slug-prefixed submenu, and
-documents in the mod README — explicitly — that the toggle is
-**debug-only** and therefore unreachable for a player using the launcher
-normally. Every mod still needs an in-game toggle to minimize touching
-shared behavior directly ([1.4.4](common.md#144-native-non-regression)); Jak 1
-just cannot yet offer a retail-reachable one.
+is live in Jak 1 too, with the same `mods-menu-register` call and the same L3 + SELECT bind
+(`pc/features/mods-menu.gc`, ticked from `main.gc` through `*mods-menu-hook*`, in a retail boot).
+Its popup (`pc/util/popup-menu.gc`) is a smaller port of Jak 2's: a plain object, ASCII labels in
+the debug menu's font, `[x]` / `[ ]` flag rows, no `popup-menu-dynamic-submenu`. Never add a
+mod's toggle to the debug root menu instead: appending to it at link time segfaults the boot
+([2.5](#25-the-debug-root-menu-is-fragile-at-link-time)), and a debug-only toggle is out of a
+launcher player's reach.
+
+Verified: jak1, `pc/features/mods-menu.gc`, `pc/util/popup-menu.gc`, `engine/game/main.gc`,
+`dgos/game.gd`, 2026-11-04.
 
 ## 2.5 The debug root menu is fragile at link time
 
