@@ -2219,3 +2219,33 @@ Verified: jak3, `levels/city/traffic/traffic-engine.gc` (`activate-by-type`,
 13, 14, 16, 20), `levels/city/common/cty-faction-h.gc`; Haven City: New Dawn's Praxis KG invasion
 (Krimzon Guards woken only on the port's streets, by side), and the crash reading the branch of a
 parking spot's spawn params, 2026-11-04.
+
+## 4.40 Guards fighting guards: the grenade guard's reload loop
+
+A Jak 3 grenade guard (`crimson-guard`, guard type grenade) reloads in
+`grenade-throw-post-reloading` (`levels/city/common/guard-grenade.gc`). Its `trans` breaks the
+reload off when its target stands within half its keep-away distance
+(`grenade-guard-min-player-dist`): to back away, or after 2 s of backing away straight back to its
+grenade state. With another guard as its target (a mod that makes guards fight each other), standing
+that close, the states chained within one frame: the reload broke off, the backing away was already
+over and went back to the grenade state, which, with no grenade and the guard at its spot, went to
+reload again. Each step is a `go` from a state's `trans`, which runs the next state's `trans` at
+once, and each reload spawns a new `reload-grenade`: the stack overflowed and the game crashed, in
+native collision code (`collide-cache-prim` reading a bad pointer) or as a `reload-grenade` entered
+its first state. Break the reload off for the player only:
+
+```lisp
+;; guard-grenade.gc, grenade-throw-post-reloading :trans (my-reload-break-ok?: #t out of the mod,
+;; else #t only when the guard's focus is the player)
+(when (and (>= (/ (-> self grenade-guard-min-player-dist) 2) (-> self target-self-xz-dist))
+           (my-reload-break-ok? self))
+  ...)
+
+(defun my-reload-break-ok? ((this process-drawable))
+  (or (not (my-mod-on?)) (= (handle->process (-> (the-as enemy this) focus handle)) *target*)))
+```
+
+Verified: jak3, `levels/city/common/guard-grenade.gc` (`grenade-throw-post-reloading`,
+`grenade-throw-post-retreating`); Haven City: New Dawn's war with two extra troop transports: 2
+crashes in 7 runs of 3 minutes before, 0 in 3 after, the rule holding a reload 235 and 241 times a
+run, 2026-11-04.

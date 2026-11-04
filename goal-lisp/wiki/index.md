@@ -84,6 +84,7 @@ subsystem differences, not restatements of the shared material.
   - [4.37 Forcing a guard's weapon: the off-screen weapon change](jak3.md#437-forcing-a-guards-weapon-the-off-screen-weapon-change)
   - [4.38 A guard that hunted the player: letting it go](jak3.md#438-a-guard-that-hunted-the-player-letting-it-go)
   - [4.39 Haven City traffic: what comes out on which street](jak3.md#439-haven-city-traffic-what-comes-out-on-which-street)
+  - [4.40 Guards fighting guards: the grenade guard's reload loop](jak3.md#440-guards-fighting-guards-the-grenade-guards-reload-loop)
 - [How to contribute](../../kb/SKILL.md)
 
 
