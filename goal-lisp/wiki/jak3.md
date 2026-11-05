@@ -1796,7 +1796,8 @@ at once (a stock model, the robotguard, drew). Stock icons also flip the model w
 scale (`hud-skill` 0.009 x -0.018).
 
 **Draw it with the world instead, in front of the camera.** `*math-camera*` `trans` is the eye,
-`inv-camera-rot` rows `rvec`, `uvec`, `fvec` its right, up and forward axes.
+`inv-camera-rot` rows `rvec`, `uvec`, `fvec` its x (pointing to the screen's left, see below), up and
+forward axes.
 `transform-point-vector!` gives a world point's screen position in the 512 x 416 screen, offset
 by (1792, 1840) (as `engine/ui/bigmap.gc` does), and #f off screen. To show a model at screen
 point (x, y), h screen units tall: take the point d meters ahead (`trans + fvec * d`), project it
@@ -2027,11 +2028,38 @@ group for its clips. Make one by hand right after `initialize-skeleton`, on the 
 The process heap walk and `relocate` (`engine/entity/relocate.gc`) then move it like a stock one.
 
 **`death-default` crashes a custom model.** The effect sets the draw's `death-timer`, which sends the
-mesh to the generic renderer for 15 frames (`merc-death.gc`); the generic renderer cannot draw a
-build-actor mesh and `gk` crashes in native code. Clear the timer when the enemy gets
-`'death-start` (`enemy.gc`'s handler, after the stock flags) and launch the cloud yourself. Part 53,
-the purple spark, has no texture of its own: `sp-launch-particles-death` gives it the death texture,
-so launch it through `merc-death-spawn`; `launch-particles` with part 53 draws nothing:
+mesh to the generic renderer for 15 frames (`merc-death.gc`; on PC, `foreground.gc`'s reassign to
+merc keeps generic for a nonzero `death-timer`). A build-actor model has only a dummy `merc-ctrl`
+for it (`goalc/build_actor/jak3/build_actor.cpp` `generate_dummy_merc_ctrl`, fake fragments), and
+`gk` crashes in `mercneric_convert` (mips2c `generic_merc.cpp`, a halfword store at offset 18 of a
+null pointer). The effect only runs once the enemy's death has set `effect-control-flag ecf1`
+(`enemy-states.gc`), from the death clip's `'event-death`. Two ways out:
+
+- clear the timer when the enemy gets `'death-start` (`enemy.gc`'s handler, after the stock flags)
+  and launch the cloud yourself (below);
+- or, when the units run stock code you cannot hook per unit (Haven City's guards), skip the death
+  effects of your models in a `do-effect` wrapper: the body then goes with its death clip, with no
+  dissolve.
+
+```lisp
+(define-perm *my-stock-do-effect* (function effect-control string float int none)
+             (method-of-type effect-control do-effect))
+
+(defmethod do-effect ((this effect-control) (arg0 string) (arg1 float) (arg2 int))
+  ;; arg0 is a symbol or a string (effect-control.gc)
+  (let ((name (cond ((= (rtype-of arg0) symbol) (symbol->string (the-as symbol arg0)))
+                    ((= (rtype-of arg0) string) arg0)
+                    (else (the-as string #f)))))
+    (if (and name (string-prefix= "death-" name) (-> this process)
+             (my-build-actor-model? (-> this process)))  ;; e.g. its draw jgeo name
+        (none)
+        (*my-stock-do-effect* this arg0 arg1 arg2)))
+  (none))
+```
+
+The cloud, when you keep the effect for a mod's own `nav-enemy`. Part 53, the purple spark, has no
+texture of its own: `sp-launch-particles-death` gives it the death texture, so launch it through
+`merc-death-spawn`; `launch-particles` with part 53 draws nothing:
 
 ```lisp
 ;; one frame of the cloud: a spark by each joint, scattered by up to 30 cm
@@ -2087,7 +2115,13 @@ Verified: jak3, `engine/gfx/foreground/merc/merc-death.gc` (`death-default`, par
 (Jak 2's Krimzon Guards as build-actor models on Jak 3's `crimson-guard`): the crash in `gk` on the
 first `death-default`, then the cloud invisible with `launch-particles`, seen in screenshots through
 `merc-death-spawn`; its guard turrets switched from red to blue (the art group changed, the red mesh
-drawn until `mgeo` was set), 2026-11-04.
+drawn until `mgeo` was set), 2026-11-04. The crash site and the `do-effect` wrapper: jak3,
+`engine/gfx/foreground/foreground.gc` (the PC reassign), `engine/game/effect-control.gc`
+(`do-effect`, `ecf1`), `engine/common-obs/enemy-states.gc`; the battlefront mod (red guards on the
+stock guard code with the guard's clips and a hand-made effect-control): three crashes seconds into
+battles, a vectored exception handler at `gk.exe` +#x383fe6, which disassembles to
+`mercneric_convert`'s `sh t1, 18(a3)` with `a3` 0; with the wrapper, smoke runs of 131 s and 184 s
+with 23 and 41 losses of that side and no crash, 2026-11-05.
 
 ## 4.36 The Mods menu: a greyed-out flag
 
@@ -2249,3 +2283,91 @@ Verified: jak3, `levels/city/common/guard-grenade.gc` (`grenade-throw-post-reloa
 `grenade-throw-post-retreating`); Haven City: New Dawn's war with two extra troop transports: 2
 crashes in 7 runs of 3 minutes before, 0 in 3 after, the rule holding a reload 235 and 241 times a
 run, 2026-11-04.
+
+## 4.41 A third-person shooter camera, and making Jak jump at a set velocity
+
+**The point-of-view camera on a rig.** The stock `cam-pov` mode (`engine/camera/cam-states.gc`, the
+city's sniper turret uses it) looks from a bone of a process: its place is the bone's translation
+plus `pov-offset` turned by the bone, its rotation the bone's `rvec`, `uvec`, `fvec`. A mod's camera
+can therefore be a small process-drawable with a node list of one cspace on a bone of its own, set
+every frame. Keep the bone in the process (an inline field): `cspace-array`'s `relocate`
+(`engine/entity/relocate.gc`) moves every cspace's bone pointer with the process when its dead-pool
+heap compacts. Spawn it under `*target*`: a child runs after its parent and before `*camera-pool*`,
+so the view never lags Jak's move of the frame. Its settings go with it when it dies, and the
+stock camera comes back.
+
+```lisp
+(deftype my-cam-rig (process-drawable)
+  ((cam-bone  bone  :inline))
+  (:state-methods idle))
+
+(define *my-cam-offset* (new 'static 'vector :w 1.0)) ;; static: the setting keeps its address
+
+(defbehavior my-cam-rig-init-by-other my-cam-rig ()
+  (set! (-> self root) (new 'process 'trsqv))
+  (set! (-> self node-list) (new 'process 'cspace-array 1))
+  (let ((cs (-> self node-list data 0)))
+    (set! (-> cs parent) (the-as cspace #f))
+    (set! (-> cs joint) (the-as joint #f))
+    (set! (-> cs joint-num) 0)
+    (set! (-> cs geo) (the-as drawable #f))
+    (set! (-> cs bone) (-> self cam-bone))
+    (set! (-> cs param0) (the-as (function cspace transformq none) #f))
+    (set! (-> cs param1) #f)
+    (set! (-> cs param2) #f))
+  (matrix-identity! (-> self cam-bone transform))
+  (my-cam-rig-update)                         ;; the bone set before the camera first reads it
+  (set-setting! 'mode-name 'cam-pov 0.0 0)
+  (let ((pp (process->ppointer self)))
+    (set-setting! 'pov-handle pp 0.0 (-> pp 0 pid)))   ;; bone 0
+  (set-setting! 'pov-offset 'abs *my-cam-offset* 0)
+  (set-setting! 'interp-time 'abs 0.0 0)
+  (set-setting! 'allow-look-around #f 0.0 0)
+  (set-setting! 'matrix-blend-max-angle 'abs (degrees 360) 0)
+  (go-virtual idle))
+
+;; every frame (the idle state's :trans): look along yaw and pitch from behind a pivot
+(let ((mat (-> self cam-bone transform))
+      (fwd (new 'stack-no-clear 'vector)))
+  (set-vector! fwd (* (sin yaw) (cos pitch)) (sin pitch) (* (cos yaw) (cos pitch)) 1.0)
+  (forward-down->inv-matrix mat fwd (new 'static 'vector :y -1.0 :w 1.0))
+  ;; place = pivot - fwd * distance - rvec * shoulder (rvec points to the screen's left) + rise,
+  ;; pulled in front of a wall with fill-and-probe-using-line-sphere from the pivot
+  (vector-copy! (-> mat trans) place)
+  (set! (-> mat trans w) 1.0))
+```
+
+Three facts set the signs. A heading `yaw` looks along `(sin yaw, 0, cos yaw)` (`vector-y-angle`)
+and grows toward +x. The camera's `rvec` (`forward-down->inv-matrix`: forward x down) is +x when it
+looks along +z, and +x is on the screen's left: the screen's right is `-rvec`, and a turn to the
+right lowers the heading. With the PC settings' third-person inversions at their defaults
+(`third-camera-h-inverted?` and `-v-` `#t`, the original game's controls), the stock camera turns
+the view left for the right stick pushed right; for a shooter, subtract
+`analog-input-horizontal-third` and `analog-input-vertical-third` (`engine/ps2/pad.gc`) from the yaw
+and the pitch: pushed right the view turns right, pushed up it looks up, and a player who changes an
+inversion setting gets it turned the other way. Jak's stick reads the camera's matrix
+(`matrix-local->world`, `logic-target.gc`), so the left stick moves him relative to the new view
+with no change.
+
+**A jump at a set velocity.** An upward speed written into `(-> *target* control transv)` from
+another process does not lift Jak off the ground in his stance. His standard event handler
+(`target-handler.gc` `target-standard-event-handler`) takes `'launch` with a minimum and maximum
+jump height, a surface (`#f`) and a velocity, copies the velocity and goes to `target-jump`:
+
+```lisp
+;; a sideways leap: 0.8 m high, 11 m/s along RIGHT (a level unit vector)
+(let ((vel (vector-float*! (new 'stack-no-clear 'vector) right (meters 11))))
+  (set! (-> vel w) 1.0)
+  (send-event *target* 'launch (meters 0.8) (meters 0.8) #f vel))
+```
+
+Keep setting the across speed each frame while he flies, or his air control bends the path.
+
+Verified: jak3, `engine/camera/cam-states.gc` (`cam-pov`), `engine/game/settings.gc`
+(`pov-handle`, `pov-offset`), `levels/city/sniper/cty-sniper-turret.gc`,
+`engine/geometry/geometry.gc`, `engine/ps2/pad.gc`, `engine/target/target-handler.gc`; the
+battlefront mod's smoke runs: the camera mode `cam-pov` on the rig, the crosshair's ray along the
+view (dot 1.0000), the class model at x 171 of 512 with the camera moved along `-rvec` (x 341 along
+`+rvec`), the stock camera turning -0.94 to the right for the stick pushed right, the rig +0.99;
+the leap 1.18 m along the ground with an upward speed set by hand, 3.80 m with `'launch`,
+2026-11-05.

@@ -85,6 +85,7 @@ subsystem differences, not restatements of the shared material.
   - [4.38 A guard that hunted the player: letting it go](jak3.md#438-a-guard-that-hunted-the-player-letting-it-go)
   - [4.39 Haven City traffic: what comes out on which street](jak3.md#439-haven-city-traffic-what-comes-out-on-which-street)
   - [4.40 Guards fighting guards: the grenade guard's reload loop](jak3.md#440-guards-fighting-guards-the-grenade-guards-reload-loop)
+  - [4.41 A third-person shooter camera, and making Jak jump at a set velocity](jak3.md#441-a-third-person-shooter-camera-and-making-jak-jump-at-a-set-velocity)
 - [How to contribute](../../kb/SKILL.md)
 
 

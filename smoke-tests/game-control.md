@@ -60,6 +60,16 @@ The multiplayer mod's `scripts/mp-test/run_mp_test.py` and `multiplayer-test.gc`
   return `EXCEPTION_CONTINUE_SEARCH`. A jump to EE offset 0 is a call through an unset function.
   The multiplayer mod's `report_goal_crash` (`game/kernel/jak3/kmultiplayer.cpp`) printed
   `vector<-cspace! +#xc` from `board-zap-track`, the first clue to a crash no log showed.
+- **A crash in native code.** Outside EE memory, the same handler can still name the module and
+  offset: `GetModuleHandleExA` with `GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS` on `Rip`, then
+  `rip - module base`. A Release `gk.exe` has no PDB, but its image base is `0x140000000`:
+  `llvm-objdump -d --start-address=<0x140000000 + offset - 0xa0> --stop-address=... gk.exe` shows
+  the code. A mips2c function (`game/mips2c/jak3_functions/*.cpp`) reads EE memory through a global
+  pointer (`g_ee_main_mem`) plus a 32-bit register slot of its execution context: match the
+  faulting store's offset and its neighbours (here `sh t1, 18(a3)` after `sq` at 2944 to 3008)
+  with a grep of the mips2c sources. Put the handler in a jak3 kernel file temporarily (for
+  example before `InitMachine_PCPort`, `game/kernel/jak3/kmachine.cpp`), `task build-release-game`,
+  and revert it and rebuild before any commit.
 - **The instruction behind `f +#x...`.** Anonymous code (state handlers, lambdas) has no symbol: it
   is named after the last named function before it (`valid? +#x8b5`). goalc disassembles a file
   with its source lines and IR: `goalc --user-auto --game jak3 --cmd "(begin (mi) (asm-file
@@ -70,7 +80,8 @@ The multiplayer mod's `scripts/mp-test/run_mp_test.py` and `multiplayer-test.gc`
 
 Verified: jak3, `game/main.cpp`, `common/util/FileUtil.cpp`, `game/graphics/pipelines/opengl.cpp`,
 `game/kernel/jak3/kmultiplayer.cpp`; used for every in-game check of the multiplayer mod,
-2026-10-15.
+2026-10-15. The native crash: the battlefront mod's smoke runs, `gk.exe` +#x383fe6 disassembled
+to `mercneric_convert` (`game/mips2c/jak3_functions/generic_merc.cpp`), 2026-11-05.
 
 **Without C++: a scenario compiled into GAME.** A mod that adds no kernel function can be checked
 the same way from GOAL alone:
@@ -92,6 +103,13 @@ the same way from GOAL alone:
 - **Running under menus.** A process that must go on under the menus clears `menu`, `pause`,
   `progress` and `freeze` from its mask: the title's progress menu stopped one that only cleared
   `menu` and `pause`.
+- **A scenario's stack.** `process-spawn-function`'s `:stack-size` sizes the process, not what its
+  main thread keeps across a `suspend`: 256 bytes unless the code calls
+  `(stack-size-set! (-> self main-thread) 4096)` first. A scenario whose waits hold a few stack
+  vectors printed "suspend called without enough stack" and the game stopped (exit `0xC0000094`).
+- **A scenario edited is installed again.** The build compiles the copy `install` wrote in
+  `goal_src/<game>/pc/features/`, not the mod's file: run `install` after each edit, and launch only
+  when the compile succeeded, or the run tests the old copy.
 - **`*pc-dead-pool*` holds 4 processes** of 128 KB (`pc/pckernel.gc`); the subtitles, the Mods menu
   popup and a mod's own process take 3. Take test processes from `*default-dead-pool*`.
 - **Symbol names in the log.** In a retail boot the printed name of a symbol (`~A`) can come out
@@ -106,5 +124,6 @@ the same way from GOAL alone:
 
 Verified: jak3, `engine/ps2/pad.gc`, `pc/debug/capture-pc.gc`, `game/kernel/jak3/kmachine.cpp`,
 `kscheme.cpp`, `pc/pckernel.gc`; the battlefront mod's scenario runs (retail boot, every class
-tested, screenshots), 2026-10-31.
+tested, screenshots), 2026-10-31; its smoke runs through `smoke_test.py` (the 256-byte main thread
+stack, a stale copy run after an edit), 2026-11-05.
 

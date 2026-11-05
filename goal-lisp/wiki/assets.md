@@ -474,7 +474,14 @@ mesh and textures: the stock AI then drives the imported model unchanged.
   for flying turrets.
 - **Frame rate.** The rips sample the clips at 15 frames per second
   (`times[i] = i / framerate` in `fr3_to_gltf.cpp`): give `build-actor`
-  `:framerate 15.0` to keep each clip's frame count.
+  `:framerate 15.0` to keep each clip's frame count. The art group still
+  stores each clip with a `speed` of 1.0, one frame per 60th of a second,
+  which `(ja :num! (loop!))` multiplies the rate by
+  (`process-drawable-h.gc` `num-func-loop!`): play such a clip at rate 0.25
+  (or advance its frame 0.25 a tick by hand) for real time. At rate 1.0 a
+  16-frame hover clip of Jak 2's jetpack guard looped four times a second
+  and its legs shook (the battlefront mod, measured 0.994 clip frame a game
+  frame, then 0.249 at rate 0.25, 2026-11-05).
 
 Verified: jak2/jak3 rips compared by script (joint names, bind poses,
 clips, textures), `goalc/build_actor/jak3/build_actor.cpp`,
