@@ -59,6 +59,12 @@ task compile-check
 - A screenshot for every visual claim, taken after the scene settled.
 - GOAL traps that bite scenarios (a lambda captures no local variable, a handle kept in a global
   symbol loses its pid): search the [Lisp wiki](../goal-lisp/wiki/index.md) first.
+- Keep a unit or a class model as a handle across a wait and resolve it after each wait: a
+  process pointer goes stale when the unit dies or its dead-pool heap compacts. An attack event
+  sent "from" a stale pointer crashed Jak 3 (the battlefront mod's runs: the sender printed as
+  `invalid type ptr`, 2026-11-06).
+- The save the scenario loads may have secrets on, invulnerability among them: a test of damage
+  to the player lifts the secret for the measure and puts it back as it was.
 - Pad input, retail-boot screenshots, several instances at once, finding the GOAL function behind
   a crash: [`game-control.md`](game-control.md).
 
