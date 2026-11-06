@@ -192,6 +192,17 @@ and no longer did with the method.
 Verified: jak3, `levels/city/traffic/citizen/guard.gc` (crimson-guard `relocate`); a crash
 reporter's stack, then the battlefront mod's runs, 2026-10-31.
 
+A `joint-mod` made in a process's init (`(new 'process 'joint-mod (joint-mod-mode joint-set*) self
+13)`) needs the same: `gun`'s relocate moves its `mag` fields (`engine/target/gun/gun-util.gc`).
+The kernel's heap walk relocates the joint-mod's own pointers (`process`, `joint`) and
+`cspace-array`'s relocate moves the cspace's `param1` onto it (`engine/entity/relocate.gc`), so the
+joint keeps working; only the process's field stays behind. Writing a scale through it each frame
+crashed the game a few seconds after the battlefront mod's guard class spawned (access violation,
+no crash report), at the first compaction, not at the spawn.
+
+Verified: jak3, `engine/entity/relocate.gc`, `engine/target/gun/gun-util.gc`; the battlefront
+mod's runs, a crash with the field left out and none with it, 2026-11-06.
+
 The LZO cache of animations (`*anim-manager*`, `art-joint-anim-manager`, `engine/anim/joint.gc`:
 64 slots in #x30000 bytes) frees its oldest slot when full, even one used this frame. Jak 3
 compresses few animations that way (`frames flags` 1): a two-player session with Haven's traffic
