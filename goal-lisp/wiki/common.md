@@ -781,6 +781,15 @@ Verified: jak3, `pc/progress/progress-generic-draw-pc.gc` (stock test),
 `goalc/compiler/compilation/Static.cpp`; the multiplayer mod's text field crashed this way (found
 in review, fixed, compiled), 2026-10-14.
 
+The reverse bites too: `0` tests true, so a flag read with `(if (-> this flag?) ...)` is on until
+something writes `#f`. Set every symbol field of a static object to `#f` at load. The battlefront
+mod's shield flag (`(new 'static 'bf-state ...)`, never set before a robotguard raised its shield)
+kept Jak's shield level up in every battle: Jak 3's `target-attacked` refused every attack on the
+player, and with the flag set to `#f` at load a foe's blow took its points.
+
+Verified: jak3, `engine/target/target-handler.gc` (`target-attacked`, shield-level); the
+battlefront mod's runs, the attack refused, then accepted, 2026-11-06.
+
 ### 1.4.17 A global symbol holds 32 bits: never keep a handle in one
 
 goalc writes a symbol's value with a 32-bit store (`IR_SetSymbolValue`,
