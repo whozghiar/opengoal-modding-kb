@@ -2036,6 +2036,28 @@ or hidden with the bones computed, 2026-11-01.
 
 ## 4.35 Build-actor models: their effects, the death cloud, another mesh at runtime
 
+**No mesh segments.** `build-actor` writes a 0 `seg-table` (`goalc/build_actor/jak3/build_actor.cpp`),
+and `setup-masks` builds the effects it hides from that table (`process-drawable.gc`: a set
+`seg-mask` bit hides a segment, `effect-mask` gathers the hidden segments' effects): with no table
+the effect mask stays 0 and the whole model shows, whatever the stock code masks. A stock unit's
+armor, weapon or dark-guard variant masks do nothing on a build-actor model; a stock model's
+segments keep working.
+
+Verified: jak3, `engine/process-drawable/process-drawable.gc` (`setup-masks`),
+`goalc/build_actor/jak3/build_actor.cpp`; the battlefront mod's runs, the guards' `seg-mask` read
+in game, 2026-11-06.
+
+**Particles placed by the stock code.** A stock unit's code puts its particles at fixed offsets from
+its root: drawn as another model, they miss it. The flying turret draws its two thruster flames
+(`draw-beam` of part 4709 in `flying-turret-method-229`) under its root; on Jak 2's hover guard
+(`crimson-guard-hover-lod0`, built for the flying-turret code), a hook just before each `draw-beam`
+moves them to its turbines, node-list 15 (`Lturbine`) and 17 (`Rturbine`), along each joint's -z
+axis (`vector<-cspace!`, then the bone transform's `vector 2` negated). The mod Haven City: New
+Dawn did it first.
+
+Verified: jak3, `levels/city/protect/flying-turret.gc`; the battlefront mod's screenshot of a red
+jetpack guard, both flames at its turbines, 2026-11-06.
+
 **No effect control.** A model built by `build-actor` has no `effect-name` lump, so
 `initialize-skeleton` leaves `(-> skel effect)` at `#f` (4.12): the effect frames of the clips it
 plays (footsteps, gun sounds, `death-default`) never run, even when its draw borrows a stock art
