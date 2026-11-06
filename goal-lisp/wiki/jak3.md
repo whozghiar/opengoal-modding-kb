@@ -344,6 +344,12 @@ down counts from there, not from the top.
   icon; give such lines a 256-character string. Jak 3's font has icons for the face buttons, L1,
   L2, R1, R2 and the D-pad, none for L3 or R3. Verified: the multiplayer mod's challenge
   invitation (`challenge` scenario screenshots), 2026-10-27.
+- **No left or right D-pad icon.** The font has `<PAD_DPAD_UP>`, `<PAD_DPAD_DOWN>` and
+  `<PAD_DPAD_ANY>`, each the four `<PAD_PART_DPAD_*>` parts drawn with `~3L` (lit) or `~22L`
+  (dim) colors (`font_db_jak3.cpp`). Write the left arrow the same way, its left part lit:
+  `~Y~3L<PAD_PART_DPAD_L>~Z~22L~+17H~-13V<PAD_PART_DPAD_U>~Z~22L~+17H~+14V<PAD_PART_DPAD_D>~Z~22L~+32H<PAD_PART_DPAD_R>~Z~+56H`.
+  Verified: the battlefront mod's class help, drawn through `print-game-text` (screenshots),
+  2026-11-06.
 - **SELECT pauses** like START (`determine-pause-mode`, `engine/draw/drawable.gc`). To give it
   another use, wrap that function and clear SELECT from `(-> *cpad-list* cpads 0 button0-rel 0)`
   before calling the stock one.
@@ -1898,6 +1904,16 @@ Verified: jak3, `engine/ui/hud-classes.gc` (`hud-gun` `draw`, `update-values!`),
 the battlefront mod's guards (yellow 1, blue 2, red 3 with their shells and counts, gun HUD
 `hud-in`, hidden for a class with no ammo weapon), 2026-11-01.
 
+Counts of the mod's own (a magazine and a reserve, no count at all): wrap `draw` too. Set
+`(-> this strings 0 scale)` and `(-> this sprites 14 scale-y)` to 0 for the stock call (sprite 14
+is the shell; the stock draw resets its `scale-x`, not its `scale-y`), put them back, then, unless
+`(hidden? this)`, draw your shells with sprite 14 placed from `(-> this sprites 0 pos)` with
+`set-as-offset-from!` (5 units apart upward, as the stock column) and your text at
+`(-> this strings 0 pos)`, scale 0.4. The icon keeps the stock look and slide.
+
+Verified: jak3, `engine/ui/hud-classes.gc`; the battlefront mod's guards: the rifle "10/20" over 10
+shells, the grenades "3" over 5 shells, the tazer's icon alone (screenshots), 2026-11-06.
+
 **One DMA bucket at a time.** A `with-dma-buffer-add-bucket` opened inside another one's body, on
 the same frame buffer, froze the game: draw sprites and text in separate blocks, one after the
 other.
@@ -2219,6 +2235,17 @@ the target and send `'end-pursuit`:
       (set! (-> g target-status handle) (the-as handle #f)))
   (send-event g 'end-pursuit))
 ```
+
+A unit keeps the enemy it chose until something makes it look again; with the `chi1` flag on
+the hatred that chose it (no look again on the controller's timer), until one of them dies. A
+mod that writes its own `hatred-indices` changes no choice already made: the battlefront mod's
+Krimzon Guard units that took the player with the stock table, while the zone loaded under the
+mod's menu, kept him after the mod's table made him their ally. Call
+`mission-squad-control-method-13` on such a unit's `attacker-info` to make it choose again with the
+table as it is now.
+
+Verified: jak3, `levels/wascity/mission-squad-control.gc` (method 13); the battlefront mod's
+runs, a red guard and a red jetpack on a Krimzon Guard player, then none, 2026-11-06.
 
 The city's own alert end does not work either: `ff-squad-control-method-45` waits during its ending
 for `ff-squad-control-method-48`, the count of guards still in the alert, which is decompiled as
