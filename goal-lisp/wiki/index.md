@@ -88,6 +88,7 @@ subsystem differences, not restatements of the shared material.
   - [4.41 A third-person shooter camera, and making Jak jump at a set velocity](jak3.md#441-a-third-person-shooter-camera-and-making-jak-jump-at-a-set-velocity)
   - [4.42 Haven City: where a district's streets leave it, a force field across them, a light pillar](jak3.md#442-haven-city-where-a-districts-streets-leave-it-a-force-field-across-them-a-light-pillar)
   - [4.43 Haven City traffic: units out of a transport, and back to sleep](jak3.md#443-haven-city-traffic-units-out-of-a-transport-and-back-to-sleep)
+  - [4.44 Haven City traffic: routing a unit, the default nav mesh, clocks](jak3.md#444-haven-city-traffic-routing-a-unit-the-default-nav-mesh-clocks)
 - [How to contribute](../../kb/SKILL.md)
 
 

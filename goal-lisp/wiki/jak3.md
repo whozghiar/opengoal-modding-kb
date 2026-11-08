@@ -2519,3 +2519,41 @@ Verified: jak3, `levels/city/common/guard-states.gc` (`exit-transport`),
 (`new-nav-control`, `change-to`); the battlefront mod's smoke runs: 10 of 12 units stuck in a
 ship at Freedom HQ, then 16 stuck units a run released and no crash in 3 runs with
 `deactivate-object`, against 3 crashes in 6 with the event alone, 2026-11-08.
+
+## 4.44 Haven City traffic: routing a unit, the default nav mesh, clocks
+
+- **Routing a traffic unit.** A citizen walks its lane; at the lane's end it asks its controller
+  (`vehicle-controller`, `levels/city/traffic/vehicle/vehicle-control.gc`) for the next one through
+  `choose-branch-callback`, a `(function vehicle-controller vehicle nav-branch)`; the stock one is
+  `vehicle-controller-method-15`, a random lane `dest-node-id-at-max?` allows. Set your own on the
+  unit's `controller` to route it: from `(-> ctrl branch dest-node)`, search the lanes breadth first
+  (a node's `branch-array`, each branch's `dest-node`; a section's links lead into the next loaded
+  graph) and return the first lane of the way. Taking at each junction the lane ending nearest the
+  goal left units in dead ends 140 to 200 m off. `citizen-method-199` (a unit put on a segment)
+  starts it over at the segment's first vertex: called again and again it never gets anywhere.
+- **The default nav mesh fills.** A new traffic unit takes its first nav-control on the engine's
+  `*default-nav-mesh*` (`citizen.gc`, its enemy info's `nav-mesh`; `engine/nav/nav-mesh.gc`, 128
+  of them) and keeps it until it is first woken onto a street's mesh (`change-to` frees the old
+  one, a dying process too). When none is free, `new-nav-control` prints "too many users for
+  nav-mesh #f" and the new unit's `setup-enemy!` (nav-enemy) reads its missing nav-control: the
+  game crashes. A reset that makes the traffic spawn its pools again while the old units still hold
+  theirs gets there. Before such a reset, `(remove-process-drawable *default-nav-mesh* unit)` on the
+  pools' units; for more room, give the mesh a larger `nav-control-array` and user-list engine at
+  load, 255 at most (`max-nav-control-count` is a uint8). Its `nav-control-count` is a high-water
+  mark: freed entries (`process` #f) below it are reused.
+- **Each process has its own clock.** `current-time` reads the calling process's clock: the START
+  menu's code runs on the menu's, which is not the game's. A time taken on one and tested on the
+  other never passes; for a time several processes compare, read `(-> *display* game-clock
+  frame-counter)` explicitly.
+- **Sending Jak into a state from another process:**
+  `(send-event *target* 'change-state target-death 'my-mode)` (`target-handler.gc`), his state's
+  code getting the mode as its argument.
+
+Verified: jak3, `levels/city/traffic/vehicle/vehicle-control.gc` (methods 14, 15),
+`levels/city/traffic/citizen/citizen.gc` (methods 199, init, active state),
+`engine/nav/nav-mesh.gc` (`new-nav-control`, `change-to`), `engine/nav/nav-enemy.gc`
+(`setup-enemy!`), `engine/process-drawable/process-drawable.gc` (`deactivate`),
+`engine/target/target-handler.gc`; the battlefront mod's smoke runs: the crash named by a temporary
+vectored exception handler (`nav-enemy method 119`), the default mesh at 41, 85, 115 of 128 then
+the crash after a far reset, 17 of 255 with both fixes; defenders brought to their point by the
+lane search; a START menu entry tested on the game clock, 2026-11-08.
