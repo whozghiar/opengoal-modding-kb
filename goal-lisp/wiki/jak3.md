@@ -2464,6 +2464,18 @@ the leap 1.18 m along the ground with an upward speed set by hand, 3.80 m with `
   loaded. Its color is one global (`set-security-color!`, `ctywide-texture.gc`): every wall on
   screen takes the last color set, and the child sets red at its init and each frame. Code linked
   before `ctywide-obs.o` in CWI declares it.
+- **The ruins' own force field.** The game closes the street from Freedom HQ's district (ctyslumb)
+  into the ruins of the old town (ctygenb) with `security-wall-12` until its first task: x 389.75 m,
+  z -18.44 to -70.72 m, y 7.94 m, 40 m tall (`decompiler_out/jak3/entities/ctyslumb-actors.json`,
+  its `path`). `spawn-security-wall` between those ends puts it back. The Metal Head nest (mhcitya,
+  mhcityb, where Jak 2's farms were) opens on the city by the street from the Port's west end, up
+  to `mhcity-dark-eco-door-1` (-381 m, 1199 m), and by its airlock.
+- **Every door to an interior is an airlock.** The city's doors to interiors and the sewers are
+  `com-airlock` subtypes (`cty-door`, `hip-door-a`, `vin-door-ctyinda`, `com-airlock-outer-mhcity`,
+  `com-airlock-inner`/`-outer`, `engine/common-obs/airlock.gc`); each opens only while
+  `(-> *setting-control* user-current airlock)` holds: `(set-setting! 'airlock #f 0.0 0)` keeps them
+  all shut. The game starts a door's process only near it: `process-by-ename` finds none until Jak
+  stands by it (`entity-by-name` gives its place).
 - **A vertical beam.** `draw-beam` (`engine/target/gun/gun-util.gc`) launches a beam particle along
   a direction, as long as the launcher's `scale-y`, oriented by `forward-up->quaternion` against
   `*y-vector*`: straight up gives no frame. Lean it a hair. It draws only while the segment is in
@@ -2484,7 +2496,8 @@ Verified: jak3, `levels/city/common/nav-graph-h.gc`, `levels/city/ctywide-obs.gc
 `engine/target/gun/gun-util.gc`; the battlefront mod's smoke runs: walls placed from the links in
 the four districts it fights in (the Port and the Industrial Zone found the same street between
 them, as did the Slums and Freedom HQ), a red wall on screen at the Port, white, blue and red beams
-on screen, 2026-11-08.
+on screen, 2026-11-08; the ruins' and the nest's walls holding Jak running at them, six doors
+`close` with Jak 3 m off, 2026-11-08.
 
 ## 4.43 Haven City traffic: units out of a transport, and back to sleep
 
@@ -2568,7 +2581,11 @@ ship at Freedom HQ, then 16 stuck units a run released and no crash in 3 runs wi
   theirs gets there. Before such a reset, `(remove-process-drawable *default-nav-mesh* unit)` on the
   pools' units; for more room, give the mesh a larger `nav-control-array` and user-list engine at
   load, 255 at most (`max-nav-control-count` is a uint8). Its `nav-control-count` is a high-water
-  mark: freed entries (`process` #f) below it are reused.
+  mark: freed entries (`process` #f) below it are reused. Waking a unit with `activate-by-type` on a
+  street whose nav mesh is not loaded fills it too: the traffic gives the unit `(get-nav-mesh
+  nav-mesh-id)` of the segment, #f there, so the unit never leaves the default mesh ("failed to
+  locate ground for citizen"). Check `(get-nav-mesh (the-as actor-id (-> seg nav-mesh-id)))` before
+  waking a unit on a segment (a battle that took streets 540 m off reached 96 taken, then crashed).
 - **Each process has its own clock.** `current-time` reads the calling process's clock: the START
   menu's code runs on the menu's, which is not the game's. A time taken on one and tested on the
   other never passes; for a time several processes compare, read `(-> *display* game-clock
