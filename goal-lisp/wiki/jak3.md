@@ -1646,7 +1646,18 @@ PNGs: the bounding box of its sections' cells (`city-map-bits`), each texel take
 texture sampled at that texture's own size, other levels' cells black, at most 256 texels a side
 (34 colors for four zones).
 
-Verified: jak3, `engine/ui/minimap.gc`; `iso_data/jak3/STR/WOMAP.STR` compared with
+**The center has no minimap texture.** Jak 3 ships no `map-ctygena`, `map-ctygenc`, `map-ctypala`,
+`map-ctypalb`, `map-ctymarkb` or `map-stadium` in any texture page (`map-ctymarka` sits only in
+`mhcityb-minimap`): a city map made of minimap tiles has black holes over the ruined center, the
+stadium and the west. For the whole city, read the START menu's map from the disc instead:
+`iso_data/jak3/STR/WOMAP.STR` starts with a table of 32-bit sector numbers (2048 bytes a sector),
+the map of `bigmap-id` i (`level-h.gc`, `city` 0) at sector i; there, the header and data above
+(the city's: palette at +16, texels at +16 + 1024, 512 x 832, columns 256 wide), texel 0 at world
+x -640 m, z -1088 m, 4 m a texel (`*bigmap-info-array*` 0). The battlefront mod's
+`make_minimaps.py` crops it to the city's outline and resamples it to 384 texels high.
+
+Verified: jak3, `engine/ui/minimap.gc`; `iso_data/jak3/STR/WOMAP.STR` decoded offline (the city
+map, 512 x 832, drawn in the battlefront mod's war zone page, 2026-11-08) and compared with
 `decompiler_out/jak3/textures/ctyport-minimap/map-ctyportc.png` (same streets at the same place,
 different ground); the battlefront mod's four zone pages drawn from that data (screenshots,
 2026-11-01); `decompiler_out/jak3/textures/ctyport-minimap/` (`map-ctyportd`, `-e`, `-f` 256 x
@@ -2522,15 +2533,32 @@ ship at Freedom HQ, then 16 stuck units a run released and no crash in 3 runs wi
 
 ## 4.44 Haven City traffic: routing a unit, the default nav mesh, clocks
 
-- **Routing a traffic unit.** A citizen walks its lane; at the lane's end it asks its controller
-  (`vehicle-controller`, `levels/city/traffic/vehicle/vehicle-control.gc`) for the next one through
-  `choose-branch-callback`, a `(function vehicle-controller vehicle nav-branch)`; the stock one is
-  `vehicle-controller-method-15`, a random lane `dest-node-id-at-max?` allows. Set your own on the
-  unit's `controller` to route it: from `(-> ctrl branch dest-node)`, search the lanes breadth first
-  (a node's `branch-array`, each branch's `dest-node`; a section's links lead into the next loaded
-  graph) and return the first lane of the way. Taking at each junction the lane ending nearest the
-  goal left units in dead ends 140 to 200 m off. `citizen-method-199` (a unit put on a segment)
-  starts it over at the segment's first vertex: called again and again it never gets anywhere.
+- **A traffic unit's lane.** A citizen walks its lane to the lane's end node: its controller's
+  `dest-point` (`turn-exit-point`, `levels/city/traffic/vehicle/vehicle-control.gc`), which the
+  `'active` post gives its nav control as target each frame; within 4 m it asks the controller for
+  the next lane through `choose-branch-callback`, a `(function vehicle-controller vehicle
+  nav-branch)` (the stock one, `vehicle-controller-method-15`, a random lane `dest-node-id-at-max?`
+  allows), and at a dead end `citizen-method-208` puts it on any lane 20 to 120 m behind it.
+  `citizen-method-199` (a unit put on a segment) starts it over at the segment's first vertex.
+- **The lanes cannot route a unit across the city.** The walking lanes are loops within a section:
+  ctyslumc has 138 lane nodes and no link to another section's graph, and 173 of ctyslumb's 177
+  nodes have one lane out or none. Neither a callback searching the lanes breadth first (256
+  nodes) nor a distance field over every loaded lane (83 of 315 nodes reached the goal) took units
+  from the Freedom League's base to a point 240 m away: they circled 136 to 290 m from it.
+- **Marching a unit over the nav meshes.** The meshes join the sections: a nav-enemy standing on a
+  mesh's link poly (`pat` 4, its `link` < 255) moves onto `(-> mesh link-array link dest-mesh)`
+  (`nav-enemy-method-188`, from method 187 in its post). Twice a second, for a unit in `'active`,
+  find the way through the fewest meshes to the goal's mesh (`find-nearest-nav-mesh`): breadth first
+  from `(-> unit nav state mesh)` over each mesh's `link-array` (`dest-mesh` #f while the next
+  section is not loaded); every frame, set the unit's `dest-point` to a spot 2 m past the link poly
+  that starts the way (`poly-centroid` of that poly, toward the next mesh's `dest-link-poly-id`
+  poly), or to the goal on its mesh. Drop it from the march once its mesh changed. Aimed at the
+  poly's centroid, units stopped 4 m short (the lane-end distance), went back to their lanes, and
+  piled up there until the game printed `touching-prims-entry-pool::alloc-node() failed!` thousands
+  of times. To make it run, set `(-> unit nav target-speed)` from `speed-run` each frame (the travel
+  clip blends walk and run on the speed); a large `wait-time` keeps it from its idle stops. A
+  marching unit's lane callback can answer the stock random lane: the post asks for a lane each
+  frame near its `dest-point`.
 - **The default nav mesh fills.** A new traffic unit takes its first nav-control on the engine's
   `*default-nav-mesh*` (`citizen.gc`, its enemy info's `nav-mesh`; `engine/nav/nav-mesh.gc`, 128
   of them) and keeps it until it is first woken onto a street's mesh (`change-to` frees the old
@@ -2556,4 +2584,5 @@ Verified: jak3, `levels/city/traffic/vehicle/vehicle-control.gc` (methods 14, 15
 `engine/target/target-handler.gc`; the battlefront mod's smoke runs: the crash named by a temporary
 vectored exception handler (`nav-enemy method 119`), the default mesh at 41, 85, 115 of 128 then
 the crash after a far reset, 17 of 255 with both fixes; defenders brought to their point by the
-lane search; a START menu entry tested on the game clock, 2026-11-08.
+march over the meshes (from the Freedom League's base to Freedom HQ's point: 14 guards on it 60 s
+in, none in 180 s by the lanes); a START menu entry tested on the game clock, 2026-11-08.
