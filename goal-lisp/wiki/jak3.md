@@ -2431,3 +2431,91 @@ view (dot 1.0000), the class model at x 171 of 512 with the camera moved along `
 `+rvec`), the stock camera turning -0.94 to the right for the stick pushed right, the rig +0.99;
 the leap 1.18 m along the ground with an upward speed set by hand, 3.80 m with `'launch`,
 2026-11-05.
+
+## 4.42 Haven City: where a district's streets leave it, a force field across them, a light pillar
+
+- **A section's exits are in its nav graph.** Each city section's lane graph,
+  `(-> lev bsp city-level-info nav-graph)` (`levels/city/common/nav-graph-h.gc`), lists in its
+  `link-array` (`link-count` entries) the lanes that leave it for another section. A
+  `nav-graph-link` holds `dest-graph-id` (the `id` of the graph it goes to), `src-branch-id` (the
+  index in `branch-array` of the branch going out; that branch's `src-node` is the last node inside)
+  and `dummy-node` (a copy of the node it reaches in the other section). Skip the links whose
+  `dest-graph-id` is another section of your own area, then merge the exits a few meters apart
+  into one street. The copied node lies in the next section: a wall put on it stood in the next
+  district, out of the player's reach (the Industrial Zone's in the Port); halfway between the
+  last node inside and the copied one is the border. A node can stand well above the street just
+  inside it: at the Port, 13 m.
+- **A force field wall from code.** `spawn-security-wall` (`levels/city/ctywide-obs.gc`, CWI)
+  spawns a `security-wall-child` between two points, standing `height` tall from their height,
+  child of the process given, and returns its handle. It is the district border of Jak 2: solid to
+  Jak (`obstacle blocking-plane camera-blocker`), drawn with ctywide's animated texture
+  (`*security-texture-anim-array*`, ctywide's texture callback 6), so it shows wherever ctywide is
+  loaded. Its color is one global (`set-security-color!`, `ctywide-texture.gc`): every wall on
+  screen takes the last color set, and the child sets red at its init and each frame. Code linked
+  before `ctywide-obs.o` in CWI declares it.
+- **A vertical beam.** `draw-beam` (`engine/target/gun/gun-util.gc`) launches a beam particle along
+  a direction, as long as the launcher's `scale-y`, oriented by `forward-up->quaternion` against
+  `*y-vector*`: straight up gives no frame. Lean it a hair. It draws only while the segment is in
+  the view frustum, and only for the frame: call it every frame.
+
+```lisp
+;; a 150 m light pillar at pos, every frame: part 5200 is a copy of the blue gun's beam (part 231)
+;; with :scale-y (meters 150) and its own color
+(draw-beam (-> *part-id-table* 5200) pos (new 'static 'vector :y 1.0 :z 0.01 :w 1.0) #f)
+
+;; a red force field across a street, 30 m wide, 40 m tall from 10 m below the exit node
+(define-extern spawn-security-wall (function process vector vector float symbol handle))
+(set! (-> my-walls 0) (spawn-security-wall my-parent left-point right-point (meters 40) #f))
+```
+
+Verified: jak3, `levels/city/common/nav-graph-h.gc`, `levels/city/ctywide-obs.gc`,
+`levels/city/ctywide-texture.gc`, `engine/level/level-info.gc` (ctywide's callback list),
+`engine/target/gun/gun-util.gc`; the battlefront mod's smoke runs: walls placed from the links in
+the four districts it fights in (the Port and the Industrial Zone found the same street between
+them, as did the Slums and Freedom HQ), a red wall on screen at the Port, white, blue and red beams
+on screen, 2026-11-08.
+
+## 4.43 Haven City traffic: units out of a transport, and back to sleep
+
+- **Out of the hatch.** A traffic unit woken with spawn params `behavior` 6 and the transport's
+  handle runs its `exit-transport` state. A guard (`guard-states.gc`) is pinned to the hatch every
+  frame (`crimson-guard-method-265`) until `crimson-guard-method-266` finds, 4 or 6 m beyond the
+  hatch's end and within 70 degrees of its way out, ground on its own nav mesh whose 2 m sphere no
+  other unit blocks; then it walks out and jumps there. When none is found it waits for ever, and
+  rides the ship away when the ship leaves. A jetpack (`flying-turret`) hovers until it is within
+  4 m of its exit point. Choose the hatch's way by the ground behind it, and turn the ship while a
+  guard waits: no test outside method 266 predicts it (a crowd blocks it too).
+- **Back to sleep from mod code.** Find the unit in its tracker's `active-object-list`
+  (`*traffic-engine*` `tracker-array` 0 or 1) and call `deactivate-object` with its index: it
+  takes the unit out of the active list, sends `'traffic-off-force` (`'traffic-off` without the
+  flag) and puts it back in its pool. The event alone puts the unit to sleep while the tracker
+  still lists it awake: it is counted awake, never woken again, and the lists drift from the
+  units (the game crashed in 3 of 6 runs that way).
+- **A full nav mesh crashes a first activation.** A unit holds one nav-control on the mesh it last
+  walked, asleep too (`change-to` frees the old one when it moves to another). A mesh holds
+  `max-nav-control-count`; when none is free, `new-nav-control` prints "too many users", the
+  stock `'traffic-activate` handler (`citizen.gc`) calls `go-inactive` and then reads the unit's
+  `nav state` through `#f`. Before waking a unit onto a mesh, check
+  `(< nav-control-count max-nav-control-count)`, an entry whose `process` is `#f`, or that the unit
+  already holds one there.
+
+```lisp
+;; put a traffic unit back in its pool the traffic's way
+(defun my-unit-sleep ((proc process))
+  (let ((h (process->handle proc)))
+    (dotimes (ti 2)
+      (let ((tr (-> *traffic-engine* tracker-array ti)))
+        (dotimes (i (-> tr active-object-count))
+          (when (= (-> tr active-object-list i) h)
+            (deactivate-object tr i #t)
+            (return #t))))))
+  #f)
+```
+
+Verified: jak3, `levels/city/common/guard-states.gc` (`exit-transport`),
+`levels/city/traffic/citizen/guard.gc` (methods 265, 266), `levels/city/protect/flying-turret.gc`,
+`levels/city/traffic/traffic-engine.gc` (`deactivate-object`, `activate-from-params`),
+`levels/city/traffic/citizen/citizen.gc` (`'traffic-activate`), `engine/nav/nav-mesh.gc`
+(`new-nav-control`, `change-to`); the battlefront mod's smoke runs: 10 of 12 units stuck in a
+ship at Freedom HQ, then 16 stuck units a run released and no crash in 3 runs with
+`deactivate-object`, against 3 crashes in 6 with the event alone, 2026-11-08.
