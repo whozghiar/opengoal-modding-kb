@@ -89,6 +89,7 @@ subsystem differences, not restatements of the shared material.
   - [4.42 Haven City: where a district's streets leave it, a force field across them, a light pillar](jak3.md#442-haven-city-where-a-districts-streets-leave-it-a-force-field-across-them-a-light-pillar)
   - [4.43 Haven City traffic: units out of a transport, and back to sleep](jak3.md#443-haven-city-traffic-units-out-of-a-transport-and-back-to-sleep)
   - [4.44 Haven City traffic: routing a unit, the default nav mesh, clocks](jak3.md#444-haven-city-traffic-routing-a-unit-the-default-nav-mesh-clocks)
+  - [4.45 Filled 2D triangles over the HUD](jak3.md#445-filled-2d-triangles-over-the-hud)
 - [How to contribute](../../kb/SKILL.md)
 
 

@@ -230,6 +230,17 @@ START > Options (`*options-options-pc*`, `pc/progress/progress-static-pc.gc`), w
 (stock: 0.1 to 0.8, step 0.175). Swap its `options` array for one with your entry and spread the
 offsets over the same span; restore both to remove it.
 
+START opens the menu through `(activate-progress *dproc* 'main)` (`engine/game/main.gc`, master
+mode `'progress`; when no menu process comes out, it sets `'game` back). A `define-perm` of the
+stock function and a `defun activate-progress` of the same signature (`(function process symbol
+none)`) can open a page of your own instead for `'main` and hand every other state (save icons,
+card errors) to the stock one; let a flag through to reach the stock menu from your page. Your
+page's own START press can come back through the game's menu once the page closes: ignore a new
+request for 0.4 s, timed on `(-> *display* real-clock frame-counter)`, since a process's own clock
+stops under the pause (a guard timed with `time-elapsed?` never ran out there).
+Verified: jak3, `engine/game/main.gc`, `engine/ui/progress/progress.gc`; the battlefront mod's round 20 runs, 2026-11-09.
+
+
 The entry's `next-state` must resolve to a page: wrap `progress` `set-menu-options` (the stock
 method is in `pc/progress/progress-pc.gc`) and map your symbol to a generic scrolling page, like
 the stock `'camera-options` maps to `*camera-options-pc*`. Generic links inside that page come back
@@ -1622,6 +1633,17 @@ An icon is a connection: `(add-icon! *minimap* proc class-index #f (the-as vecto
   own dot.
 - **The big map** (`bigmap.gc`) draws every class with `bigmap` (or `bigmap-only`) as an icon, by
   its `icon-xy` and `scale`.
+- **A unit's mark goes by its type, not its side.** `crimson-guard`'s init adds class 25
+  `guard-frustum` (blue, its view cone drawn by `draw-frustum-1`), `kg-squad-member`'s (flying
+  turret, roboguard, spydroid) class 139 `robot-frustum` (red). Each type keeps its own `minimap`
+  field (`levels/wascity/guard-h.gc`, `levels/city/common/kg-squad-member-h.gc`). To color by side,
+  point `(-> unit minimap class)` at `(-> *minimap-class-list* 25)` or `139` every frame from the
+  unit's first awake frame: done twice a second, one newly woken unit in 80 still showed the stock
+  one.
+- **A mark at a fixed place.** Pass a vector instead of `#t` to `add-icon!`: the connection keeps
+  its address (`position`) and draws the mark there; class 10 `guard` is a plain dot (`icon-xy` 0
+  1), black with `color` 0 0 0 and larger with `scale`.
+Verified: jak3, `engine/ui/minimap.gc`, `levels/city/traffic/citizen/guard.gc`, `levels/city/common/kg-squad-member.gc`; the battlefront mod's round 20 runs, 2026-11-09.
 
 Verified: jak3, `engine/ui/minimap.gc`, `engine/ui/bigmap.gc`; the multiplayer mod's players shown
 by a marker in their color (scenarios `minimap-cone`, `coop-roles`, screenshots), 2026-10-28.
@@ -1746,6 +1768,20 @@ Verified: jak3, `engine/gfx/font.gc`, `pc/pckernel-impl.gc`; the battlefront mod
   first six units of a new pool the blue look, and the traffic wakes a pool's first units first.
 - **Sleeping units.** A pooled unit waits in state `inactive`, hidden, at its last place or at the
   origin. A search for live units skips the state name `inactive`.
+- **A pool sleeps 20 units at most.** Each type's sleeping units are listed in 20 slots of
+  `inactive-object-array` (580 = 29 types times 20, `reset-and-init-from-manager`), and
+  `add-reserved-process` lists none past 20. With a larger `want-count`, every unit past 20 goes
+  unlisted, the pool counts too few and spawns another every frame, and each new one keeps a
+  nav-control on the default nav mesh (4.44): at 44 guards it rose by 30 a second until "too many
+  users for nav-mesh #f" crashed the game; at 22 it leaked a few dozen. Give the type an array of
+  its own (`(set! (-> engine object-type-info-array 6 array) ...)` after the stock loop) and raise
+  the limit of `add-reserved-process` for it.
+- **The attack controller holds 64 attackers.** `initialize-cty-attack-controller`
+  (`levels/wascity/cty-attack-controller.gc`) calls `(init! *cty-attack-controller* 64 17 22)`:
+  every unit, the player and the city's own take one. Past 64, `allocate-attacker` prints "Unable
+  to allocate new attacker for mission squad!", the units without one corrupt memory (invalid type
+  pointers), and the game fell to 4 frames a second with 80 units. 128 ran at 60.
+Verified: jak3, `levels/city/traffic/traffic-engine.gc`, `traffic-manager.gc`, `levels/wascity/cty-attack-controller.gc`, `mission-squad-control.gc`; the battlefront mod's round 20 runs, 2026-11-09.
 - **Rebuilding the pools: respawn the player like a death.** A death in the game calls
   `initialize!` with `'life` (`target-death-reset`, `engine/target/target-death.gc`), whose
   `reset-actors` (`engine/entity/entity.gc`) kills every entity actor and every process of
@@ -2607,6 +2643,20 @@ ship at Freedom HQ, then 16 stuck units a run released and no crash in 3 runs wi
   clip blends walk and run on the speed); a large `wait-time` keeps it from its idle stops. A
   marching unit's lane callback can answer the stock random lane: the post asks for a lane each
   frame near its `dest-point`.
+- **The city's nav meshes do not all join.** With the six street sections loaded (4.15) there are
+  nine nav meshes, one or a few a section: ctysluma links ctyindb, ctyindb ctyinda, ctyinda the
+  Port's east mesh, the Port's three linked meshes one to the nest; ctyslumb links ctyslumc and an
+  unloaded mesh (the ruins'). The south (Freedom HQ, ctyslumb and ctyslumc) joins the north only
+  through the unloaded ruins: no march leaves it. Its streets meet ctysluma's near (747, -70) with
+  no link, the nearest corners of their polys 2.1 m apart (poly vertices are relative to the mesh's
+  `bounds`). A mod can bridge such a seam: when a unit stands within 2.5 m of a point 1.5 m inside
+  one mesh, `(change-to other-mesh unit)` and `move-to-point!` 1.5 m inside the other. A search
+  breadth first from each goal point's mesh over every listed mesh (a field of the first link
+  toward the point, kept per mesh) costs less than one per unit, and needs no bound.
+- **80 units run out of touching records.** `*touching-prims-entry-pool*` holds 64
+  (`engine/collide/collide-touch-h.gc`): units crowding at their ships and points printed
+  `alloc-node() failed!` thousands of times (the touches dropped). 256 records, the pool's `nodes`
+  array and its `init-list!` count, gave none.
 - **The default nav mesh fills.** A new traffic unit takes its first nav-control on the engine's
   `*default-nav-mesh*` (`citizen.gc`, its enemy info's `nav-mesh`; `engine/nav/nav-mesh.gc`, 128
   of them) and keeps it until it is first woken onto a street's mesh (`change-to` frees the old
@@ -2621,6 +2671,7 @@ ship at Freedom HQ, then 16 stuck units a run released and no crash in 3 runs wi
   nav-mesh-id)` of the segment, #f there, so the unit never leaves the default mesh ("failed to
   locate ground for citizen"). Check `(get-nav-mesh (the-as actor-id (-> seg nav-mesh-id)))` before
   waking a unit on a segment (a battle that took streets 540 m off reached 96 taken, then crashed).
+  A pool larger than 20 fills it the same way (4.30).
 - **Each process has its own clock.** `current-time` reads the calling process's clock: the START
   menu's code runs on the menu's, which is not the game's. A time taken on one and tested on the
   other never passes; for a time several processes compare, read `(-> *display* game-clock
@@ -2638,3 +2689,17 @@ vectored exception handler (`nav-enemy method 119`), the default mesh at 41, 85,
 the crash after a far reset, 17 of 255 with both fixes; defenders brought to their point by the
 march over the meshes (from the Freedom League's base to Freedom HQ's point: 14 guards on it 60 s
 in, none in 180 s by the lanes); a START menu entry tested on the game clock, 2026-11-08.
+
+## 4.45 Filled 2D triangles over the HUD
+
+`draw-sprite2d-xy` (`engine/gfx/hw/display.gc`) draws rectangles only. A triangle is the same
+packet with a triangle primitive: a DMA `cnt` tag with a VIF `direct`, a GIF tag in `reg-list`
+mode, one loop of six registers (`prim`, `rgbaq`, three `xyzf2`, `rgbaq` again: a register list
+must fill whole quadwords), `(new 'static 'gs-prim :prim (gs-prim-type tri) :abe #x1)`, each
+vertex at `x` = 16 (1792 + x) and `y` = 16 (1840 + y) in the 512-wide screen units the sprites use,
+`z` `#x3fffff`; then the quadword count after the tag into the DMA tag and the VIF `direct`, as the
+sprite function patches it. In the `debug-no-zbuf2` bucket the PC renderer draws it with alpha.
+Discs are fans of eight; scale x radii by `(-> *video-params* relative-x-scale)` to keep them round
+on a wide screen. The battlefront mod draws its maps' units as the minimap marks a guard with them
+(a disc and a 60 degree view cone), 80 units and the points every frame at 60 frames a second.
+Verified: jak3, `engine/gfx/hw/display.gc`; the battlefront mod's round 20 runs, 2026-11-09.
