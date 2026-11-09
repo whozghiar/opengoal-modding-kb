@@ -1729,7 +1729,7 @@ different ground); the battlefront mod's four zone pages drawn from that data (s
 2026-11-01); `decompiler_out/jak3/textures/ctyport-minimap/` (`map-ctyportd`, `-e`, `-f` 256 x
 128), `engine/level/level-info.gc` (`city-map-bits`), 2026-11-01.
 
-## 4.29 Text the game draws: the font's escapes
+## 4.29 Text the game draws: escapes, size, glyphs
 
 `print-game-text` reads `~` codes in any string it draws, and the game's own texts are full of
 them: `lookup-text!` returns French "Appuyez" as `A~+7Vp~-7V~+7Vp~-7Vu~+7Vy~-7Vez` (letters
@@ -1738,8 +1738,18 @@ the game's texts as they are, and strip or replace `~` in text a player typed (a
 name), or it draws as codes. A custom text's `<PAD_X>`-style tags become button icons when the
 text compiler builds it.
 
+- **Size: use the large font.** A `font-context` without `large` in its `font-flags` draws the
+  game's small font: at scale 0.7 a line was about 5 pixels high in a 1280x720 capture, unreadable.
+  With `(font-flags shadow kerning large)` the line height is the scale times the size passed
+  to `print-game-text` (44 in the multiplayer mod's calls) instead of 28 (`engine/ui/text.gc`);
+  that mod's readable lines use `large` at 0.45 to 0.55.
+- **No `>` glyph.** The font draws `>` as an accent mark (`´`): a prompt such as `"> "` before
+  typed text shows as `´ `.
+
 Verified: jak3, `game/assets/jak3/text/game_custom_text_fr-FR.json` compiled, the multiplayer
-mod's chat answers and lines (`chat` scenario, logs and screenshots), 2026-10-29.
+mod's chat answers and lines (`chat` scenario, logs and screenshots), 2026-10-29; the small font
+and the `>` glyph seen in that mod's README captures (`readme-free-roam` scenario, English,
+960x540), 2026-11-09.
 
 **A page drawn by GAME code.** `draw-string-adv` with `(font-flags middle)` centers the text on
 `origin x`: the screen is 512 units wide, so x 256 centers it on the screen (`width` plays no
