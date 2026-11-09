@@ -984,9 +984,35 @@ continue point unchanged), 2026-10-15.
   or the game crashes when they are drawn or spawn particles.
 
 - The loader keeps the levels named in `*load-state*` `target` and discards the others, one per
-  frame (`update!` of `load-state` in `level.gc`); `target` is rebuilt from `want-exp` only when
-  the wanted levels change (`add-borrow-levels`). A level whose `master-level` is not loaded
-  stops the game when asked for (`level-get-for-use`: "is loading before master-level").
+  frame (`update!` of `load-state` in `level.gc`). Without an `update-callback`, `target` is
+  rebuilt from `want-exp` only when the wanted levels change (`add-borrow-levels`). In Haven City
+  `update!` also calls the callback, the city borrow manager (`cty-borrow-manager-borrow-update`),
+  every frame: it rebuilds `target` from `want-exp`, keeping a borrowed level it holds until its
+  traffic objects are gone. A level whose `master-level` is not loaded stops the game when asked
+  for (`level-get-for-use`: "is loading before master-level").
+- **Ten level slots.** `*level*` has 10 (`LEVEL_MAX`, `engine/level/level-h.gc`), and borrowed
+  levels take them too. Haven City's stock alias `ctywide-ff` borrows ctypesa, ctycara, ctycarb
+  and ctypepa (`engine/game/task/game-task.gc`), and citycast often loads: ctywide and two
+  sections already take 7. An eleventh wanted level gets a slot anyway: `level-get-for-use` takes
+  the most disposable loaded level (`level-get-most-disposable`) with no message, and when that is
+  a borrowed level whose units live, the game crashes natively (no GOAL message). The battlefront
+  mod holds ctywide, ctypesa, ctypesc and six sections, nine slots: a hook at the start of
+  `add-borrow-levels` rewrites `want` with plain level names (an alias would add its `auto`
+  borrows), and the sections come only once every other level has left.
+- **A bank of your own.** A hook in `load-begin` after the stock code clears its mask (`sv-56`)
+  and before the bank search can set `heap-size`, `level-page-offset` and the mask, then
+  `(goto cfg-322)`, the common heap setup. The 146 pages are 18 chunks of 8 pages, chunks 8 and 9
+  of 9: chunk k starts at page 8k up to k = 8, at 8k + 2 after. A Haven City section fits in two
+  chunks (16 pages, 24 MB with the PC's pages): the load notice `NOTICE: loaded <level>-vis, ...
+  at top N` gives N, the bytes used from the heap's base, about 6 MB for ctyport, ctyinda and
+  ctyindb. Six sections fit in chunks 0-1, 2-3, 4-5, 12-13, 14-15 and 16-17 beside ctywide's 6
+  to 11.
+- **The background's tree lists.** Each displayed level's `draw` of its trees adds them to
+  `*background-work*` (`engine/gfx/background/background-h.gc`): 11 entries of each kind (tfrag,
+  trans, water, shrub, tie), with no bound check, and `init-background` clears only 8. ctywide and
+  six sections drew 17 tie trees: with 11 entries the game crashed natively once the fifth section
+  was displayed, twice; with 32 it ran (7 tfrag, 6 shrub, 17 tie trees). Changing
+  `background-h.gc` rebuilds the whole GAME.
 - A respawn at a continue point (`target-continue`, `engine/target/target-death.gc`) writes the
   point's `want` list into `*load-state*`, calls `add-borrow-levels`, then waits until every level
   of that list shown (`display?`) is `active`. A wrapper of `add-borrow-levels` that drops one of
@@ -1004,7 +1030,11 @@ multiplayer mod (the bank error and crash when loading wascityb next to wascitya
 level unload until copies and part-trackers of the level, active or only loaded, were dropped
 first), 2026-10-14; `engine/target/target-death.gc` (`target-continue`); the battlefront mod's runs
 (a respawn waiting for ever on a level its filter dropped; vis-nick kept on `ctyport` with Jak 8 s
-in the Industrial Zone), 2026-11-01.
+in the Industrial Zone), 2026-11-01. Slots, banks and tree lists: jak3, `engine/level/level.gc`
+(`level-get-for-use`, `load-begin`, `update!`), `engine/level/level-h.gc`,
+`levels/city/common/cty-borrow-manager.gc`, `engine/gfx/background/background-h.gc`,
+`background.gc`; the battlefront mod's whole-city runs (two native crashes as the sixth section
+loaded, then six sections, nine slots and the counts above), 2026-11-09.
 
 ## 4.16 Drawing the objects of another place, outside the banks
 
@@ -1786,8 +1816,13 @@ Verified: jak3, `engine/gfx/font.gc`, `pc/pckernel-impl.gc`; the battlefront mod
   only sees the sections loaded: from the Port, a sphere over the Industrial Zone, the Slums or
   Freedom HQ returned no segment. A mod that needs another area's lanes must read them while that
   area is loaded (the battlefront mod read each zone's once in game and stores them).
-- **Two sections at most.** Haven City keeps ctywide and two city sections loaded, as the traffic
-  engine's two `level-data-array` slots do; walking toward a third unloads one. A section's edge
+- **Two sections in the stock game.** Haven City keeps ctywide and two city sections loaded, as
+  the traffic engine's two `level-data-array` slots do; walking toward a third unloads one. A third
+  section linked anyway gets no slot (`level-link` prints `level-data not found`) and no lanes. The
+  battlefront mod holds all six street sections in a battle: six more entries appended at the end
+  of `traffic-engine` (its fields have fixed offsets), which the engine's loops over the sections
+  read through one macro; the level slots, banks and draw lists it also needed are in 4.15. A
+  section's edge
   can stand on the next section's collision: at the Port's war zone (`ctyport-warzone`, vis-nick
   `ctyport`) Jak had ground only with `ctyinda` loaded, which the stock loads there.
 - **Which section a lane belongs to.** `level-link` points each segment's `branch` into its
