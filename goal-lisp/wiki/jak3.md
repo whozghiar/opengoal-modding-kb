@@ -1645,7 +1645,7 @@ An icon is a connection: `(add-icon! *minimap* proc class-index #f (the-as vecto
   1), black with `color` 0 0 0 and larger with `scale`.
 - **Hiding the HUD minimap.** `(set-setting! 'minimap 'clear 0.0 (minimap-flag minimap))` hides it,
   as the stock bombbot and blow-tower missions do; `(remove-setting! 'minimap)` from the same process
-  brings it back. Clear it again when your own full-screen map closes or the mode ends.
+  brings it back: call it when your own full-screen map closes and when the mode ends.
 Verified: jak3, `engine/ui/minimap.gc`, `levels/city/traffic/citizen/guard.gc`, `levels/city/common/kg-squad-member.gc`; the battlefront mod's round 20 runs, 2026-11-09; the minimap setting in its round 21 run (R3's map up, no minimap), 2026-11-09.
 
 Verified: jak3, `engine/ui/minimap.gc`, `engine/ui/bigmap.gc`; the multiplayer mod's players shown
