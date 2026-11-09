@@ -1643,7 +1643,10 @@ An icon is a connection: `(add-icon! *minimap* proc class-index #f (the-as vecto
 - **A mark at a fixed place.** Pass a vector instead of `#t` to `add-icon!`: the connection keeps
   its address (`position`) and draws the mark there; class 10 `guard` is a plain dot (`icon-xy` 0
   1), black with `color` 0 0 0 and larger with `scale`.
-Verified: jak3, `engine/ui/minimap.gc`, `levels/city/traffic/citizen/guard.gc`, `levels/city/common/kg-squad-member.gc`; the battlefront mod's round 20 runs, 2026-11-09.
+- **Hiding the HUD minimap.** `(set-setting! 'minimap 'clear 0.0 (minimap-flag minimap))` hides it,
+  as the stock bombbot and blow-tower missions do; `(remove-setting! 'minimap)` from the same process
+  brings it back. Clear it again when your own full-screen map closes or the mode ends.
+Verified: jak3, `engine/ui/minimap.gc`, `levels/city/traffic/citizen/guard.gc`, `levels/city/common/kg-squad-member.gc`; the battlefront mod's round 20 runs, 2026-11-09; the minimap setting in its round 21 run (R3's map up, no minimap), 2026-11-09.
 
 Verified: jak3, `engine/ui/minimap.gc`, `engine/ui/bigmap.gc`; the multiplayer mod's players shown
 by a marker in their color (scenarios `minimap-cone`, `coop-roles`, screenshots), 2026-10-28.
