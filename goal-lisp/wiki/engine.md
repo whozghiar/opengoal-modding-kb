@@ -136,6 +136,22 @@ failures either — only a genuine segfault exit code is a real failure.
 Don't wire a boot-smoke-test to "exit code 0 or nothing" without accounting
 for this.
 
+**The Linux job compiles with an older Clang.** `release.yml` builds Linux on
+Ubuntu 22.04 with its Clang 14; Windows (`clang-cl`) and a recent local Clang
+accept C++20 constructs in C++17 code as extensions, Clang 14 refuses some. A
+lambda that captures a structured binding (`for (auto& [k, v] : m) { f([&] { ... v ... }); }`)
+built on Windows and stopped the Linux job ("reference to local binding 'v'
+declared in enclosing function"), so no release was published. Bind named
+variables instead (`auto& v = entry.value();`), and before a release check
+the C++ files a mod changed with the local compile command
+(`out/build/Release/compile_commands.json`) plus
+`-fsyntax-only -Werror=c++20-extensions`, which flags every such use. Code
+under `#ifndef _WIN32` is only compiled by the Linux job: read it.
+
+Verified: jak3 multiplayer mod, release run 41545278942 of
+`whozghiar/jak3-multiplayer` (Linux job, `kmultiplayer.cpp`), the check above
+on its 13 changed files with Clang 19, 2026-11-09.
+
 ---
 
 ## 7. Exposing C++ functions to GOAL (kernel functions)
