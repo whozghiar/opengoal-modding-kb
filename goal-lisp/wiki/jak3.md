@@ -104,9 +104,20 @@ refill it: from a process, `(birth-pickup-at-point pos (pickup-type ammo-red) 1.
 and dark into yellow when the player lacks that gun. A mod's own weapons can spend these counters
 and get the pickups for free.
 
+**Pickups that vanish.** A collectable fades (1 s, its `fade` state) once `fadeout-timeout` has
+passed since its birth, but only while Jak is over 50 m away, unless it carries
+`no-distance-check-fadeout`. Pass `birth-pickup-at-point` a static fact-info as its last argument,
+`(new 'static 'fact-info :options (actor-option fade-out no-distance-check-fadeout) :fade-time
+(seconds 10))`, its `process` left 0 (a nonzero one has its entity read): eco, health and dark eco
+pills take that time. An ammo pickup keeps a fixed 15 s (`initialize-ammo-by-other`), so set
+`(-> (the-as collectable (-> pp 0)) fadeout-timeout)` on the `(pointer process)` the call returns
+(the last one born).
+
 Verified: jak3, `engine/game/game-info.gc`, `engine/common-obs/collectables.gc`
-(`birth-pickup-at-point`, `verify-pickup-type`); the battlefront mod's in-game runs (up to 12
-pickups left by dead units, counters spent by its class weapons), 2026-10-31.
+(`birth-pickup-at-point`, `verify-pickup-type`, `initialize-options`, the `wait` and `fade`
+states); the battlefront mod's in-game runs (up to 12 pickups left by dead units, counters spent by
+its class weapons, 2026-10-31; an ammo pickup 15 m from Jak there at 9 s and gone at 12.5 s with
+the fact and the timeout set, still there at 11 s with the fact alone, 2026-11-09).
 
 **Free aim through the camera.** The ray behind a fixed crosshair at screen point (x, y) of the
 512 x 416 screen: project the spot 1 m ahead of the camera and the spots 1 m to its right and
@@ -2675,6 +2686,22 @@ ship at Freedom HQ, then 16 stuck units a run released and no crash in 3 runs wi
   locate ground for citizen"). Check `(get-nav-mesh (the-as actor-id (-> seg nav-mesh-id)))` before
   waking a unit on a segment (a battle that took streets 540 m off reached 96 taken, then crashed).
   A pool larger than 20 fills it the same way (4.30).
+- **Spider robots and robotguards on the march.** A spider robot the faction manager has at war
+  walks its lanes in `'hunting`, the child of its `'active` (`spydroid.gc`: `'active` goes there
+  with a nonzero `faction-mode`), following its `dest-point` the same way: a march that takes
+  `'active` alone never moves one. A robotguard with a foe it cannot reach stands in `'hostile` and
+  `'hostile-stand` for good (400 to 700 m from its goal, seen for minutes). Each attacker's
+  `callback` (`city-attacker-info`, a `(function process city-attacker-info int)`) filters the
+  foes `mission-squad-control-method-13` scores: #f drops one, any other value keeps it; a callback
+  keeping foes within 50 m leaves a robotguard without one, and
+  `(go-process unit (method-of-object unit active))` sends it back to its lanes.
+- **A unit 1.5 times as fast, its legs at the stock pace.** `citizen-travel-anim` plays the walk
+  and run clips at the nav state's speed over `dist-walk-anim` and `dist-run-anim`: raising
+  `speed-walk`, `speed-run` and both clip grounds by the same factor keeps the stock cadence (the
+  guards at 18 m/s ran their legs at the player-guard pace, 0.38 frames a frame). Raising
+  `speed-run` alone played the clips that much faster; the nav control's `speed-scale` left the
+  spiders at their stock 8 m/s and the guards at 16 instead of 18. A unit's init sets its stock
+  values each time it is woken: set them again on a timer.
 - **Each process has its own clock.** `current-time` reads the calling process's clock: the START
   menu's code runs on the menu's, which is not the game's. A time taken on one and tested on the
   other never passes; for a time several processes compare, read `(-> *display* game-clock
@@ -2687,11 +2714,14 @@ Verified: jak3, `levels/city/traffic/vehicle/vehicle-control.gc` (methods 14, 15
 `levels/city/traffic/citizen/citizen.gc` (methods 199, init, active state),
 `engine/nav/nav-mesh.gc` (`new-nav-control`, `change-to`), `engine/nav/nav-enemy.gc`
 (`setup-enemy!`), `engine/process-drawable/process-drawable.gc` (`deactivate`),
-`engine/target/target-handler.gc`; the battlefront mod's smoke runs: the crash named by a temporary
+`engine/target/target-handler.gc`, `levels/common/enemy/spydroid.gc`, `levels/city/protect/roboguard-city.gc`,
+`levels/wascity/mission-squad-control.gc` (method 13); the battlefront mod's smoke runs: the crash named by a temporary
 vectored exception handler (`nav-enemy method 119`), the default mesh at 41, 85, 115 of 128 then
 the crash after a far reset, 17 of 255 with both fixes; defenders brought to their point by the
 march over the meshes (from the Freedom League's base to Freedom HQ's point: 14 guards on it 60 s
-in, none in 180 s by the lanes); a START menu entry tested on the game clock, 2026-11-08.
+in, none in 180 s by the lanes); a START menu entry tested on the game clock, 2026-11-08; 12 of 12
+spider robots and robotguards 10 m closer to their goal in 25 s, guards at 19.7 m/s, spiders at
+12.4, jetpacks at 38.8 (stock 12, 8, 25), 2026-11-09.
 
 ## 4.45 Filled 2D triangles over the HUD
 
