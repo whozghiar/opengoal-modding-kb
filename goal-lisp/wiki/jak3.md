@@ -2761,7 +2761,13 @@ data apart (SPU addresses are ignored), so a mod can add mode slots in `Allocate
 the unloads of mode banks in `srpc.cpp` (`UNLOAD_BANK`), and load the 18 banks once with
 `sound-bank-load` (mode 3, priority 2, while `(rpc-busy? 1)` is 0). The overlord looks a sound up
 by its name in capitals with `-` as `_` (`strcpy_toupper`, `soundcommon.cpp`): a C++ check of a
-GOAL sound name must convert it the same way. `red-shot-hit` is in no bank.
+GOAL sound name must convert it the same way. `red-shot-hit` is in no bank. The wasteland
+vehicles do the same through the levels: each has a bank (`wcar.gc` `bank-replace`, the toad's
+`'((wasall1 wastoad))`) that `*vehicle-manager*` `'extra-bank` sets for the driver, so a vehicle
+another player drives is silent unless its bank is loaded as well; the levels follow their own
+slots, so a bank a mod loaded elsewhere must be freed when the levels want it (the multiplayer mod's
+`vehicle-sounds`: 696 of 777 toad sounds in no bank on the other machine, then none but the two no
+bank holds).
 Verified: jak3, `engine/target/target-gun.gc`, `game/overlord/jak3/sbank.cpp`, `srpc.cpp`; the
 multiplayer mod's `daxter-gun-hold` run (30 of 30 shot sounds in no bank on the other machine,
 then 22 of 32 found, the rest `red-shot-hit`), 2026-11-10.
