@@ -2746,3 +2746,49 @@ Discs are fans of eight; scale x radii by `(-> *video-params* relative-x-scale)`
 on a wide screen. The battlefront mod draws its maps' units as the minimap marks a guard with them
 (a disc and a 60 degree view cone), 80 units and the points every frame at 60 frames a second.
 Verified: jak3, `engine/gfx/hw/display.gc`; the battlefront mod's round 20 runs, 2026-11-09.
+
+## 4.46 Another player's gun sounds: one mode sound bank
+
+A gun mod's sounds (`red-shot-fire`, `yellow-shot-fir`...) live in a "mode" sound bank, one per
+mod (`modegur1`... `modegud3`), like the jet-board's (`modebord`), the lizard's (`modeflut`), Dark
+and Light Jak's (`modedark`, `modelit`), the mech's and Daxter's mode (`modeidax`).
+`target-gun-type-set!` (`engine/target/target-gun.gc`) sets the `mode-sound-bank` setting to the
+bank of the mod in hand, and the Jak 3 overlord has one mode slot (`gBanks[1]`,
+`game/overlord/jak3/sbank.cpp`): a sound of another mod played here (a remote copy of another
+player's shot) finds no bank and is silent; a playable Daxter holds `modeidax`, so shots he fires
+through the gun functions are silent on his own machine too. The PC sound player keeps each bank's
+data apart (SPU addresses are ignored), so a mod can add mode slots in `AllocateBankName`, skip
+the unloads of mode banks in `srpc.cpp` (`UNLOAD_BANK`), and load the 18 banks once with
+`sound-bank-load` (mode 3, priority 2, while `(rpc-busy? 1)` is 0). The overlord looks a sound up
+by its name in capitals with `-` as `_` (`strcpy_toupper`, `soundcommon.cpp`): a C++ check of a
+GOAL sound name must convert it the same way. `red-shot-hit` is in no bank.
+Verified: jak3, `engine/target/target-gun.gc`, `game/overlord/jak3/sbank.cpp`, `srpc.cpp`; the
+multiplayer mod's `daxter-gun-hold` run (30 of 30 shot sounds in no bank on the other machine,
+then 22 of 32 found, the rest `red-shot-hit`), 2026-11-10.
+
+## 4.47 A focusable that never probes the ground: nav enemies ignore it
+
+`process-focusable` `get-trans` mode 1 returns `gspot-pos`, the ground probe's point
+(`engine/process-drawable/process-focusable.gc`), and a nav enemy turns hostile only to a focus
+whose mode-1 point lies within its notice heights (`can-become-hostile-to?`,
+`engine/nav/nav-enemy.gc`); its chases aim there too. A focusable moved by setting its root (a
+network puppet, a scripted body) never probes the ground: its `gspot-pos` keeps the constructor's
+value, about -10000 m (`collide-shape-h.gc`), and enemies notice it (`aware2`) but never attack it.
+Override `get-trans` to return the root's position for mode 1. Separately, an enemy keeps its focus
+while that focus lives unless it has `multi-focus` (`update-focus`, `engine/ai/enemy.gc`); calling
+`find-best-focus` every frame makes it take the most aware, then the nearest, candidate.
+Verified: jak3, `engine/process-drawable/process-focusable.gc`, `engine/nav/nav-enemy.gc`,
+`engine/ai/enemy.gc`; the multiplayer mod's puppet, its ground point logged at its height after
+the override, 2026-11-10.
+
+## 4.48 A death that pins the camera: tf6, tf12, tf14
+
+Dying in lava, melting or burning (`target-death`, `engine/target/target-death.gc`) sets
+`target-flags tf6` and copies the camera position to `alt-cam-pos`; drowning sets `tf14`.
+`target-cam-pos` (`engine/target/target-util.gc`) then returns `alt-cam-pos` (`tf6`, `tf12`), so
+the camera stays where the player died. The stock reset spawns a new player, without the flags; a
+mod that brings the same player back (`go target-stance` from the end of its death) must clear
+them, `(logclear! (-> self target-flags) (target-flags tf6 tf12 tf14))`, and send `*camera*`
+`'teleport`, or the camera keeps looking at the place of death.
+Verified: jak3, `engine/target/target-death.gc`, `target-util.gc`; the multiplayer mod's co-op
+respawn (`coop-respawn-lava`: pinned during the death, following the player after), 2026-11-10.

@@ -90,6 +90,9 @@ subsystem differences, not restatements of the shared material.
   - [4.43 Haven City traffic: units out of a transport, and back to sleep](jak3.md#443-haven-city-traffic-units-out-of-a-transport-and-back-to-sleep)
   - [4.44 Haven City traffic: routing a unit, the default nav mesh, clocks](jak3.md#444-haven-city-traffic-routing-a-unit-the-default-nav-mesh-clocks)
   - [4.45 Filled 2D triangles over the HUD](jak3.md#445-filled-2d-triangles-over-the-hud)
+  - [4.46 Another player's gun sounds: one mode sound bank](jak3.md#446-another-players-gun-sounds-one-mode-sound-bank)
+  - [4.47 A focusable that never probes the ground: nav enemies ignore it](jak3.md#447-a-focusable-that-never-probes-the-ground-nav-enemies-ignore-it)
+  - [4.48 A death that pins the camera: tf6, tf12, tf14](jak3.md#448-a-death-that-pins-the-camera-tf6-tf12-tf14)
 - [How to contribute](../../kb/SKILL.md)
 
 
