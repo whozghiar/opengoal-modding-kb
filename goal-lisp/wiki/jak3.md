@@ -102,7 +102,10 @@ refill it: from a process, `(birth-pickup-at-point pos (pickup-type ammo-red) 1.
 (the-as fact-info #f))` spawns one `ammo-collectable`, worth 10 (5 for red, 1 for dark), and
 `(pickup-type health)` with 1.0 one health pickup worth 1. `verify-pickup-type` turns red, blue
 and dark into yellow when the player lacks that gun. A mod's own weapons can spend these counters
-and get the pickups for free.
+and get the pickups for free. To keep a red or blue pickup whatever guns the save has, wrap the
+function in GAME: keep the stock one with `(define-perm *stock-verify* (function pickup-type
+pickup-type) verify-pickup-type)`, then `defun verify-pickup-type` again, returning its argument
+unchanged for those types while the mod runs and calling the stock one otherwise.
 
 **Pickups that vanish.** A collectable fades (1 s, its `fade` state) once `fadeout-timeout` has
 passed since its birth, but only while Jak is over 50 m away, unless it carries
@@ -116,7 +119,8 @@ pills take that time. An ammo pickup keeps a fixed 15 s (`initialize-ammo-by-oth
 Verified: jak3, `engine/game/game-info.gc`, `engine/common-obs/collectables.gc`
 (`birth-pickup-at-point`, `verify-pickup-type`, `initialize-options`, the `wait` and `fade`
 states); the battlefront mod's in-game runs (up to 12 pickups left by dead units, counters spent by
-its class weapons, 2026-10-31; an ammo pickup 15 m from Jak there at 9 s and gone at 12.5 s with
+its class weapons, 2026-10-31; a blue ammo pickup born blue under the wrapper on a save without the
+blue gun, 2026-11-11; an ammo pickup 15 m from Jak there at 9 s and gone at 12.5 s with
 the fact and the timeout set, still there at 11 s with the fact alone, 2026-11-09).
 
 **Free aim through the camera.** The ray behind a fixed crosshair at screen point (x, y) of the
@@ -2748,7 +2752,23 @@ ship at Freedom HQ, then 16 stuck units a run released and no crash in 3 runs wi
   `callback` (`city-attacker-info`, a `(function process city-attacker-info int)`) filters the
   foes `mission-squad-control-method-13` scores: #f drops one, any other value keeps it; a callback
   keeping foes within 50 m leaves a robotguard without one, and
-  `(go-process unit (method-of-object unit active))` sends it back to its lanes.
+  `(go-process unit (method-of-object unit active))` sends it back to its lanes. With no foe left,
+  method 13 sets `enemy-index` -1 and `enemy` #f, and the controller's update asks again every
+  frame. Doing that to a unit in the middle of an attack (`enemy-flag lock-focus`, set by the
+  guards' grenade and rifle states) crashed the game twice in three runs (an access violation, no
+  report); sparing those units, none in three.
+- **A foe behind a wall.** Haven City's controller picks foes by distance alone, through walls. A
+  probe of the background between the two (`fill-and-probe-using-line-sphere`, `collide-with`
+  `backgnd`, radius 0.2 m, from 1.6 m above the unit's `root trans` to 1.2 m above the foe's)
+  returns a fraction of 0 or more when blocked: in a battle it hit 68 of 391 unit-to-foe lines, 56
+  on walls (the hit triangle's normal level) and 12 on floors (jetpacks above a ledge). A crimson
+  guard already tests its line of fire before it shoots (`crimson-guard-method-258`, the same
+  probe at 0.3 m, blocked when the hit triangle faces away from the target).
+- **Waking a unit anywhere on a nav mesh.** Send the traffic manager `'activate-object` with spawn
+  params whose `behavior` is 2 (`'active`), `nav-mesh` the mesh, `position` the `poly-centroid` of
+  one of its polys (world coordinates), `nav-branch` #f and `proc` #f: the woken process comes back
+  in `proc`. Skip the link polys (`pat` 4). Some polys put a unit where the game prints "failed to
+  locate ground for citizen" (platform edges); the unit still comes and fights.
 - **A unit 1.5 times as fast, its legs at the stock pace.** `citizen-travel-anim` plays the walk
   and run clips at the nav state's speed over `dist-walk-anim` and `dist-run-anim`: raising
   `speed-walk`, `speed-run` and both clip grounds by the same factor keeps the stock cadence (the
@@ -2775,7 +2795,7 @@ the crash after a far reset, 17 of 255 with both fixes; defenders brought to the
 march over the meshes (from the Freedom League's base to Freedom HQ's point: 14 guards on it 60 s
 in, none in 180 s by the lanes); a START menu entry tested on the game clock, 2026-11-08; 12 of 12
 spider robots and robotguards 10 m closer to their goal in 25 s, guards at 19.7 m/s, spiders at
-12.4, jetpacks at 38.8 (stock 12, 8, 25), 2026-11-09.
+12.4, jetpacks at 38.8 (stock 12, 8, 25), 2026-11-09. Round 24 of the mod, 2026-11-11: `levels/city/common/guard-grenade.gc`, `levels/city/traffic/citizen/guard.gc` (`crimson-guard-method-258`); a battle's probes per unit and foe (where they hit, the normal's height), units with a foe behind a wall 1 in 5 then 1 in 14 with the blind look, the two crashes with every unit blinded and none in three runs sparing `lock-focus`; 100 units woken on random polys around a control point in 3 minutes.
 
 ## 4.45 Filled 2D triangles over the HUD
 

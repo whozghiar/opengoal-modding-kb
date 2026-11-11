@@ -899,6 +899,23 @@ Verified: jak3, Battlefront mod: `traffic-engine.gc` called `bf-keep-unit?` (def
 Spargus crashed in 2 of 4 runs right after `wasstadb` loaded, none once the call was guarded by
 `bf-fighting?` (GAME), 2026-11-05.
 
+### 1.4.25 `+!` evaluates its place twice
+
+`+!` expands to `(set! place (+ place value))` (`goal_src/goal-lib.gc`), so an index or a field
+path with a call in it runs twice: once for the read, once for the write.
+
+```lisp
+;; wrong: two rolls, the sum read from one slot and written to another
+(+! (-> counts (roll)) 1)
+;; right
+(let ((k (roll)))
+  (+! (-> counts k) 1))
+```
+
+Verified: jak3, the Battlefront mod's smoke test: 1000 calls of the wrong form left 888 counted,
+spread evenly over the 5 slots whatever the roll's shares; the right form counted the roll exactly,
+2026-11-11.
+
 ### 1.4.19 A state keeps the event handler it was defined with
 
 `defstate` evaluates `:event`, `:enter`, `:trans`... once, when the state is defined: a state holds
