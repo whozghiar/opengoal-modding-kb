@@ -2756,7 +2756,7 @@ ship at Freedom HQ, then 16 stuck units a run released and no crash in 3 runs wi
   method 13 sets `enemy-index` -1 and `enemy` #f, and the controller's update asks again every
   frame. Doing that to a unit in the middle of an attack (`enemy-flag lock-focus`, set by the
   guards' grenade and rifle states) crashed the game twice in three runs (an access violation, no
-  report); sparing those units, none in three.
+  report); sparing those units, none in two.
 - **A foe behind a wall.** Haven City's controller picks foes by distance alone, through walls. A
   probe of the background between the two (`fill-and-probe-using-line-sphere`, `collide-with`
   `backgnd`, radius 0.2 m, from 1.6 m above the unit's `root trans` to 1.2 m above the foe's)
@@ -2795,7 +2795,7 @@ the crash after a far reset, 17 of 255 with both fixes; defenders brought to the
 march over the meshes (from the Freedom League's base to Freedom HQ's point: 14 guards on it 60 s
 in, none in 180 s by the lanes); a START menu entry tested on the game clock, 2026-11-08; 12 of 12
 spider robots and robotguards 10 m closer to their goal in 25 s, guards at 19.7 m/s, spiders at
-12.4, jetpacks at 38.8 (stock 12, 8, 25), 2026-11-09. Round 24 of the mod, 2026-11-11: `levels/city/common/guard-grenade.gc`, `levels/city/traffic/citizen/guard.gc` (`crimson-guard-method-258`); a battle's probes per unit and foe (where they hit, the normal's height), units with a foe behind a wall 1 in 5 then 1 in 14 with the blind look, the two crashes with every unit blinded and none in three runs sparing `lock-focus`; 100 units woken on random polys around a control point in 3 minutes.
+12.4, jetpacks at 38.8 (stock 12, 8, 25), 2026-11-09. Round 24 of the mod, 2026-11-11: `levels/city/common/guard-grenade.gc`, `levels/city/traffic/citizen/guard.gc` (`crimson-guard-method-258`); a battle's probes per unit and foe (where they hit, the normal's height), units with a foe behind a wall 1 in 5 then 1 in 14 with the blind look, the two crashes with every unit blinded and none in two runs sparing `lock-focus`; 100 units woken on random polys around a control point in 3 minutes.
 
 ## 4.45 Filled 2D triangles over the HUD
 
