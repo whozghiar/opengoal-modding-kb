@@ -366,12 +366,15 @@ down counts from there, not from the top.
   icon; give such lines a 256-character string. Jak 3's font has icons for the face buttons, L1,
   L2, R1, R2 and the D-pad, none for L3 or R3. Verified: the multiplayer mod's challenge
   invitation (`challenge` scenario screenshots), 2026-10-27.
-- **No left or right D-pad icon.** The font has `<PAD_DPAD_UP>`, `<PAD_DPAD_DOWN>` and
-  `<PAD_DPAD_ANY>`, each the four `<PAD_PART_DPAD_*>` parts drawn with `~3L` (lit) or `~22L`
-  (dim) colors (`font_db_jak3.cpp`). Write the left arrow the same way, its left part lit:
-  `~Y~3L<PAD_PART_DPAD_L>~Z~22L~+17H~-13V<PAD_PART_DPAD_U>~Z~22L~+17H~+14V<PAD_PART_DPAD_D>~Z~22L~+32H<PAD_PART_DPAD_R>~Z~+56H`.
+- **No left or right D-pad icon, and the down one lights up too.** The font has `<PAD_DPAD_UP>`,
+  `<PAD_DPAD_DOWN>` and `<PAD_DPAD_ANY>`, each the four `<PAD_PART_DPAD_*>` parts drawn with `~3L`
+  (lit) or `~22L` (dim) colors (`font_db_jak3.cpp`); its `<PAD_DPAD_DOWN>` lights both the up and
+  the down part. Write the left arrow, and a down arrow alone, the same way, the part you want lit:
+  `~Y~3L<PAD_PART_DPAD_L>~Z~22L~+17H~-13V<PAD_PART_DPAD_U>~Z~22L~+17H~+14V<PAD_PART_DPAD_D>~Z~22L~+32H<PAD_PART_DPAD_R>~Z~+56H`
+  (left), the same with `~22L` before the left part and `~3L` before the down part (down). The
+  icon stands taller than a 17-unit line at scale 0.36: give lines under D-pad icons 22 units.
   Verified: the battlefront mod's class help, drawn through `print-game-text` (screenshots),
-  2026-11-06.
+  2026-11-06 and 2026-11-11.
 - **SELECT pauses** like START (`determine-pause-mode`, `engine/draw/drawable.gc`). To give it
   another use, wrap that function and clear SELECT from `(-> *cpad-list* cpads 0 button0-rel 0)`
   before calling the stock one.
@@ -732,6 +735,17 @@ Verified: jak3, `engine/target/target-darkjak.gc`, `engine/target/target.gc`,
 `engine/common-obs/generic-obs.gc`; the multiplayer mod's `dark-blast` scenario stopped the blasting
 player's game before the wrapper, passes after it (both players set one off, no crash), 2026-10-20.
 
+**A shock: the blue gun's knock.** An attack whose `penetrate-using` has `jak-blue-shot` gives the
+unit `knocked-type blue-shot` (`enemy.gc` `penetrate->knocked-type`): it is thrown and twitches
+(a Jak 3 guard plays its `blue-hit` clips, 10 to 12 of `crimson-guard-ag`). An attack that would
+kill keeps the unit at 1 point for a second (`apply-incoming-hitpoint-mods`, its `fated-time`):
+strike it again after a second to kill it. The knock draws no arc: a `lightning-control` (spec 20 of
+`*lightning-spec-id-table*`, the guards' tazer's) between two points drawn again each frame around
+the unit's body makes one.
+
+Verified: jak3, `engine/ai/enemy.gc`, `engine/game/penetrate-h.gc`; the battlefront mod's tazer
+and spider headbutt (a guard knocked by blue-shot, dead 2 s after the second strike), 2026-11-11.
+
 ## 4.12 Drawing another process's model elsewhere
 
 A process keeps its draw-control's `art-group` and `jgeo`, not the skeleton-group it was built
@@ -851,7 +865,12 @@ Verified: jak3, the multiplayer mod's Appearance page preview (`skin` scenario),
   level that defines it, or outside every level heap (global parts).
 - Every sound goes through `sound-play-by-name` or `sound-play-by-spec` (behaviors, `self` is the
   playing process; `trans` is a vector, `#t` for the process root, `#f` for none) and stops
-  through `sound-stop`. Playing again with an id that is still playing updates that sound
+  through `sound-stop`. Jak's cry as a hit lands is `oof` (`hit-up` from below: target-death.gc
+  `target-hit`, target-handler.gc): a wrapper of `sound-play-by-name` (`define-perm` the stock one)
+  can play another sound in its place when `self` is `*target*`. Compare names with `sound-name=`
+  (`engine/sound/gsound.gc`: a sound-name is 128 bits), as `(sound-name= name (static-sound-name "oof"))`.
+  The guards cry `guard-hit` and `guard-die`, the spider robot `spydroid-hit` and `spydroid-die`
+  (their `nav-enemy-info`); the robotguard has no cry, only `robo-explode`. Playing again with an id that is still playing updates that sound
   (`game/overlord/jak3/srpc.cpp`): a lasting sound such as an engine is one id played every frame.
 
 - Every story step goes through the `game-task-node-info` `open!` method
@@ -2035,6 +2054,11 @@ in the stock gauges and its gun icon (a sprite 5 gauge hidden by the ring, a nes
 
 ## 4.32 Stopping attacks on the player: the shield level
 
+The health ring lights `(the int health)` segments (`hud-classes.gc` `hud-health` `update-values!`):
+a hit that leaves less than 1 shows an empty ring with the player alive. To make an empty ring
+mean death, raise such a hit's damage to the health left. Verified: the battlefront mod's
+`target-attacked` wrapper, a blow at 3.6 of 8 killing, 2026-11-11.
+
 While `(-> *target* fact shield-level)` is above 0, `target-attacked`
 (`engine/target/target-handler.gc`) ignores every attack and flashes `(-> *target* lightjak
 shield)` with `'hit`; the `'touched` handlers turn an enemy's touch into a `'shield` attack on it.
@@ -2067,7 +2091,12 @@ the level holding the art and then calls `shield-sphere-init-by-other`: `initial
 the art up in the process's level, and without it the process goes straight to
 `process-drawable-art-error`. Its stock post tints it red as it heats (`color-emissive`); a
 `shield-post` override that calls the parent can keep a constant red. `'active` answers #t while it
-stands and nothing once it explodes or dies.
+stands and nothing once it explodes or dies. Its own collision stops the player's shots too (5.9 m
+out from a shield of 3 m around the player). With the shield level (above) stopping the attacks, a
+sphere for the look alone takes no collision: after the spawn, set its root's `backup-collide-as`
+and `backup-collide-with` to `(collide-spec)`, and its root prim's: its states take the collision
+back from the backup (`toggle-shield`). Verified: the battlefront mod's robotguard, its shots 19 to
+100 m out behind the shield, 2026-11-11.
 
 Verified: jak3, `engine/common-obs/shield-sphere.gc`, `engine/target/mech/target-mech.gc`,
 `goal_src/jak3/dgos/ctypesa.gd`; the battlefront mod's robotguard shield (strength 3: a guard shot
@@ -2152,6 +2181,16 @@ segments keep working.
 Verified: jak3, `engine/process-drawable/process-drawable.gc` (`setup-masks`),
 `goalc/build_actor/jak3/build_actor.cpp`; the battlefront mod's runs, the guards' `seg-mask` read
 in game, 2026-11-06.
+
+**A death without the merc dissolve.** A build-actor model cannot take the `death-default` effect
+(the merc dissolve crashed in `mercneric_convert`, above). Its look: the dissolve launches part 53
+of `*part-id-table*` (`merc-death.gc`, global) from each vertex with the sound `enemy-fizz`;
+`(launch-particles (-> *part-id-table* 53) pos)` from a few joints each frame for a second, then
+the model hidden, looks the same. The Krimzon Guard explosions are global too
+(`engine/common-obs/enemy-part.gc`): `group-kg-explosion` (the robotguard's, with `robo-explode`)
+and `group-kg-small-explosion` (the flying turret's, with `fly-turret-die`), spawned with
+`part-tracker-spawn part-tracker :to self :group ...` after setting `(-> *launch-matrix* trans)`.
+Verified: the battlefront mod's player deaths (guard, robotguard, jetpack, screenshots), 2026-11-11.
 
 **Particles placed by the stock code.** A stock unit's code puts its particles at fixed offsets from
 its root: drawn as another model, they miss it. The flying turret draws its two thruster flames
@@ -2296,6 +2335,11 @@ Verified: jak2 compiled, jak3 written to the same lines (`draw-entry` of `popup-
 (screenshot), 2026-11-04.
 
 ## 4.37 Forcing a guard's weapon: the off-screen weapon change
+
+A guard's tazer strike is three clips of `crimson-guard-ag` (`guard-tazer.gc`): `stab-idle-to-attack`
+(21, the thrust) once, `stab-attack` (22, a 2-frame zap loop) for 0.5 s, `stab-attack-to-stab-idle`
+(23) once. Played alone, clip 22 is over in 7 frames. Verified: the battlefront mod's guard class,
+the three clips seen in turn, 2026-11-11.
 
 Every weapon change of a Jak 3 guard goes through `crimson-guard-method-267`
 (`levels/city/traffic/citizen/guard.gc`), so a mod that forces a weapon puts its hook at the top
