@@ -13,4 +13,5 @@ others, into `.claude/skills/`.
 | [`game-data`](game-data/SKILL.md) | Making again what the editor knows of the game (`data/`), extracting a disc |
 | [`doc-captures`](doc-captures/SKILL.md) | Taking the documentation's screenshots again |
 | [`level-building-mcp`](level-building-mcp/SKILL.md) | Building or changing a level through the editor's MCP tools |
+| [`prefab-recipes`](prefab-recipes/SKILL.md) | The recipe of every prefab made, changed or deleted (mandatory: users get the recipe, never the `.glb`) |
 | [`play-in-game`](play-in-game/SKILL.md) | Adding an exported level to a jak-project by hand and checking it in the game |

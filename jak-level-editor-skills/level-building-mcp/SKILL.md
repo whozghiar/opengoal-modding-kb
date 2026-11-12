@@ -15,7 +15,8 @@ every change is undone with `undo`.
 
 1. **Prefabs hold structures, not crumbs.** `create_prefab` leaves out elements under 0.5 m
    (`min_size`): keep that; never save loose bolts, debris, stains or tiny props in a prefab. Check
-   its `left_out` answer.
+   its `left_out` answer. A prefab saved into the repository's `library/prefabricated/` is done once
+   its recipe is written: the prefab-recipes skill.
 2. **Facades are not buildings.** Most buildings of the game are only a front, open behind. Place a
    facade so that only its front can be seen (against a wall or a cliff, the edge of the level,
    between other buildings, back to back with another facade), never in the middle of a place the

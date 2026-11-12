@@ -16,6 +16,7 @@ decompiled code, and the levels are extracted from the game the user installed w
 | `data/jak2/texture-slots.json`, `data/jak3/texture-slots.json` | `python tools/gen_texture_slots.py <jak-project>/common/texture/texture_slots.cpp` | the animated texture slots of OpenGOAL's renderer, of the release the extraction uses (a model's draw names its animated texture by slot) |
 | `data/jak2/creatures.json` | `python tools/gen_jak2_creatures.py <jak-project>/decompiler/config/jak2/all-types.gc` | Jak II's type table |
 | `data/jak3/prefabs.json`, `data/jak2/prefabs.json` | `python tools/gen_prefab_recipes.py library --game jak3` (and `jak2`) | an extracted library, through a hidden editor (`target/release` or `target/debug/jak-level-editor`, or `--editor <program>`); `tools/prefab_review.json` keeps what was reviewed |
+| `data/prefabs/**/*.json`, `data/prefabs/textures/*.png` | `./target/release/prefab-recipes update` (the prefab-recipes skill) | `library/prefabricated/` and the extracted levels: the prefabs' recipes, which the editor bakes for its users |
 
 Rules:
 
