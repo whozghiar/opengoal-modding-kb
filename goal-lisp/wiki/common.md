@@ -835,8 +835,15 @@ A process type already has a `state` field (its current state). A field of that 
 printed without quotes"). A key built with `(format (clear buf) "~A" str)` carries the quotes:
 use `~S`, or `copy-string<-string` to copy a string.
 
+*"[RegAlloc Error] <function> Cannot satisfy constraints at instruction N due to constraints on A
+and B, both are assigned to register rax"*: the register allocator gave up on an integer `/` (a
+sum over a count, `(/ sum (max 1 n))`) in a behavior with a `while` and `suspend` loop. The same
+code had compiled the day before; moving it into a function of its own did not help; writing the
+test without the division (`(< sum (* 2 (max 1 n)))`) did.
+
 Verified: jak3, compile errors in the multiplayer mod, 2026-10-14; `game/kernel/jak3/kprint.cpp`,
-the multiplayer mod's shop key came out quoted with `~A`, 2026-10-19.
+the multiplayer mod's shop key came out quoted with `~A`, 2026-10-19; the RegAlloc error in the
+battlefront mod's smoke scenarios, 2026-11-13.
 
 ### 1.4.20 `=` compares strings by address: use `string=`
 

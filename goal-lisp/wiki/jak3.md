@@ -1684,10 +1684,17 @@ An icon is a connection: `(add-icon! *minimap* proc class-index #f (the-as vecto
 - **A mark at a fixed place.** Pass a vector instead of `#t` to `add-icon!`: the connection keeps
   its address (`position`) and draws the mark there; class 10 `guard` is a plain dot (`icon-xy` 0
   1), black with `color` 0 0 0 and larger with `scale`.
+- **Where a mark lands on the screen.** In `draw-connection`, right after
+  `(vector-matrix*! s3-2 s3-2 (-> arg0 mat))` (inside `(when (not s2-0)`: the mark is drawn), `s3-2`
+  holds the mark's center in GS units, its x in `x` and its height in `z`; the sprite is centered
+  on it, 20 × `scale` units high. Minus 1792 and 1840 (`hud.gc`), it is in the 512 × 416 font units
+  of a `font-context`: a hook there that keeps the place lets a letter be drawn over the mark the next
+  frame, in a later bucket (`debug-no-zbuf2`). A `middle` font text at scale 0.6 stood 2 units left
+  of the center. `color` multiplies the icon texture (128 = 1): 255 brightens it twice.
 - **Hiding the HUD minimap.** `(set-setting! 'minimap 'clear 0.0 (minimap-flag minimap))` hides it,
   as the stock bombbot and blow-tower missions do; `(remove-setting! 'minimap)` from the same process
   brings it back: call it when your own full-screen map closes and when the mode ends.
-Verified: jak3, `engine/ui/minimap.gc`, `levels/city/traffic/citizen/guard.gc`, `levels/city/common/kg-squad-member.gc`; the battlefront mod's round 20 runs, 2026-11-09; the minimap setting in its round 21 run (R3's map up, no minimap), 2026-11-09.
+Verified: jak3, `engine/ui/minimap.gc`, `levels/city/traffic/citizen/guard.gc`, `levels/city/common/kg-squad-member.gc`; the battlefront mod's round 20 runs, 2026-11-09; the minimap setting in its round 21 run (R3's map up, no minimap), 2026-11-09; a control point's letter over its mark, the mark's place logged and its disc found there in the screenshots within 2 pixels, round 27, 2026-11-13.
 
 Verified: jak3, `engine/ui/minimap.gc`, `engine/ui/bigmap.gc`; the multiplayer mod's players shown
 by a marker in their color (scenarios `minimap-cone`, `coop-roles`, screenshots), 2026-10-28.
@@ -2786,8 +2793,16 @@ ship at Freedom HQ, then 16 stuck units a run released and no crash in 3 runs wi
   (exit-transport) needs no ship for a robotguard or a spider (their `go-from-behavior` only copies
   `position`): the robotguard falls as a ball and lands in `'roll-chase`, the spider tumbles
   (`knocked0`) and lands in `'hostile`. Never send a spider `'jump`: its jump clips are -1 in its
-  enemy info, an art index the jump would read. A jetpack guard's flight keeps it 3 to 18 m over the
-  ground, seeking its height at 0.7 m/s: raised higher, it drops to 18 m at once, then sinks.
+  enemy info, an art index the jump would read. A jetpack guard's flight (`flying-turret`
+  `enemy-common-post`) keeps it 3 to 18 m over its `ground-height`, seeking its height at 0.7 m/s:
+  raised higher, it drops to 18 m at once, then sinks. `ground-height` is not the street: it is the
+  first surface met by a probe from 2 m over the turret to 25 m under it (`flying-turret-method-225`,
+  `above-ground?`), and it keeps its last value when the probe meets nothing. Over a roof it takes the
+  roof's height and keeps it past the roof, 25 m over the street being out of the probe's reach:
+  the jetpack guards climbed from roof to roof, up to 45 m over the street (the battlefront mod's
+  round 26 logs). To keep them low, cap `ground-height` and the root's y by the nav poly under it
+  (`(-> nav state current-poly)`, `poly-centroid`) after the stock clamp: 15 m over the poly's
+  middle held in 649 looks over 6 minutes.
   `enemy-falling-post` collides with whatever its root prim's `collide-with` names, and exit-transport
   ends on the first surface touched: spiders falling from 30 m stopped on the jetpacks hovering over
   the spot (2 in 8 stayed 12 m up), and, with `(collide-spec backgnd)` alone, on the scenery under a
@@ -2798,7 +2813,11 @@ ship at Freedom HQ, then 16 stuck units a run released and no crash in 3 runs wi
   city's floors have no underside: a probe going up passes through them (48 of 48 probes went up
   30 m clear, 7 of them under a floor a probe down met), so test what is over a spot with a probe
   down. A unit killed goes back to sleep in the traffic's pool (`'inactive`): its handle still
-  names a process.
+  names a process, and the next unit woken from that pool slot is the same process with the same
+  handle. A table keyed by a unit's handle (a post on a point, a goal) passes on to whatever unit
+  takes its process next: clear the entry when the unit is woken. In the battlefront mod the posts
+  of dead units went on with the next ones, and after 3 minutes 14 to 26 units of a side stood at
+  one point.
 - **Nav poly types; the Industrial Zone's walkways.** A nav poly's `pat` (`engine/nav/nav-mesh.gc`
   `debug-draw`): 1 a gap (black; walkers cross it only through a jump,
   `plan-over-pat1-polys-using-route`), 2 avoided (grey), 4 a link to another mesh, 8 another kind
