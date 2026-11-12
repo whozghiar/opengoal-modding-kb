@@ -925,9 +925,9 @@ X (a respawn page that drops him in the air) sees him jump. Clear `x` too, or ca
 velocity for the first frames.
 
 Verified: jak3, `engine/ps2/pad.gc` (`cpad-clear!`, `recently-pressed?`), `engine/target/target.gc`
-(the jump test); the Battlefront mod's respawn from the sky: Jak in `target-jump` at the 4th frame
-of his fall after the page's X, in 5 runs out of 5, none once his upward velocity was zeroed,
-2026-11-12.
+(the jump test); the Battlefront mod's respawn from the sky: Jak rose after the page's X in 6 runs
+of 6 (0.93 m on the ground, 3.5 m/s in the air), seen in `target-jump` at the 4th frame of his
+fall; never in the next 9 runs, his upward velocity zeroed, 2026-11-12.
 
 ### 1.4.19 A state keeps the event handler it was defined with
 
