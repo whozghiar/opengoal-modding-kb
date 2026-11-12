@@ -255,6 +255,13 @@ request for 0.4 s, timed on `(-> *display* real-clock frame-counter)`, since a p
 stops under the pause (a guard timed with `time-elapsed?` never ran out there).
 Verified: jak3, `engine/game/main.gc`, `engine/ui/progress/progress.gc`; the battlefront mod's round 20 runs, 2026-11-09.
 
+The Quit / Restart page (`*quit-restart-options*`) holds a `menu-restart-mission-qr-option` and a
+`menu-quit-qr-option`, both handled by their parent's `respond-progress` (`menu-qr-option`,
+`engine/ui/progress/progress.gc`). A `defmethod respond-progress` on the child type alone, its
+`define-perm` stock the parent's method, refuses Restart Mission (clear `confirm`, beep, return 0)
+and leaves Quit as it is. Verified: jak3, `engine/ui/progress/progress-h.gc`, `progress-static.gc`,
+`progress.gc`; compiled in the battlefront mod's round 26, 2026-11-12.
+
 
 The entry's `next-state` must resolve to a page: wrap `progress` `set-menu-options` (the stock
 method is in `pc/progress/progress-pc.gc`) and map your symbol to a generic scrolling page, like
@@ -2781,13 +2788,29 @@ ship at Freedom HQ, then 16 stuck units a run released and no crash in 3 runs wi
   (`knocked0`) and lands in `'hostile`. Never send a spider `'jump`: its jump clips are -1 in its
   enemy info, an art index the jump would read. A jetpack guard's flight keeps it 3 to 18 m over the
   ground, seeking its height at 0.7 m/s: raised higher, it drops to 18 m at once, then sinks.
-  `enemy-falling-post` collides with the units' collision too: spiders falling from 30 m stopped on
-  the jetpacks hovering over the spot (2 in 8 stayed 12 m up); give the root prim's `collide-with`
-  `(collide-spec backgnd)` during the fall and the old mask back once out of exit-transport. The
+  `enemy-falling-post` collides with whatever its root prim's `collide-with` names, and exit-transport
+  ends on the first surface touched: spiders falling from 30 m stopped on the jetpacks hovering over
+  the spot (2 in 8 stayed 12 m up), and, with `(collide-spec backgnd)` alone, on the scenery under a
+  ship's hatch 13 and 22 m up (6 and 14 m over the street): landed there, a spider walks its lanes
+  at that height, in the air. Give the root prim's `collide-with` 0 (nothing) while the unit is more
+  than 3 m over the nav poly it falls onto, then `(collide-spec backgnd)` to land on the street, and
+  the old mask once out of exit-transport: 16 of 16 fell at once, none in the air. The
   city's floors have no underside: a probe going up passes through them (48 of 48 probes went up
   30 m clear, 7 of them under a floor a probe down met), so test what is over a spot with a probe
   down. A unit killed goes back to sleep in the traffic's pool (`'inactive`): its handle still
   names a process.
+- **Nav poly types; the Industrial Zone's walkways.** A nav poly's `pat` (`engine/nav/nav-mesh.gc`
+  `debug-draw`): 1 a gap (black; walkers cross it only through a jump,
+  `plan-over-pat1-polys-using-route`), 2 avoided (grey), 4 a link to another mesh, 8 another kind
+  (magenta); the travel rays of `engine/nav/nav-control.gc` ignore 1 and 2 (`ignore` 3).
+  `adj-poly` holds each edge's neighbour, 255 for none. The nine street meshes of Haven City have no
+  poly of types 1, 2 or 8, and each is one island: every poly can be walked to. The Industrial
+  Zone's two meshes (ctyinda, ctyindb) carry its walkways, 30 and 23 polys at 27 m, over its 8 m
+  streets, joined by stair polys at 12, 17.5 and 21.8 m; a unit's shortest way keeps to the
+  streets, so a unit goes up only when sent to a walkway poly as a waypoint.
+- **The city's war music.** `(set-setting! 'music 'portattk 0.0 0)` plays the music of the game's
+  assaults on the city (`levels/city/protect/assault-task.gc`, `levels/city/port/attack/ctyport-attack.gc`)
+  in every district, in place of each section's own; `remove-setting!` gives them back.
 - **A robotguard rolling on its walks.** `citizen-travel-anim` plays the run clip from
   `get-run-anim` (a citizen's `anim-run`) once the nav speed passes 6 m/s: set `anim-run` to the
   ball clip (13), `dist-run-anim` to 43690 (roll-chase's own pace: speed / 40960), `interp` 1.0 and
@@ -2808,6 +2831,7 @@ ship at Freedom HQ, then 16 stuck units a run released and no crash in 3 runs wi
   `(send-event *target* 'change-state target-death 'my-mode)` (`target-handler.gc`), his state's
   code getting the mode as its argument.
 
+Round 26 of the battlefront mod, 2026-11-12: `engine/nav/nav-mesh.gc` (`debug-draw`, `nav-poly`), `engine/nav/nav-control.gc` (the rays' `ignore`), `levels/common/enemy/spydroid.gc` (exit-transport), `engine/ai/enemy.gc` (`enemy-falling-post`); the meshes dumped in game (islands, types, heights), 16 spiders and robotguards out of a ship watched as they fell, guards on the walkways (8 in 2 minutes once sent there), the music read back from `*setting-control*`.
 Verified: jak3, `levels/city/traffic/vehicle/vehicle-control.gc` (methods 14, 15),
 `levels/city/traffic/citizen/citizen.gc` (methods 199, init, active state),
 `engine/nav/nav-mesh.gc` (`new-nav-control`, `change-to`), `engine/nav/nav-enemy.gc`
