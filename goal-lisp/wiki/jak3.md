@@ -2768,7 +2768,31 @@ ship at Freedom HQ, then 16 stuck units a run released and no crash in 3 runs wi
   params whose `behavior` is 2 (`'active`), `nav-mesh` the mesh, `position` the `poly-centroid` of
   one of its polys (world coordinates), `nav-branch` #f and `proc` #f: the woken process comes back
   in `proc`. Skip the link polys (`pat` 4). Some polys put a unit where the game prints "failed to
-  locate ground for citizen" (platform edges); the unit still comes and fights.
+  locate ground for citizen" (platform edges); the unit still comes and fights. A poly's middle lies
+  0.5 to 1.4 m under the street's collision: a probe down that stops less than 2 m over it meets
+  the street.
+- **Bringing a unit down from the sky.** An event sent to a unit in the frame it is woken reaches
+  its sleeping state: a guard sent the stock `'jump` at once stayed in the air, walking. Wait for
+  its `'active` (`(-> unit next-state name)`), then raise its `root trans` and send
+  `(send-event unit 'jump 0 ground-point)`: the guard's jump (wind-up, in air, its `notice` clip as
+  it lands) carries it down, its trajectory a parabola 0.5 m over the higher end. Traffic behavior 6
+  (exit-transport) needs no ship for a robotguard or a spider (their `go-from-behavior` only copies
+  `position`): the robotguard falls as a ball and lands in `'roll-chase`, the spider tumbles
+  (`knocked0`) and lands in `'hostile`. Never send a spider `'jump`: its jump clips are -1 in its
+  enemy info, an art index the jump would read. A jetpack guard's flight keeps it 3 to 18 m over the
+  ground, seeking its height at 0.7 m/s: raised higher, it drops to 18 m at once, then sinks.
+  `enemy-falling-post` collides with the units' collision too: spiders falling from 30 m stopped on
+  the jetpacks hovering over the spot (2 in 8 stayed 12 m up); give the root prim's `collide-with`
+  `(collide-spec backgnd)` during the fall and the old mask back once out of exit-transport. The
+  city's floors have no underside: a probe going up passes through them (48 of 48 probes went up
+  30 m clear, 7 of them under a floor a probe down met), so test what is over a spot with a probe
+  down. A unit killed goes back to sleep in the traffic's pool (`'inactive`): its handle still
+  names a process.
+- **A robotguard rolling on its walks.** `citizen-travel-anim` plays the run clip from
+  `get-run-anim` (a citizen's `anim-run`) once the nav speed passes 6 m/s: set `anim-run` to the
+  ball clip (13), `dist-run-anim` to 43690 (roll-chase's own pace: speed / 40960), `interp` 1.0 and
+  the `run-mode` flag for it to show at once; `speed-run` sets how fast it rolls. The stock run clip
+  is 11.
 - **A unit 1.5 times as fast, its legs at the stock pace.** `citizen-travel-anim` plays the walk
   and run clips at the nav state's speed over `dist-walk-anim` and `dist-run-anim`: raising
   `speed-walk`, `speed-run` and both clip grounds by the same factor keeps the stock cadence (the
@@ -2795,7 +2819,7 @@ the crash after a far reset, 17 of 255 with both fixes; defenders brought to the
 march over the meshes (from the Freedom League's base to Freedom HQ's point: 14 guards on it 60 s
 in, none in 180 s by the lanes); a START menu entry tested on the game clock, 2026-11-08; 12 of 12
 spider robots and robotguards 10 m closer to their goal in 25 s, guards at 19.7 m/s, spiders at
-12.4, jetpacks at 38.8 (stock 12, 8, 25), 2026-11-09. Round 24 of the mod, 2026-11-11: `levels/city/common/guard-grenade.gc`, `levels/city/traffic/citizen/guard.gc` (`crimson-guard-method-258`); a battle's probes per unit and foe (where they hit, the normal's height), units with a foe behind a wall 1 in 5 then 1 in 14 with the blind look, the two crashes with every unit blinded and none in two runs sparing `lock-focus`; 100 units woken on random polys around a control point in 3 minutes.
+12.4, jetpacks at 38.8 (stock 12, 8, 25), 2026-11-09. Round 24 of the mod, 2026-11-11: `levels/city/common/guard-grenade.gc`, `levels/city/traffic/citizen/guard.gc` (`crimson-guard-method-258`); a battle's probes per unit and foe (where they hit, the normal's height), units with a foe behind a wall 1 in 5 then 1 in 14 with the blind look, the two crashes with every unit blinded and none in two runs sparing `lock-focus`; 100 units woken on random polys around a control point in 3 minutes. Round 25, 2026-11-12: `engine/ai/enemy.gc` (the `'jump` event, `setup-jump-trajectory!`, `enemy-falling-post`), `engine/physics/trajectory.gc`, `levels/city/traffic/citizen/guard.gc` (`jump-anim-handler`), `levels/common/enemy/spydroid.gc`, `levels/city/protect/roboguard-city.gc` (`go-from-behavior`, exit-transport, roll-chase), `levels/city/protect/flying-turret.gc` (its height), `levels/city/traffic/citizen/citizen.gc` (`citizen-travel-anim`); the battlefront mod's runs: 21 of 21 guards in their jump and landed, robotguards and spiders falling, 1005 of 1005 far-marching robotguards on the ball clip, the sky probes over 48 polys.
 
 ## 4.45 Filled 2D triangles over the HUD
 

@@ -916,6 +916,19 @@ Verified: jak3, the Battlefront mod's smoke test: 1000 calls of the wrong form l
 spread evenly over the 5 slots whatever the roll's shares; the right form counted the roll exactly,
 2026-11-11.
 
+### 1.4.26 A menu's confirm press can still make Jak jump
+
+Menus read the virtual `confirm` button; `(cpad-clear! 0 confirm)` clears it, not the `x` behind
+it. Jak's jump does not need X pressed this frame either: `recently-pressed?` (`engine/ps2/pad.gc`)
+looks at the presses of the last 15 frames. A menu that hands control back to Jak right after its
+X (a respawn page that drops him in the air) sees him jump. Clear `x` too, or cancel his upward
+velocity for the first frames.
+
+Verified: jak3, `engine/ps2/pad.gc` (`cpad-clear!`, `recently-pressed?`), `engine/target/target.gc`
+(the jump test); the Battlefront mod's respawn from the sky: Jak in `target-jump` at the 4th frame
+of his fall after the page's X, in 5 runs out of 5, none once his upward velocity was zeroed,
+2026-11-12.
+
 ### 1.4.19 A state keeps the event handler it was defined with
 
 `defstate` evaluates `:event`, `:enter`, `:trans`... once, when the state is defined: a state holds
