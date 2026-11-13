@@ -2208,7 +2208,16 @@ the model hidden, looks the same. The Krimzon Guard explosions are global too
 (`engine/common-obs/enemy-part.gc`): `group-kg-explosion` (the robotguard's, with `robo-explode`)
 and `group-kg-small-explosion` (the flying turret's, with `fly-turret-die`), spawned with
 `part-tracker-spawn part-tracker :to self :group ...` after setting `(-> *launch-matrix* trans)`.
-Verified: the battlefront mod's player deaths (guard, robotguard, jetpack, screenshots), 2026-11-11.
+Three sparks a frame from three joints were not seen in a film of the death; eight a frame for a
+second, the camera looking down at the body, were. For a unit of the traffic, start the same look
+from the `do-effect` call of its death effect (a wrapper of `effect-control` `do-effect`): the
+guard's `'event-death` (`guard.gc`) runs `death-default` only with its `hit-points` at exactly 0,
+which `apply-incoming-hitpoint-mods` (`enemy.gc`) gives a killing blow (the damage capped at the
+hit points left). Hide the body after the sparks, and stop once the unit is no longer dead: its
+pool wakes it again with the same process, and its reset (`citizen-method-194`) clears `no-draw`.
+Verified: the battlefront mod's player deaths (guard, robotguard, jetpack, screenshots), 2026-11-11;
+jak3 `levels/city/traffic/citizen/guard.gc`, `engine/ai/enemy.gc`, `citizen.gc`; the mod's red guards
+dissolving and its films, 2026-11-13.
 
 **Particles placed by the stock code.** A stock unit's code puts its particles at fixed offsets from
 its root: drawn as another model, they miss it. The flying turret draws its two thruster flames

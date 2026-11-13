@@ -86,8 +86,8 @@ once per frame, then let `ja-post` push the result to the renderer.
 |---|---|
 | `(ja-no-eval :group! G :num! (seek! MAX) :frame-num F)` | Start channel 0 on animation `G` at frame `F`; set its target advance. |
 | `(ja :num! (seek!))` | Advance the current animation one frame toward the target. |
-| `(ja-done? 0)` | `#t` when channel 0 reached the end of its clip. |
-| `(ja-aframe N 0)` | Read/seek to a specific frame number on channel 0. |
+| `(ja-done? 0)` | `#t` when channel 0 reached its `seek!` target (`frame-num` = `param 0`); with any other `num-func` (a plain `:frame-num` set, a `loop!`), `#t` at once (Jak 2 and 3 also test `interp-play!`'s last frame). |
+| `(ja-aframe N 0)` | The frame index of artist frame N of channel 0's clip: `(N - artist-base) / artist-step`. Below the clip's `artist-base` it is 0 or less: a `seek!` there ends at once. |
 | `(suspend)` | Yield to the engine for this frame (like `yield`). |
 | `ja-post` | State `:post` helper: flush the pose + collision. |
 
@@ -101,6 +101,15 @@ once per frame, then let `ja-post` push the result to the renderer.
 
 Trap: forgetting `(suspend)` inside an animation loop freezes the game —
 the process never yields.
+
+Trap: the artist frames a clip's stock code names are counted from the clip's `artist-base`. A
+range read from another clip, or below that base, gives `ja-aframe` 0 or less, and a `seek!` to it
+is done at once: the battlefront mod's rifle shot, seeking the "artist frames 12 to 22" of the
+guards' `gun-attack`, lasted one frame; the stock rifle guard plays that clip whole
+(`guard-rifle.gc`: `:num! (seek! max)` from frame 0).
+
+Verified: jak1, jak2, jak3 `process-drawable.gc` (`ja-done?`, `ja-aframe`); jak3
+`levels/city/common/guard-rifle.gc`; the battlefront mod's frame trace, 2026-11-13.
 
 ### 1.2.4 Skeletons & joints
 
