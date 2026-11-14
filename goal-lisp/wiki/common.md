@@ -835,7 +835,9 @@ a cutscene's actors crashed at `handle->process` of a 0 handle (scenarios `scene
 
 A function call takes at most 8 arguments: `format` counts its destination and its format string,
 so 6 values at most per call (*"Function call cannot use more than 8 parameters"*). Split a long
-log line.
+log line. A function takes at most 8 parameters too (*"Cannot generate a real function for a lambda
+with 10 parameters"*): a `defmacro` that binds its arguments in a `let` and calls smaller
+functions takes more.
 
 A process type already has a `state` field (its current state). A field of that name in your own
 `deftype` of a process fails with *"Type ... already has a field named state"*.

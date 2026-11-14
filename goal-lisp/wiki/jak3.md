@@ -2208,8 +2208,10 @@ the model hidden, looks the same. The Krimzon Guard explosions are global too
 (`engine/common-obs/enemy-part.gc`): `group-kg-explosion` (the robotguard's, with `robo-explode`)
 and `group-kg-small-explosion` (the flying turret's, with `fly-turret-die`), spawned with
 `part-tracker-spawn part-tracker :to self :group ...` after setting `(-> *launch-matrix* trans)`.
-Three sparks a frame from three joints were not seen in a film of the death; eight a frame for a
-second, the camera looking down at the body, were. For a unit of the traffic, start the same look
+Launch part 53 as the dissolve does, `(sp-launch-particles-death *sp-particle-system-2d* (-> *part-id-table* 53) pos)`
+(`merc-death-spawn`): through `launch-particles` it showed as a few pale discs, where the stock
+dissolve of a blue guard is a purple cloud; six to ten a frame from random joints, each up to 0.4 m
+off, for death-default's 75 frames, look like it. For a unit of the traffic, start the same look
 from the `do-effect` call of its death effect (a wrapper of `effect-control` `do-effect`): the
 guard's `'event-death` (`guard.gc`) runs `death-default` only with its `hit-points` at exactly 0,
 which `apply-incoming-hitpoint-mods` (`enemy.gc`) gives a killing blow (the damage capped at the
@@ -2217,7 +2219,8 @@ hit points left). Hide the body after the sparks, and stop once the unit is no l
 pool wakes it again with the same process, and its reset (`citizen-method-194`) clears `no-draw`.
 Verified: the battlefront mod's player deaths (guard, robotguard, jetpack, screenshots), 2026-11-11;
 jak3 `levels/city/traffic/citizen/guard.gc`, `engine/ai/enemy.gc`, `citizen.gc`; the mod's red guards
-dissolving and its films, 2026-11-13.
+dissolving and its films, 2026-11-13; `engine/gfx/foreground/merc/merc-death.gc` (`death-default`:
+effect 53, vertex-skip 10, timer 75), the films of a blue guard's and a red guard's death, 2026-11-14.
 
 **Particles placed by the stock code.** A stock unit's code puts its particles at fixed offsets from
 its root: drawn as another model, they miss it. The flying turret draws its two thruster flames
@@ -2938,3 +2941,30 @@ them, `(logclear! (-> self target-flags) (target-flags tf6 tf12 tf14))`, and sen
 `'teleport`, or the camera keeps looking at the place of death.
 Verified: jak3, `engine/target/target-death.gc`, `target-util.gc`; the multiplayer mod's co-op
 respawn (`coop-respawn-lava`: pinned during the death, following the player after), 2026-11-10.
+
+## 4.49 Which sound plays: the banks, Jak's cries, the guards' voice
+
+A sound plays only when a loaded bank holds it, silently otherwise. The banks are
+`iso_data/jak3/SBK/*.SBK`; each lists its sounds' names in capitals with `_` for `-`
+(`CRIMSON_JUMP` for `crimson-jump`): a search of the files says which bank holds a name. The city's:
+CITYFFH (the guards: `crimson-jump`, `crimson-fall`, `cg-armor-step`, `guard-zap`, `guard-shot-fire`),
+CITYKGF (the Krimzon Guard's machines: `robo-mtl-rattle`, `robo-roll`, `spydroid-jabber`,
+`spydroid-land`, `fly-turret-die`), CITYCARH (the traffic: `vehicle-engine`, `bike-thrust`). No bank
+holds `guard-hit`, `spydroid-hit` or `guard-die`: the guards' cries are speech
+(`speech-control-method-13 *speech-control* proc (speech-type guard-hit) n`, `guard.gc`), which
+any process-drawable can ask for, Jak included.
+
+Jak's own sounds as a generic hit lands are effects of his clips, `breath-out-loud` and
+`breath-in-loud`, through `effect-control` `do-effect`, not `oof` nor `hit-up`; his jumps play
+`jump` and `jump-double` (`target.gc`, `sound-play`). A wrapper of `do-effect` skips the first for
+`*target*`, a wrapper of `sound-play-by-name` (`self` is `*target*`) swaps the second.
+
+A bike's engine is the `vehicle-engine` spec with `reg 0` 1 (the bike's `engine-sound-select`,
+`bike.gc`), `reg 1` its health times 127, played every frame with one sound id
+(`sound-play-by-spec`), its pitch from the speed, as `levels/factory/car/hvehicle-effects.gc` does;
+`bike-thrust` while it thrusts.
+
+Verified: jak3, the SBK files (searched for the names), `levels/city/traffic/citizen/guard.gc`,
+`engine/sound/speech.gc`, `engine/target/target.gc`, `levels/city/traffic/vehicle/bike.gc`; the
+battlefront mod's log of Jak's sounds and effects as he takes a hit and jumps, 2026-11-14.
+

@@ -93,6 +93,7 @@ subsystem differences, not restatements of the shared material.
   - [4.46 Another player's gun sounds: one mode sound bank](jak3.md#446-another-players-gun-sounds-one-mode-sound-bank)
   - [4.47 A focusable that never probes the ground: nav enemies ignore it](jak3.md#447-a-focusable-that-never-probes-the-ground-nav-enemies-ignore-it)
   - [4.48 A death that pins the camera: tf6, tf12, tf14](jak3.md#448-a-death-that-pins-the-camera-tf6-tf12-tf14)
+  - [4.49 Which sound plays: the banks, Jak's cries, the guards' voice](jak3.md#449-which-sound-plays-the-banks-jaks-cries-the-guards-voice)
 - [How to contribute](../../kb/SKILL.md)
 
 
