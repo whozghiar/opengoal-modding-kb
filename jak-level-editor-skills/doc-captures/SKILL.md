@@ -7,7 +7,7 @@ description: Make the screenshots of the documentation again (docs/user-guide.md
 
 The pictures go in `docs/captures/<feature>/<name>.png`, one folder per feature of the user guide
 (getting-started, levels, selecting, groups, catalog, prefabs, building, game-rendering,
-behaviors, nav-meshes, export, mcp), 1600 x 900, the interface in English.
+behaviors, collision, nav-meshes, export, mcp, blender), 1600 x 900, the interface in English.
 
 ```bash
 python tools/capture_docs.py                            # all of them (needs Jak 3 extracted, the editor built)
@@ -30,8 +30,8 @@ seen; never the user's preferences) and drives it two ways:
   appearing). `shot(path)` is `Page.captureScreenshot` of the whole window (the page set to
   1600 x 900 with `Emulation.setDeviceMetricsOverride`), the paths of the computer replaced first
   (`anonymize`: the library shown as `C:/Users/you/Documents/Jak Level Editor`); `click("Export")`
-  the first shown button or entry with that text or aria-label (waited for), `tab("Build")` a panel
-  of the bar of icons (the menu bar has a Build too), `menu("Level", "Export for the game...")`,
+  the first shown button or entry with that text or aria-label (waited for), `tab("Terrain")` a tab
+  of the bar of icons (Levels, Terrain, Prefabs, Catalog, Game), `menu("Level", "Export for the game...")`,
   `type_into(selector, text)`, `key("F1")`, `engine(name, args)` any call of the engine as the
   interface makes it (`window.__TAURI_INTERNALS__.invoke("plugin:jak-level-editor|call", {name, args})`).
 - **The mouse over the 3D view**: `center(dx, dy)` a point from the view's middle (where
@@ -47,7 +47,7 @@ Tips:
   the game rendering's chunks come after the call that made them.
 - Several mouse events in one DevTools connection: a new connection sets the page's size again,
   and the view forgets where the mouse is.
-- The terrain brush's window covers the right of the view: aim the mouse at the left.
+- The terrain brush is on while the Terrain tab is open (`tab('Terrain')`); another tab ends it.
 - Close the windows a section opened before the next one (`close_windows()`: Escape closes only
   the modal ones, and the first "Close" of the page is the editor's own).
 - Never let the script write into the library: exports and extractions go to `--work`. The

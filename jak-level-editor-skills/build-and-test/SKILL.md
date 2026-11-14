@@ -57,7 +57,7 @@ Every new piece of logic leaves one check: a `#[test]` in the `#[cfg(test)] mod 
 Run the program on real levels (Jak 3 extracted in `library/`):
 `target/debug/jak-level-editor.exe --library library --open-level ctyinda`. Drive it through its
 remote control (`tools/capture_docs.py`'s `Editor` class: one JSON line per request, `{"id", "tool",
-"args"}`; `capture_view` gives a picture of the 3D view) and through its web view's DevTools
+"args", "token"}` with the token of `<prefs>/remote.json`; `capture_view` gives a picture of the 3D view) and through its web view's DevTools
 (`WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS=--remote-debugging-port=9222` set before starting it:
 pictures of the whole window, mouse and keys; see the doc-captures skill). Look at the pictures
 before saying it works.

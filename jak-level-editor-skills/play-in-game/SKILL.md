@@ -9,7 +9,7 @@ description: Play a level made in the editor in the real game (Jak 3): F5 tries 
 
 **Level > Try in the game** (F5, the toolbar's Try; the engine's call `test_in_game`, its state in
 `game_test_state`) plays the open level in the game the user installed: the OpenGOAL Launcher's
-(`--game-install`), or the folder of *File > Settings, Games to try levels in* (the call
+(`--game-install`), or the folder of *File > Settings, Games installed* (the call
 `set_game_install {game, folder}`; a Launcher installation, an OpenGOAL release or a jak-project).
 It exports the level as `jle-test` and has the game's own `goalc` build it, its code and its DGO
 (about 20 s more the first time of a session, while goalc learns the game), puts `JLT.DGO` and `jle-test.fr3` into the game's
@@ -17,9 +17,12 @@ It exports the level as `jle-test` and has the game's own `goalc` build it, its 
 compiled; closing the editor (`stop_game_test`) closes that game and takes the two files out.
 `docs/architecture.md` (24, *The try in the game*) tells how.
 
-- Only one program can hold Jak 3's REPL port, 8114 (gk ignores `--port`): a try refuses to start
-  while another game runs. Never stop another program's game (another agent's tests may run one):
-  wait, or ask the user.
+- gk ignores `--port` (Jak 3 always on 8114): a try runs a copy of the installation's gk patched to
+  listen on the first free port from 8130 (`gk_on_port`, editor/game_test.rs), so it never meets
+  another session's game. For a game you start by hand, `python tools/gk_on_port.py <gk.exe> <port>`
+  makes such a copy; then goalc `(lt "127.0.0.1" <port>)`. Never stop another program's game.
+- Stop a try (`stop_game_test`) before killing the editor that started it: a killed editor leaves
+  `JLT.DGO` and `jle-test.fr3` in the game's `out/jak3/`.
 - When it fails, the log says why; `<prefs>/game-test/jak3/goalc.log` and `gk.log` hold what the
   compiler and the game printed.
 

@@ -15,3 +15,8 @@ others, into `.claude/skills/`.
 | [`level-building-mcp`](level-building-mcp/SKILL.md) | Building or changing a level through the editor's MCP tools |
 | [`prefab-recipes`](prefab-recipes/SKILL.md) | The recipe of every prefab made, changed or deleted (mandatory: users get the recipe, never the `.glb`) |
 | [`play-in-game`](play-in-game/SKILL.md) | Adding an exported level to a jak-project by hand and checking it in the game |
+| [`skill-blender-context`](skill-blender-context/SKILL.md) | Running bpy code in Blender through its MCP server without touching the user's file |
+| [`skill-modular-snapping`](skill-modular-snapping/SKILL.md) | Modules, grid and pivots; laying out rooms with `tools/ai_level_builder.py` |
+| [`skill-style-match`](skill-style-match/SKILL.md) | Giving new geometry, the editor's or Blender's, a level's textures and light |
+| [`skill-zone-design`](skill-zone-design/SKILL.md) | Designing a structure in the style of a zone of Jak 1, Jak II or Jak 3: one entry per zone |
+| [`skill-image-to-building`](skill-image-to-building/SKILL.md) | Reproducing a picture in a level: the level's own buildings placed as variants, Blender for what it lacks |

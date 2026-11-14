@@ -26,7 +26,8 @@ every change is undone with `undo`.
 3. **Look before you report.** `capture_view` from the player's height (1.6 m above the ground)
    around what you built, in the game rendering, and from above. Describe what you see, problems
    included.
-4. **Build like the level, and solid.** Walls, floors and houses come whole from `build_structure`
+4. **Build like the level, and solid.** A building the level has: `place` its prefab with a
+   `variant` (1, 2, 3...) and `mirror` some, so that no two copies look alike. Walls, floors and houses come whole from `build_structure`
    (`kind`, `level`: the one it must look like): solid on every side, unlike the game's facades;
    resize them with `set_structure`, never `transform_nodes` with a scale. Any other structure: `building_kit` first (the level's parts by role, their size and
    rotation, its buildings' textures), then the masses as shapes with `style` + `surface`

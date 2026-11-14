@@ -1,6 +1,6 @@
 ---
 name: game-data
-description: Regenerate what the editor knows of the game (data/jak3/game-data.json, particles, the game's prefab recipes, Jak II's creatures) or extract the game's levels. Use when the decompiled code changed, when the catalog or the game's prefabs need updating, or when the extraction is involved.
+description: Regenerate what the editor knows of the game (data/jak3/game-data.json, particles, zones, Jak II's creatures) or extract the game's levels. Use when the decompiled code changed, when the catalog or the zones need updating, or when the extraction is involved.
 ---
 
 # The game's data
@@ -15,8 +15,9 @@ decompiled code, and the levels are extracted from the game the user installed w
 | `data/jak3/particles.json`, `data/jak3/sprite-pages.json` | `python tools/gen_particles.py <jak-project>/goal_src` | the `defpartgroup` / `defpart` of the code, and the particle curves (`particle-curve-settings`, `curve2d-fast`, `curve-color-fast`) |
 | `data/jak2/texture-slots.json`, `data/jak3/texture-slots.json` | `python tools/gen_texture_slots.py <jak-project>/common/texture/texture_slots.cpp` | the animated texture slots of OpenGOAL's renderer, of the release the extraction uses (a model's draw names its animated texture by slot) |
 | `data/jak2/creatures.json` | `python tools/gen_jak2_creatures.py <jak-project>/decompiler/config/jak2/all-types.gc` | Jak II's type table |
-| `data/jak3/prefabs.json`, `data/jak2/prefabs.json` | `python tools/gen_prefab_recipes.py library --game jak3` (and `jak2`) | an extracted library, through a hidden editor (`target/release` or `target/debug/jak-level-editor`, or `--editor <program>`); `tools/prefab_review.json` keeps what was reviewed |
-| `data/prefabs/**/*.json`, `data/prefabs/textures/*.png` | `./target/release/prefab-recipes update` (the prefab-recipes skill) | `library/prefabricated/` and the extracted levels: the prefabs' recipes, which the editor bakes for its users |
+| `data/prefabs/**/*.json` | `./target/release/prefab-recipes update` (the prefab-recipes skill) | `library/prefabricated/` and the extracted levels: the prefabs' recipes, which the editor bakes for its users (`data/prefabs/textures/`, repainted from the game's images, stays out of git) |
+| `data/jak3/zones.json` | `python tools/gen_zone_data.py <jak-project>/goal_src <library>` | what a zone can play: the musics, the voice lines with a hint, the regions' ambient loops of the extracted levels |
+| `data/jak3/level_zones.json` | `python tools/gen_level_zones.py` | the zone of each level, from the table of `skill-zone-design/levels-jak3.md` (the terrain brush's level picker) |
 
 Rules:
 
@@ -24,12 +25,11 @@ Rules:
   changes that level's data). Never write into jak-project.
 - Build the program again after changing `data/` (it reads the copy a build puts next to it, in
   `target/<profile>/data/`), then `cargo test -p jak-level-editor-core` (which reads `data/` itself).
-- The recipes written by hand stay first in `prefabs.json`; the generated ones are marked `auto`.
 
 ## Extraction
 
 `File > Extract game assets...` in the editor: OpenGOAL's own extractor of the game installed
-(the OpenGOAL Launcher's folder, or the one of *File > Settings*) reads the levels by batches,
+(the OpenGOAL Launcher's folder, or the one of *File > Settings, Games installed*) reads the levels by batches,
 the editor writes the library, the models included (`crates/core/src/io/extraction/`,
 docs/architecture.md section 20). Without the interface, the ignored test does the same:
 
@@ -39,5 +39,6 @@ JLE_GAME_INSTALL="<OpenGOAL Launcher folder>" JLE_EXTRACT_OUT=library [JLE_EXTRA
 ```
 
 Jak 3 goes to `library/jak3/` (Jak II to `library/jak2/`, for its structures). Prefabs are in
-`library/prefabricated/` (the user's) and `library/prefabricated/game/` (the game's, made level
-by level from the recipes). All of `library/` but `prefabricated/.gitkeep` stays out of git.
+`library/prefabricated/` (the user's), `library/prefabricated/game/<game>/<level>/` (the game's,
+built in Blender by `tools/level_prefabs/game_build.py`) and `library/prefabricated/custom/` (made
+from the levels' pieces by `tools/level_prefabs/recipes_*.py`). All of `library/` but `prefabricated/.gitkeep` stays out of git.

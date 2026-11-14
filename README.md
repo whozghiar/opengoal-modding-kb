@@ -14,6 +14,7 @@ the fork to record its own discoveries (`git submodule set-url .agents/skills <f
 | [`smoke-tests`](smoke-tests/SKILL.md) | In-game smoke tests of a mod: scenarios that drive the game, the mod's test notebook |
 | [`writing-for-agents`](writing-for-agents/SKILL.md) | Writing skills and agent instruction files that agents follow reliably (imported, MIT) |
 | [`remotion/`](remotion/remotion-best-practices/SKILL.md) | Making videos with Remotion, one skill per folder, `remotion-best-practices` routing to the others (imported from [remotion-dev/skills](https://github.com/remotion-dev/skills), v4.0.537) |
+| [`blender-agent-skills/`](blender-agent-skills/README.md) | Driving Blender 5.2 from an agent, one skill per folder, `blender-core` routing to the others; the game's rules come first for its models (imported from [EL4CTEO/blender-skills](https://github.com/EL4CTEO/blender-skills), 1.2.0, MIT) |
 | [`jak-level-editor-skills/`](jak-level-editor-skills/README.md) | Working on [Jak Level Editor](https://github.com/whozghiar/jak-level-editor): building and testing it, its interface texts, its game data, its screenshots, building levels through its MCP tools, adding an exported level to the game |
 
 The Lisp wiki, [`goal-lisp/wiki/`](goal-lisp/wiki/index.md), is not a skill: it is the verified
@@ -26,7 +27,7 @@ textures.
 Gemini CLI, Codex, GitHub Copilot and Cursor read `.agents/skills/` natively. Claude Code
 reads `.claude/skills/`, which `task ai-link` in the host repository fills with links to
 these folders (`yarn skills:link` in the OpenGOAL launcher and in Jak Level Editor, which also link the skills
-grouped one folder down: `remotion/`, `jak-level-editor-skills/`).
+grouped one folder down: `remotion/`, `blender-agent-skills/`, `jak-level-editor-skills/`).
 
 ## Contributing
 
