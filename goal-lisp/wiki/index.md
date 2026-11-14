@@ -94,6 +94,7 @@ subsystem differences, not restatements of the shared material.
   - [4.47 A focusable that never probes the ground: nav enemies ignore it](jak3.md#447-a-focusable-that-never-probes-the-ground-nav-enemies-ignore-it)
   - [4.48 A death that pins the camera: tf6, tf12, tf14](jak3.md#448-a-death-that-pins-the-camera-tf6-tf12-tf14)
   - [4.49 Which sound plays: the banks, Jak's cries, the guards' voice](jak3.md#449-which-sound-plays-the-banks-jaks-cries-the-guards-voice)
+  - [4.50 Units fighting units: NaN places that spread](jak3.md#450-units-fighting-units-nan-places-that-spread)
 - [How to contribute](../../kb/SKILL.md)
 
 

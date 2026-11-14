@@ -3016,3 +3016,53 @@ Verified: jak3, the SBK files (searched for the names), `levels/city/traffic/cit
 `engine/sound/speech.gc`, `engine/target/target.gc`, `levels/city/traffic/vehicle/bike.gc`; the
 battlefront mod's log of Jak's sounds and effects as he takes a hit and jumps, 2026-11-14.
 
+## 4.50 Units fighting units: NaN places that spread
+
+Haven City's unit code (`crimson-guard`, `flying-turret`, `roboguard-city`, `spydroid`) was
+written against the player. In a mod where units fight each other, it can make a unit's place NaN,
+and the NaN then spreads from unit to unit:
+
+1. **A flying turret's turn.** Its flight (`flying-turret-method-227`,
+   `levels/city/protect/flying-turret.gc`) normalizes its thrust's direction across the ground. A
+   thrust straight up, or none, has no such direction, and its turn quaternions (`last-heading-quat`,
+   `last-roll-quat`, then `root quat`) go NaN. They stay NaN for good, since each frame blends into
+   the last.
+2. **Its bones and its shots.** Its bones go NaN with the turn, then its gun bone's axis, then its
+   shots' velocity (`fire-shot-from-joint-idx`).
+3. **A knocked unit.** An enemy hit by such a shot takes the shot's direction
+   (`attack-info-method-9`, `engine/target/target-util.gc`, then `get-knockback-dir!`,
+   `engine/ai/enemy.gc`) and flies off at NaN in `knocked`. `attack-info-method-9` also normalizes
+   victim minus attacker, so an attacker at the victim's exact place gives NaN too.
+4. **Units targeting it.** A unit at NaN never dies, and every unit that takes it as its foe goes
+   NaN in turn: a flying turret aims at its foe's bullseye bone (`update-focus`, `get-trans` 3,
+   `vector<-cspace!` on the enemy info's `bullseye-joint`), the others at its place. A unit's bones
+   keep their NaN until its joint math runs again (it is drawn), even after the traffic puts it to
+   sleep and wakes it elsewhere.
+
+Test a float for NaN by its bits; it also catches infinities:
+
+```lisp
+(defun my-nan? ((f float))
+  (= (logand (the-as int f) #x7f800000) #x7f800000))
+```
+
+What held it in a battle of 80 units:
+
+- **Put the turn back.** In `flying-turret.gc` `enemy-common-post`, right after
+  `(flying-turret-method-227 this)`, set `last-heading-quat`, `last-roll-quat` and `root quat` to
+  identity when any of them is NaN.
+- **A sweep every frame.** Put to sleep any fighting unit whose `root trans`, `root transv` or
+  `root quat` is NaN (the tracker's `deactivate-object`, section 4.43): its pool place is free
+  again. Clear its bones first: `matrix-identity!` each bone's `transform`, trans 0 with w 0, which
+  `vector<-cspace!` reads as the origin (`engine/process-drawable/process-drawable.gc`).
+- **Repair awake bones.** For an awake unit whose bullseye bone holds NaN, set every bone to
+  identity at its `root trans` with w 1.
+
+Do not repair bones on w 0 alone. Bones a unit's joint math has not computed yet read w 0, and
+rewriting them every frame turned the gun bone's axis straight up: the flying turrets' shots went
+NaN more often (43 units at NaN in 7 minutes instead of 6).
+
+Verified: jak3, `levels/city/protect/flying-turret.gc`, `engine/ai/enemy.gc`,
+`engine/target/target-util.gc`; the battlefront mod's scenario 60 (a per-frame trap, then a
+temporary probe in `flying-turret.gc`): 32 units of 80 at NaN in 7 minutes before; with the
+three fixes no jetpack at NaN, the sides' reinforcements steady to the end, 2026-11-15.
