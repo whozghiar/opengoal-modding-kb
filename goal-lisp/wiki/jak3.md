@@ -362,12 +362,15 @@ down counts from there, not from the top.
   Key the hiding on `*progress-process*` (the menu alive), not on `*master-mode*` `'progress`.
   Verified: jak3, the multiplayer mod's `menu-buttons` scenario (X jumped before, not after),
   2026-10-20.
-- **A page changed under a running world takes the press again.** With the world running under
-  the menu and pad 0 hidden from it and given back (above), the press that changed the page (X on
-  an entry that opens another page, Triangle that opened a page from the world) came back as a
-  new press on the new page a frame later: the next page confirmed or closed at once. Ignore X and
-  Triangle for 0.3 s after a page comes up. Verified: the battlefront mod's scenario 54 (Redeploy's
-  page confirmed at once, a death's page closed at once, both fixed by the wait), 2026-11-14.
+  **Put `button0-shadow-abs` back right after `cpad-invalid!`.** It holds the raw buttons the
+  next read compares with (`service-cpads`: `button0-abs 1` comes from it, `button0-rel 0` is
+  the buttons down now and not then); `cpad-invalid!` zeroes it, and the next read then took
+  every held button for a new press, every frame: a menu's cursor ran through the list while
+  Down was held (60 steps in 60 frames), and the press that opened a page came back on it at once
+  (the next page confirmed or closed itself). With
+  `(set! (-> pad button0-shadow-abs 0) (-> backup button0-shadow-abs 0))` after `cpad-invalid!`,
+  one step for Down held 60 frames. Verified: jak3, `engine/ps2/pad.gc`; the battlefront mod's
+  scenario 55 (60 steps, then 1), 2026-11-14.
 - **A model drawn over the menu** (a preview on a page) must carry `draw-control-status hud`
   (bit 14): while the still copy shows (menu mode, as at the title screen), the foreground only
   draws the draw-controls with that status. Turning the menu mode off instead brought back
@@ -2622,6 +2625,17 @@ and the pitch: pushed right the view turns right, pushed up it looks up, and a p
 inversion setting gets it turned the other way. Jak's stick reads the camera's matrix
 (`matrix-local->world`, `logic-target.gc`), so the left stick moves him relative to the new view
 with no change.
+
+**A rig that comes back: bind the camera to it again.** `(send-event *camera*
+'teleport-to-vector-start-string pos)` deactivates the camera's slave and builds a new one from
+the settings of that moment (`cam-master.gc`). Sent in the same frame as a rig dies, before its
+replacement set `'pov-handle`, the new `cam-pov` slave stayed on the dead rig: the camera hung
+where it was sent (in the air over a respawn, in the water) while the player moved on. When a
+rig starts, after its `set-setting!` calls, `(apply-settings *setting-control*)` then the same
+event from where the camera stands, `(-> *math-camera* trans)`, binds the camera to it with no
+jump. Verified: jak3, `engine/camera/cam-master.gc`; the battlefront mod's scenario 55 (the
+camera at y 40.8 m for 8 s while the player fell to 7.7 m; following the fall once fixed),
+2026-11-14.
 
 **A jump at a set velocity.** An upward speed written into `(-> *target* control transv)` from
 another process does not lift Jak off the ground in his stance. His standard event handler
