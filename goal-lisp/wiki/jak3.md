@@ -368,6 +368,15 @@ down counts from there, not from the top.
   buckets with no renderer (`tex-lcom-pris2`, bucket 456) and stopped the game on an assertion.
   `(if (get-menu-mode *blit-displays-work*) (logior! (-> proc draw status) (draw-control-status
   hud)) (logclear! (-> proc draw status) (draw-control-status hud)))` each frame.
+- **A renderer mask of your own across the menu's still screen.** The still copy saves
+  `(-> *display* vu1-enable-user-menu)` when it starts and puts it back when the menu ends
+  (`engine/gfx/blit-displays.gc`), the display holding the menu's own mask (merc alone) meanwhile.
+  A mod that narrows that mask (a black loading screen) while a START menu is up or closing must
+  keep the game's mask from `(-> *blit-displays-work* vu1-enable-user-menu)` when
+  `(get-screen-copied *blit-displays-work*)`, and set its own again each frame: the menu's restore
+  overwrote it, and the mask kept from the display (merc alone) left the game with no scenery, only
+  its models. Verified: jak3, the battlefront mod's new battle from its START menu page (scenario 51
+  screenshots, scenery gone before the fix, back after), 2026-11-14.
 - **Text from the per-frame hook:** `print-game-text` adds its own DMA bucket. Called inside a
   `with-dma-buffer-add-bucket` block it nests two buckets and the game stops on the `!m_ended`
   assertion: call it after the block closes.

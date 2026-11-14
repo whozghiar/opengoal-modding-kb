@@ -56,7 +56,14 @@ task compile-check
 - Set the state through the mod's own functions: its switch, a warp to a continue point. Never
   save: saves and settings persist across boots (AGENTS.md, section 3).
 - One fact per `smoke-check` line; a count or a position goes in the line itself.
-- A screenshot for every visual claim, taken after the scene settled.
+- A screenshot for every visual claim, taken after the scene settled. The game runs in a 640 x 480
+  window and the screenshots come out 1280 x 720: everything is stretched 1.33 times across, so a
+  circle drawn round in the window shows as an ellipse. Judge proportions in the window, not in
+  the picture (the battlefront mod's radar, 2026-11-14: `Setting window size to 640 x 480` in the
+  run's log, `FBO Setup: requested 1280x720` at each shot).
+- A page of the START menu takes its keys only once the menu's ring has opened
+  (`menu-transition` 0): wait for that before pressing X, or the press is lost (the battlefront
+  mod's result page, scenario 51, 2026-11-14).
 - GOAL traps that bite scenarios (a lambda captures no local variable, a handle kept in a global
   symbol loses its pid): search the [Lisp wiki](../goal-lisp/wiki/index.md) first.
 - Keep a unit or a class model as a handle across a wait and resolve it after each wait: a
