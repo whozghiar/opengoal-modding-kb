@@ -362,6 +362,12 @@ down counts from there, not from the top.
   Key the hiding on `*progress-process*` (the menu alive), not on `*master-mode*` `'progress`.
   Verified: jak3, the multiplayer mod's `menu-buttons` scenario (X jumped before, not after),
   2026-10-20.
+- **A page changed under a running world takes the press again.** With the world running under
+  the menu and pad 0 hidden from it and given back (above), the press that changed the page (X on
+  an entry that opens another page, Triangle that opened a page from the world) came back as a
+  new press on the new page a frame later: the next page confirmed or closed at once. Ignore X and
+  Triangle for 0.3 s after a page comes up. Verified: the battlefront mod's scenario 54 (Redeploy's
+  page confirmed at once, a death's page closed at once, both fixed by the wait), 2026-11-14.
 - **A model drawn over the menu** (a preview on a page) must carry `draw-control-status hud`
   (bit 14): while the still copy shows (menu mode, as at the title screen), the foreground only
   draws the draw-controls with that status. Turning the menu mode off instead brought back
@@ -1740,6 +1746,16 @@ Verified: jak3, `engine/ui/bigmap.gc`, `engine/gfx/blit-displays.gc`, `pc/progre
 mask, the picture drawn with it; the world map framed on each war zone, its spawns on the streets),
 2026-11-01.
 
+**`pc-upload-map-texture` belongs in a texture bucket.** Its upload is a PC-only VIF code; the
+renderer of a text or HUD bucket (`hud-draw-hud-alpha`) stops the game on it ("expected direct,
+got PC_PORT", `game/graphics/opengl_renderer/DirectRenderer.cpp`). Upload and draw in a `tex-*`
+bucket: `tex-hud-hud-alpha` (578, before the menus' text) or `tex-hud-pris2` (580, after it). Two
+pictures uploaded to the same place (tbp 8) in one frame each show right when each is drawn in
+its own bucket after its upload. A `with-dma-buffer-add-bucket` cannot sit inside another: draw
+such a picture after the page's own block closes. Verified: jak3, the battlefront mod's class
+page picture (the crash, then the map in 578 and the picture in 580, both right on screen),
+2026-11-14.
+
 **The minimap's own textures differ from that map.** The START menu's map lays the streets over a
 textured ground; the in-game minimap's textures have a flat dark gray ground (same streets, water
 and scale). Haven City's minimap is a grid of 5 x 7 cells of 384 m: column `(x + 768 m) / 384 m`,
@@ -2080,6 +2096,15 @@ in the stock gauges and its gun icon (a sprite 5 gauge hidden by the ring, a nes
 2026-11-01.
 
 ## 4.32 Stopping attacks on the player: the shield level
+
+**Fall damage is not an attack.** A landing after a fall of more than `fall-far` (30 m,
+`*TARGET-bank*`, `engine/target/target-util.gc`) goes to `target-hit-ground-hard`
+(`engine/target/target2.gc`), which takes health through
+`(pickup-collectable! (-> self fact) (pickup-type health) <negative amount> ...)`, one
+`health-single-inc` plus one more for every 20 m past 30 m (`fall-far-inc`); `target-attacked`
+never sees it. Wrap `pickup-collectable!` on `fact-info-target` to cancel it (return 0.0) or react
+to it (a negative health amount). Verified: jak3, `target2.gc`, `target-util.gc`; the battlefront
+mod's 40 m fall (8 segments to 7, its wrapper's cry played), 2026-11-14.
 
 The health ring lights `(the int health)` segments (`hud-classes.gc` `hud-health` `update-values!`):
 a hit that leaves less than 1 shows an empty ring with the player alive. To make an empty ring
