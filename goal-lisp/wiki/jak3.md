@@ -2661,6 +2661,27 @@ jump height, a surface (`#f`) and a velocity, copies the velocity and goes to `t
 
 Keep setting the across speed each frame while he flies, or his air control bends the path.
 
+**Jak's own jump: its height, and a held X.** A press goes to `target-jump` with
+`*TARGET-bank*` `jump-height-min` and `jump-height-max` (1.01 m and 3.5 m stock, read as the jump
+starts: a mod can set them). Its trans calls `mod-var-jump` with `(cpad-hold? ... x)`, whose height
+grows from the minimum to the maximum over the jump's first 0.1 s (`control unknown-float36` from 0
+to 1) and freezes at the first frame X is not held (-1). A mod that clears X in the air to forbid the
+second jump also cuts every jump to its minimum: clear X in the air only when it was up the frame
+before, `(-> pad button0-abs 0)` from inside `cpad-get-data` (service-cpads shifts the history only
+after it), so a held X passes and a new press does not. Verified: jak3, `engine/target/target.gc`
+(`target-jump`, `mod-var-jump`), `engine/ps2/pad.gc`; the battlefront mod's scenarios 62 and 64 (with
+3.5 m and 4.55 m: 3.89 m tapped, 4.52 m held on open ground; X cleared in the air, 1.39 m held with
+1.31 m), 2026-11-15.
+
+**A model drawn mirrored.** The stock draws half its enemies mirrored left to right (`enemy.gc`
+`setup-enemy!`): node 2's joint callback, `(-> pd node-list data 2 param0)`, set to
+`cspace<-parented-matrix-joint-flip-z!` (param1 and param2 `#f`) instead of
+`cspace<-parented-matrix-joint!` (param1 the process); a guard drawn so plays `jump-right` for its
+roll to the left (`guard-states.gc` `roll-right`). Switching the callback back and forth mirrors a
+model for a while. Verified: jak3, `engine/process-drawable/process-drawable.gc`
+(`setup-cspace-and-add`), `engine/anim/joint.gc`; the battlefront mod's left strafe (scenario 62:
+the callback set during it, restored after), 2026-11-15.
+
 Verified: jak3, `engine/camera/cam-states.gc` (`cam-pov`), `engine/game/settings.gc`
 (`pov-handle`, `pov-offset`), `levels/city/sniper/cty-sniper-turret.gc`,
 `engine/geometry/geometry.gc`, `engine/ps2/pad.gc`, `engine/target/target-handler.gc`; the
