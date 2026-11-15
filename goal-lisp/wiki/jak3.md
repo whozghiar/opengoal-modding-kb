@@ -84,6 +84,23 @@ Verified: jak3, `engine/target/gun/gun-blue-shot.gc` (`create-lightning-tracker-
 `active`), `engine/target/gun/gun-red-shot.gc`, `engine/target/gun/gun-dark-shot.gc`; arcs drawn
 on another machine in the multiplayer mod, 2026-10-15.
 
+**A straight rocket of your own.** `guard-shot` (`engine/common-obs/guard-projectile.gc`, in GAME)
+flies straight and collides as the guards' shots do; a type derived from it can wear any resident
+model and burst as a gun's shot. In `init-proj-settings!`, after `call-parent-method`: the dark
+gun 3's missile (`initialize-skeleton` with `skel-gun-dark-3-nuke`, gun-ag, always loaded, scale
+2.5), its trail as the part (`group-gun-dark3-missile-trail`), `max-speed`, `timeout` and the
+"red3-fire" sound. Empty `projectile-method-24` (the guard-shot's laser) and `play-impact-sound`;
+in `projectile-method-25` turn the model along `transv` (`forward-up->quaternion`), spawn the part
+and `ja-post`; in methods 26 (a hit) and 27 (the timeout) burst as the red gun 3's shot does: the
+"red3-blast" sound, a `group-gun-red3-shot-explode` part tracker at `*launch-matrix*`, a
+`red-3-sphere` (`red-3-sphere-init-params` pos), then your own `'attack` to what is near and
+`no-draw`. `projectile-method-40` returns its stack, 512 as the red gun 3's grenade. Fire it with
+`spawn-projectile`, the params filled as `spawn-guard-projectile` fills them.
+
+Verified: jak3, `engine/common-obs/guard-projectile.gc`, `engine/target/gun/gun-red-shot.gc`,
+`engine/target/gun/gun-dark-shot.gc`; the battlefront mod's jetpack rocket (12 m in 0.2 s level,
+its burst and sphere, a guard 3 m from it killed), 2026-11-15.
+
 **Which mods a player has.** A mod is offered (the D-pad's choice, the HUD, `target-gun.gc`
 picking the next gun type) when its `game-feature` bit is in both `(-> *game-info* features)` and
 `(-> *setting-control* user-current features)`. The twelve mods, pickup-type `gun-red-1` (26) to
@@ -2095,6 +2112,20 @@ is the shell; the stock draw resets its `scale-x`, not its `scale-y`), put them 
 Verified: jak3, `engine/ui/hud-classes.gc`; the battlefront mod's guards: the rifle "10/20" over 10
 shells, the grenades "3" over 5 shells, the tazer's icon alone (screenshots), 2026-11-06.
 
+**Your own picture in place of the gun icon.** In the `draw` wrapper, around the stock call, set
+`(-> this sprites 0 color w)` and `(-> this sprites 1 color w)` to 0 (1 is the gun's picture, 0 the
+glow at its right end; the stock draw resets their scales, not their alpha) and
+`(-> this sprites 15 scale-x)` to 0 (the reticle beside it), then put back 128 and 1.0. Draw your
+picture each frame, placed from `(-> this sprites 0 pos)`: the stock icon is about 128 units wide,
+its middle 52 units left of sprite 0 and 9 below it. A texture uploaded with
+`pc-upload-map-texture` and drawn there during a fight never showed, in `tex-hud-hud-alpha` or
+`tex-hud-pris2`, with or without an empty texture animation after it to flush the draw, while a
+map uploaded the same way in `tex-hud-hud-alpha` showed: the cause was not found. Flat sprites in
+`debug-no-zbuf2` show (§4.45).
+
+Verified: jak3, `engine/ui/hud-classes.gc`; the battlefront mod's jetpack rocket icon
+(screenshots of the texture, missing, then of the sprites), 2026-11-15.
+
 **One DMA bucket at a time.** A `with-dma-buffer-add-bucket` opened inside another one's body, on
 the same frame buffer, froze the game: draw sprites and text in separate blocks, one after the
 other.
@@ -2246,6 +2277,18 @@ segments keep working.
 Verified: jak3, `engine/process-drawable/process-drawable.gc` (`setup-masks`),
 `goalc/build_actor/jak3/build_actor.cpp`; the battlefront mod's runs, the guards' `seg-mask` read
 in game, 2026-11-06.
+
+**One model per weapon, from the rip's primitives.** A build-actor copy of a stock unit then needs
+a model for each variant, made of the rip's primitives that variant shows. The rip keeps no segment
+numbers, and a primitive's texture does not tell: both of the Jak 3 guard's weapons use
+`cguardgame-gunhandle`, `-gunmetaldark2` and `-metallight-*`. Capture the stock unit with each mask
+next to your model and compare. The Jak 3 guard (`ctypesa/crimson-guard-lod0.glb`): primitives
+10-17 are the rifle (mask 8: the barrel, the leather wrap behind it, the blade under it), 4-9 the
+grenade launcher, also shown for the tazer (mask 16: the wide rear, the strapped shaft, the fork).
+Primitives 4-12 and 13-17 look like the two weapons, but 10 to 12 belong to the rifle.
+
+Verified: jak3, `levels/city/traffic/citizen/guard.gc` (`crimson-guard-method-267`); the
+battlefront mod's captures of a stock blue guard and its red guard with each weapon, 2026-11-15.
 
 **A death without the merc dissolve.** A build-actor model cannot take the `death-default` effect
 (the merc dissolve crashed in `mercneric_convert`, above). Its look: the dissolve launches part 53
@@ -2986,6 +3029,15 @@ Discs are fans of eight; scale x radii by `(-> *video-params* relative-x-scale)`
 on a wide screen. The battlefront mod draws its maps' units as the minimap marks a guard with them
 (a disc and a 60 degree view cone), 80 units and the points every frame at 60 frames a second.
 Verified: jak3, `engine/gfx/hw/display.gc`; the battlefront mod's round 20 runs, 2026-11-09.
+
+Many rectangles fit in one packet: a GIF tag with `nloop` n and four registers (`prim`, `rgbaq`, two
+`xyzf2`), each rectangle `(new 'static 'gs-prim :prim (gs-prim-type sprite) :abe #x1)`, its color,
+its top left and its bottom right corners, two quadwords; the DMA tag's `qwc` and the VIF
+`direct`'s `imm` are 1 + 2n. A pixel-art picture drawn this way needs no texture: cut each row into
+runs of one color and draw a rectangle per run. The battlefront mod's rocket icon, 113 x 38 art
+pixels in 4 colors, is 249 runs, drawn every frame (`scripts/battlefront/make_rocket_icon.py`
+makes the runs from a picture). Verified: jak3, the battlefront mod's gun HUD (screenshot),
+2026-11-15.
 
 ## 4.46 Another player's gun sounds: one mode sound bank
 
