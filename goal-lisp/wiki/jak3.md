@@ -235,6 +235,32 @@ later level unload crashes in `unlink-shaders-in-heap`. 12.0 keeps every bank be
 Verified: jak3, `engine/gfx/texture/texture-h.gc`, `engine/level/level.gc`; shader lists walked
 in game (44 broken links at 15.0, 0 at 12.0), 2026-10-14.
 
+**The global DMA buffer overflows with a crowd in view.** Each frame's `global-buf` holds
+`DMA_BUFFER_GLOBAL_SIZE`, 1280 KB in Jak 3 (`engine/gfx/hw/display.gc`; Jak 2's PC port
+multiplies it by `PROCESS_HEAP_MULT`, Jak 3's keeps that line commented out). `foreground-draw`
+writes each drawn actor's bone calculation and matrices, merc chain and shadow packets into it
+without checking its end; the engine's `dma-buffer-overflow` flag is only set by the buckets'
+init at the frame's end, too late. Each drawn guard-sized actor takes about 6.5 KB: 200 of them in
+one view filled 1304 KB, and the overflow wrote over the memory past the buffer. The crashes
+vary: an access violation in the mips2c `shadow-add-facing-single-tris` (a wild table pointer),
+`foreground-engine-execute` reading a connection's data at address 0, an integer divide by zero.
+Measure a frame's use from a process, where the previous frame's buffer still holds its end:
+
+```lisp
+(dotimes (f 2)
+  (let ((buf (-> *display* frames f global-buf)))
+    (format 0 "~D KB~%" (/ (&- (-> buf base) (the-as uint (-> buf data))) 1024))))
+```
+
+The fix is a larger constant, but the buffers come from the global heap before the level heap,
+which must end below 256 MB (above): 2560 KB moved the level heap's end from about `#xf400000`
+to `#xf6eec00`; four times (5120 KB) would move it 5 MB further, to about `#xfbeec00`.
+
+Verified: jak3, `engine/gfx/foreground/foreground.gc` (`foreground-draw`, `foreground-shadow`),
+`engine/draw/drawable.gc` (`default-init-buffer`); the Battlefront mod at 100 units a side crashed
+at 2 of 3 class changes with 1280 KB and passed twice with 2560 KB, peaks 1304 and 1326 KB,
+2026-11-15.
+
 Process heaps move. `*default-dead-pool*` is `*nk-dead-pool*`, a `dead-pool-heap`, compacted
 every frame (`compact`, `shrink-heap`); a spawn with a large `:stack-size` (the arc wielder's
 `#x29400`) forces a large compaction. Compaction calls `(relocate proc offset)` on the old memory,
