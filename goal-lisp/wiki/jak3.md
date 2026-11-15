@@ -2374,6 +2374,14 @@ lod index changes, so with one lod the old mesh stays drawn:
 
 Both art groups must be in the process's level (`'test` only looks; it loads nothing).
 
+The clips a process plays come from its draw's `art-group` (`(ja :group! (-> self draw art-group
+data i))`), not from its lods: a process that plays another art group's clips on this mesh (a
+build-actor model playing the stock guard's, `crimson-guard-ag`, its own made at 15 frames a second
+and too fast) keeps that art group and sets only the lods and `mgeo` from the new one. Setting
+`draw art-group` to the build-actor model's played every clip too fast after the switch. Verified:
+jak3, the battlefront mod's red guard (scenario 65: the art group `crimson-guard` kept after two
+weapon changes), 2026-11-15.
+
 **A particle takes the clock of the process that launches it.** The time-of-day process launches
 the weather's rain and snow on `bg-clock` (`*display*` clock 9): a mod that stops that clock to hold
 the hour freezes the drops in the air. Give them `part-clock` (8) back, or launch from a process on
@@ -2673,6 +2681,14 @@ after it), so a held X passes and a new press does not. Verified: jak3, `engine/
 3.5 m and 4.55 m: 3.89 m tapped, 4.52 m held on open ground; X cleared in the air, 1.39 m held with
 1.31 m), 2026-11-15.
 
+**The HUD shown while L3 is held.** In a retail boot the HUD parts show while L3 is held (`hud.gc`
+`update-values!`: `(cpad-hold? 0 l3)` among its show conditions; a debug boot reads L3's release):
+a mod that gives L3 a held use gets the orb and skull gem counters too. Send `'disable` to
+`(process-by-name "hud-skullgem" *target*)` and `"hud-skill"` (`hud-classes.gc`) every frame of
+that use, `'enable` after: a death's reset spawns them again. Verified: jak3, `engine/ui/hud.gc`,
+`hud-classes.gc`; the battlefront mod's zoom on L3 (scenario 65: the counters in its first run's
+shot, gone in the second), 2026-11-15.
+
 **A model drawn mirrored.** The stock draws half its enemies mirrored left to right (`enemy.gc`
 `setup-enemy!`): node 2's joint callback, `(-> pd node-list data 2 param0)`, set to
 `cspace<-parented-matrix-joint-flip-z!` (param1 and param2 `#f`) instead of
@@ -2932,7 +2948,9 @@ ship at Freedom HQ, then 16 stuck units a run released and no crash in 3 runs wi
   guards at 18 m/s ran their legs at the player-guard pace, 0.38 frames a frame). Raising
   `speed-run` alone played the clips that much faster; the nav control's `speed-scale` left the
   spiders at their stock 8 m/s and the guards at 16 instead of 18. A unit's init sets its stock
-  values each time it is woken: set them again on a timer.
+  values each time it is woken: set them again on a timer. Raise the speeds alone, the clip grounds
+  left stock, for legs that step at the speed: with both raised the legs slid over the ground (the
+  battlefront mod's author, round 35; a guard at 22.8 m/s over its stock 8.32 m since).
 - **Each process has its own clock.** `current-time` reads the calling process's clock: the START
   menu's code runs on the menu's, which is not the game's. A time taken on one and tested on the
   other never passes; for a time several processes compare, read `(-> *display* game-clock
