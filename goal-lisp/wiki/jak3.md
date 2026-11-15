@@ -97,9 +97,49 @@ and `ja-post`; in methods 26 (a hit) and 27 (the timeout) burst as the red gun 3
 `no-draw`. `projectile-method-40` returns its stack, 512 as the red gun 3's grenade. Fire it with
 `spawn-projectile`, the params filled as `spawn-guard-projectile` fills them.
 
+Another model on the same flight: derive a type from the rocket and give it its own
+`init-proj-settings!` that calls `guard-shot`'s (`(method-of-type guard-shot init-proj-settings!)`),
+not the rocket's, which would set up a second skeleton. The red gun 3's grenade
+(`skel-gun-red-3-grenade`, scale 2.5, its glow `group-gun-red3-shot-glow`) flies straight that way;
+its own `gun-red-3-grenade` bounces and falls.
+
 Verified: jak3, `engine/common-obs/guard-projectile.gc`, `engine/target/gun/gun-red-shot.gc`,
 `engine/target/gun/gun-dark-shot.gc`; the battlefront mod's jetpack rocket (12 m in 0.2 s level,
-its burst and sphere, a guard 3 m from it killed), 2026-11-15.
+its burst and sphere, a guard 3 m from it killed), 2026-11-15; its robotguard grenade (12 m in 0.2 s,
+0.45 m rise, its burst, a guard killed), 2026-11-15.
+
+**The dark gun's effects without the gun.** Every piece is in GAME (`gun-part.gc`,
+`gun-dark-shot.gc`, `target-part.gc`, gun-ag) and works from any process:
+
+| Effect | Calls |
+|---|---|
+| Peace Maker (dark 1) hit | a `group-jak-peacemaker-shot-hit` part tracker at `*launch-matrix*` |
+| Its bolt from one unit to another | `process-drawable-shock-effect-bullseye` with source and target (both `process-focusable`: `get-trans` 3 on each), `(-> *lightning-spec-id-table* 16)`, `lightning-probe-callback` and parts 665, 255 and 257 of `*part-id-table*`, every 0.05 s |
+| Its arcs from a unit to the walls near it | `process-drawable-shock-effect-replace` with the unit (a skeleton), spec 15, `lightning-probe-callback`, 0, 0 and a reach |
+| Super Nova (dark 3) dome | `(process-spawn gun-dark-3-sphere params ...)` with a `gun-dark-3-sphere-init-params`, then `'set-pos-and-size` each frame (size-x 8 to 12 m, size-y 4 to 5 m, its scale 1.7 times that) |
+| Its shock rings, smoke and debris | `group-gun-dark3-ring` |
+| Its scorch mark on a unit | `group-gun3-dark-scorched-earth` at the unit's `get-trans` 1, 409.6 up |
+| Its attack | penetrate `explode jak-dark-nuke` (a unit dies as under the Super Nova), damage 32 stock |
+| Its shake | `(activate! *camera-smush-control* 1228.8 45 1275 1.0 0.9 (-> *display* camera-clock))` |
+
+The Peace Maker's chain sends one process per enemy under that enemy (`process-spawn-function`,
+`:to` it), which draws the bolt while it lives: the same works with your own attack in it. Leave out
+the nuke's `do-white-screen-effect`, `do-blur-effect`, the music cut and the `nuke-active?` setting.
+Near the camera, `group-gun-dark3-small` (the wall blast) and `group-gun-dark3-stalk` wash the
+screen out in yellow and white (glows 17 to 30 m wide), and so does the dome once the camera is
+inside it.
+
+A process made with `process-spawn-function` keeps 256 bytes of its main thread's stack across a
+`suspend`, whatever its `:stack-size`: a lambda whose frame holds more (an actor list of 64, a few
+stack vectors) stops the game with "suspend called without enough stack". Its first form,
+before anything is allocated in it: `(stack-size-set! (-> self main-thread) 1024)`, as
+`game-save.gc` does with 512.
+
+Verified: jak3, `engine/target/gun/gun-dark-shot.gc` (`gun-dark-shot` impact, `gun-dark-3-nuke`
+impact, impact-small, send-attack!), `engine/target/gun/gun-part.gc`; the battlefront mod's spider:
+a headbutt chained to 3 guards with the bolts, its blast with the rings and a 0.3 dome killing 13
+guards (screenshots: the small blast and a half dome 5 m up washed the screen out, the rings did
+not), 2026-11-15.
 
 **Which mods a player has.** A mod is offered (the D-pad's choice, the HUD, `target-gun.gc`
 picking the next gun type) when its `game-feature` bit is in both `(-> *game-info* features)` and
@@ -798,13 +838,18 @@ player's game before the wrapper, passes after it (both players set one off, no 
 **A shock: the blue gun's knock.** An attack whose `penetrate-using` has `jak-blue-shot` gives the
 unit `knocked-type blue-shot` (`enemy.gc` `penetrate->knocked-type`): it is thrown and twitches
 (a Jak 3 guard plays its `blue-hit` clips, 10 to 12 of `crimson-guard-ag`). An attack that would
-kill keeps the unit at 1 point for a second (`apply-incoming-hitpoint-mods`, its `fated-time`):
-strike it again after a second to kill it. The knock draws no arc: a `lightning-control` (spec 20 of
+kill keeps the unit at 1 point for a second (`apply-incoming-hitpoint-mods`, its `fated-time`),
+and the knocked state then kills it by itself (`enemy-states.gc`: a nonzero `fated-time` sets its
+hit points to 0), with no hit: a damage step that counts kills when hit points reach 0 misses
+these. Count the kill on the hit that sets `fated-time` (zero before the hit, nonzero after), once. The knock draws no arc: a `lightning-control` (spec 20 of
 `*lightning-spec-id-table*`, the guards' tazer's) between two points drawn again each frame around
 the unit's body makes one.
 
-Verified: jak3, `engine/ai/enemy.gc`, `engine/game/penetrate-h.gc`; the battlefront mod's tazer
-and spider headbutt (a guard knocked by blue-shot, dead 2 s after the second strike), 2026-11-11.
+Verified: jak3, `engine/ai/enemy.gc`, `engine/game/penetrate-h.gc`,
+`engine/common-obs/enemy-states.gc`; the battlefront mod's tazer and spider headbutt (a guard knocked
+by blue-shot, dead 2 s after the second strike), 2026-11-11; the spider's chain, 3 guards dead at 1
+point then 0 before the second strike, none counted, then 3 of 3 counted on the fating hit,
+2026-11-15.
 
 ## 4.12 Drawing another process's model elsewhere
 
