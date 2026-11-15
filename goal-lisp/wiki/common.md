@@ -970,6 +970,25 @@ Verified: jak3, `engine/ps2/pad.gc` (`cpad-clear!`, `recently-pressed?`), `engin
 of 6 (0.93 m on the ground, 3.5 m/s in the air), seen in `target-jump` at the 4th frame of his
 fall; never in the next 9 runs, his upward velocity zeroed, 2026-11-12.
 
+### 1.4.27 Integer `/` and `mod` are 32-bit
+
+goalc compiles an integer `mod` to `IMOD_32` (`UMOD_32` unsigned) and `/` to `IDIV_32`
+(`goalc/compiler/compilation/Math.cpp` `compile_mod`, `goalc/compiler/IR.cpp`): only the low 32 bits
+of the dividend count, so an `int` past 2^31 (a key built two bits a point, a hash, a large
+counter) gives a wrong remainder, negative for a signed one, and a loop counted from it runs no
+time. Keep such values under 2^31, for example by taking the `mod` at each step:
+
+```lisp
+;; wrong: past 16 digits the key passes 2^32 and (mod key n) goes wrong
+(set! key (+ (* key 4) digit))
+;; right
+(set! key (mod (+ (* key 4) digit) 65521))
+```
+
+Verified: jak3, `goalc/compiler/compilation/Math.cpp`; the Battlefront mod's goal draw over Jak 2's
+17 points (a key two bits a point): each side's units on one or two points, then on 12 or 13
+once the key was kept under 65521, 2026-11-15.
+
 ### 1.4.19 A state keeps the event handler it was defined with
 
 `defstate` evaluates `:event`, `:enter`, `:trans`... once, when the state is defined: a state holds
