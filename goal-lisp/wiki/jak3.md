@@ -324,6 +324,16 @@ down counts from there, not from the top.
   cutscenes (`levels/intro/intro-scenes.gc`) play, about 4.5 minutes, before the title menu. They
   carry `scf1`: triangle skips each one, and their `end-point` `title-restart` brings the title
   menu back. A test that waits for the title menu presses triangle while a skippable scene plays.
+- **Back to the title menu from the game.** `(initialize! *game-info* 'game (the-as game-save #f)
+  "title-restart" (the-as resetter-spec #f))`, after `(set! (-> *game-info* mode) 'play)`, as the
+  stock demo's return to the title (`progress.gc`), reloads the title level without the intro, but
+  stops on its Press START screen: `title-control` waits in state `wait` (`title-menu` reads
+  `cpad-pressed? 0 start`), then its state `idle` opens the menu (`title-progress 'title`). To land
+  on the menu, press START for the player from the pad read while that process
+  (`(process-by-name "title-control" *entity-pool*)`) is in `wait`, every other frame so each
+  frame's press has its edge, and stop once it is in `idle`. Verified: jak3,
+  `levels/title/title-obs.gc`; the battlefront mod's scenario 61 (Press START without the press,
+  its title menu with it), 2026-11-15.
 - **Going to a page from your own option:** `(push-state progress)` then
   `(set-next-state progress 'my-page 0)`, as a `menu-sub-menu-option` does with its `next-state`.
   Triangle goes back a page (`pop-state`) after the option's `respond-progress` returned.
@@ -3002,6 +3012,16 @@ holds `guard-hit`, `spydroid-hit` or `guard-die`: the guards' cries are speech
 (`speech-control-method-13 *speech-control* proc (speech-type guard-hit) n`, `guard.gc`), which
 any process-drawable can ask for, Jak included.
 
+Every speech request (`speech-control-method-13` included) goes through
+`speech-control-method-12` `(speech-control process-drawable speech-type)`
+(`engine/sound/speech.gc`): wrap it (4.10) to drop or change a speaker's lines, for example by the
+requesting process's look. The guards' types are 1 to 18 (`engine/sound/speech-h.gc`: 9 and 10 are
+`guard-hit` and `guard-hit-b`, their cries). Jak 2's Krimzon Guard lines are `kg###` streams in
+Jak 2's `VAG/VAGWAD.*` (its `levels/city/ctywide-speech.gc`; the subtitles in
+`game/assets/jak2/subtitle` give their text: its speech types 9 and 10 are the battle taunts), not in
+any `.SBK`; Jak 3 reads its own `VAGDIR.AYB` only (`game/overlord/jak3/iso.cpp`, at most 4096
+entries). Both games' `.SBK` banks are SBlk version 3, the format `build_sbk` appends to.
+
 Jak's own sounds as a generic hit lands are effects of his clips, `breath-out-loud` and
 `breath-in-loud`, through `effect-control` `do-effect`, not `oof` nor `hit-up`; his jumps play
 `jump` and `jump-double` (`target.gc`, `sound-play`). A wrapper of `do-effect` skips the first for
@@ -3014,7 +3034,10 @@ A bike's engine is the `vehicle-engine` spec with `reg 0` 1 (the bike's `engine-
 
 Verified: jak3, the SBK files (searched for the names), `levels/city/traffic/citizen/guard.gc`,
 `engine/sound/speech.gc`, `engine/target/target.gc`, `levels/city/traffic/vehicle/bike.gc`; the
-battlefront mod's log of Jak's sounds and effects as he takes a hit and jumps, 2026-11-14.
+battlefront mod's log of Jak's sounds and effects as he takes a hit and jumps, 2026-11-14. The speech
+request path, the guards' types and the banks' versions: jak3 `engine/sound/speech.gc`,
+`speech-h.gc`, jak2 `levels/city/ctywide-speech.gc`, the SBK headers and `VAGDIR.AYB` of both discs
+read, the battlefront mod's wrapper compiled (its effect not heard), 2026-11-15.
 
 ## 4.50 Units fighting units: NaN places that spread
 
