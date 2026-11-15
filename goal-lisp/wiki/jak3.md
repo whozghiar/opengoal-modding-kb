@@ -1197,6 +1197,12 @@ objects"). Each step meets a trap of the engine:
   not the loading level. `load-begin` gets a hook before its bank search (`memory-mask` 0).
 - **Size.** Count the borrow heaps the level carves from its own top at login:
   `BORROW_MULT` times each `borrow-size` (KB). For `ctywide` that is 34 MB on top of its pages.
+- **Another host.** A `borrow-city-small` level (ctypesa, ctypesc...) borrows only from the level
+  its level-load-info names as `master-level` (`ctywide`). A custom level hosts them when its
+  level-load-info has borrow sizes and their `master-level` is set to it before they load
+  (`(set! (-> (lookup-level-info 'ctypesa) master-level) 'my-city)`), and back to `ctywide` for the
+  game's own city afterwards. Verified: jak3, `engine/level/level.gc` level-find-borrow-slot; the
+  battlefront mod's Jak 2 city level hosting ctypesa and ctypesc in a battle, 2026-11-15.
 - **Unloading.** Registered in a borrow slot of the host that none of the host's own borrow levels
   can claim (`level-find-borrow-slot` gives slots 0 to 2 to `borrow-city-small` levels and slot i
   to the levels its borrow info names at i, so 3 or 4 when unused), the level is unloaded by the
@@ -1945,8 +1951,14 @@ Verified: jak3, `engine/gfx/font.gc`, `pc/pckernel-impl.gc`; the battlefront mod
   (`levels/wascity/cty-attack-controller.gc`) calls `(init! *cty-attack-controller* 64 17 22)`:
   every unit, the player and the city's own take one. Past 64, `allocate-attacker` prints "Unable
   to allocate new attacker for mission squad!", the units without one corrupt memory (invalid type
-  pointers), and the game fell to 4 frames a second with 80 units. 128 ran at 60.
-Verified: jak3, `levels/city/traffic/traffic-engine.gc`, `traffic-manager.gc`, `levels/wascity/cty-attack-controller.gc`, `mission-squad-control.gc`; the battlefront mod's round 20 runs, 2026-11-09.
+  pointers), and the game fell to 4 frames a second with 80 units. 128 ran at 60; 192 for 126
+  units.
+- **126 walkers awake at most.** `reset-and-init-from-manager` puts traffic types 0 to 16 (citizens,
+  guards, Metal Heads, robotguards, spiders, flying turrets) on tracker 1 and the vehicles (17 to 28)
+  on tracker 0, and a tracker lists 126 awake objects (`active-object-list`, traffic-engine-h.gc):
+  126 walkers in all, whatever the caps. Moving types 14 to 16 to tracker 0 (unused when no car
+  drives) left them asleep: one of each awoke in three minutes.
+Verified: jak3, `levels/city/traffic/traffic-engine.gc`, `traffic-manager.gc`, `levels/wascity/cty-attack-controller.gc`, `mission-squad-control.gc`; the battlefront mod's round 20 runs, 2026-11-09; its round 40 runs (63 a side held three minutes, the tracker move tried and reverted), 2026-11-15.
 - **Rebuilding the pools: respawn the player like a death.** A death in the game calls
   `initialize!` with `'life` (`target-death-reset`, `engine/target/target-death.gc`), whose
   `reset-actors` (`engine/entity/entity.gc`) kills every entity actor and every process of

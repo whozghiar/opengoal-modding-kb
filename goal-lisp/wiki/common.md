@@ -526,6 +526,29 @@ a `.gd` list. Whether `game.gp` needs a line too depends on the game:
 
 In the `.gd` list itself, a Mods-menu file goes after `"mods-menu.o"`.
 
+**GAME code generated on the player's machine, optional.** A `.gd` list can't name an object that
+may not exist (a file `scripts/level_port` writes only when the player has another game). List a
+committed file instead, whose macro takes the generated file's forms at compile time when it exists.
+`read-data-file` returns a file's top-level forms (`cgo-file` reads `.gd` files with it), and the GOOS
+`file-exists?` (a path from the project root) exists in the repositories that copied the level port's
+tooling from Haven City: New Dawn (Battlefront, Haven City: New Dawn), not on master-dev:
+
+```lisp
+;; goal_src/jak3/pc/features/my-mod-info.gc, listed in game.gd
+(defmacro my-include-generated (file)
+  (if (file-exists? file)
+      `(begin ,@(cdr (read-data-file file)) (define *my-built* #t)) ;; cdr: its (in-package goal)
+      `(define *my-built* #f)
+      )
+  )
+(my-include-generated "goal_src/jak3/levels/my-level/my-level-levels.gc")
+```
+
+The build doesn't see the generated file as an input: after it first appears, compile the
+committed file again. A GOOS `if` in `game.gp` needs its else (`(if (file-exists? ...) (load-file
+...) #f)`). Verified: jak3, the battlefront mod's Jak 2 war zone compiling with and without its
+generated level-load-info (1179 and 1175 targets), 2026-11-15.
+
 **A `build-actor` art group in a vanilla level `.gd` must be pre-marked.**
 `cgo-file` gives every `.go` of a `.gd` that is not in `*file-entry-map*` a
 copy step from the decompiler output (`$DECOMP/raw_obj/<name>.go`); with the
