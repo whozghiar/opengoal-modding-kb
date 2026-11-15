@@ -302,6 +302,15 @@ that custom levels are still an early feature — for now, all meshes are
 treated as ground collision, so walls without a dedicated "wall" material
 produce buggy collision.
 
+Collision faces collide from one side only: `goalc/build_level/common/gltf_mesh_extract.cpp`
+doubles a face (both windings) only for a mesh node whose glTF extras say `"double_sided": 1`, or
+for every face when the level's `.jsonc` sets `double_sided_collide`. An invisible collision box
+written without it (a node with `set_invisible`, `set_collision`) let Jak walk through it from
+outside: two closed doors of four in a test, and a line-sphere probe hit each box from one side
+only; with `"double_sided": 1` on the box nodes, all four doors held Jak at their faces. Verified:
+jak3 custom level (the battlefront mod's bf-havenj2, its `scripts/level_port` mesh step),
+2026-11-15.
+
 ---
 
 ## 10. Cross-game object & sound bridge (lightweight imports)

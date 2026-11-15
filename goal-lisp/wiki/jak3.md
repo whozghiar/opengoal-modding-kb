@@ -1791,6 +1791,14 @@ An icon is a connection: `(add-icon! *minimap* proc class-index #f (the-as vecto
   of a `font-context`: a hook there that keeps the place lets a letter be drawn over the mark the next
   frame, in a later bucket (`debug-no-zbuf2`). A `middle` font text at scale 0.6 stood 2 units left
   of the center. `color` multiplies the icon texture (128 = 1): 255 brightens it twice.
+- **A city level of a mod shows no HUD minimap.** Out of the `*minimap-table-entry-array*` levels,
+  `minimap` `update!` returns #t (the HUD's `hud-map` shows) only when `(level-get *level*
+  'ctywide)` is active: a custom city level with every `city-map-bits` cell and the map textures in
+  its minimap page (level texture-page 8, found by name by `lookup-minimap-texture-by-name`) still
+  shows nothing until that line also takes the mod's level, `(or (level-get *level* 'ctywide)
+  (level-get *level* 'my-city))`. Verified: jak3, `engine/ui/minimap.gc` update!; the battlefront
+  mod's Jak 2 city level (bf-havenj2), no minimap before the line and Jak 2's map after, 2026-11-15
+  (Haven City: New Dawn's havenj2 has the same line).
 - **Hiding the HUD minimap.** `(set-setting! 'minimap 'clear 0.0 (minimap-flag minimap))` hides it,
   as the stock bombbot and blow-tower missions do; `(remove-setting! 'minimap)` from the same process
   brings it back: call it when your own full-screen map closes and when the mode ends.
@@ -1953,12 +1961,19 @@ Verified: jak3, `engine/gfx/font.gc`, `pc/pckernel-impl.gc`; the battlefront mod
   to allocate new attacker for mission squad!", the units without one corrupt memory (invalid type
   pointers), and the game fell to 4 frames a second with 80 units. 128 ran at 60; 192 for 126
   units.
-- **126 walkers awake at most.** `reset-and-init-from-manager` puts traffic types 0 to 16 (citizens,
-  guards, Metal Heads, robotguards, spiders, flying turrets) on tracker 1 and the vehicles (17 to 28)
-  on tracker 0, and a tracker lists 126 awake objects (`active-object-list`, traffic-engine-h.gc):
-  126 walkers in all, whatever the caps. Moving types 14 to 16 to tracker 0 (unused when no car
-  drives) left them asleep: one of each awoke in three minutes.
-Verified: jak3, `levels/city/traffic/traffic-engine.gc`, `traffic-manager.gc`, `levels/wascity/cty-attack-controller.gc`, `mission-squad-control.gc`; the battlefront mod's round 20 runs, 2026-11-09; its round 40 runs (63 a side held three minutes, the tracker move tried and reverted), 2026-11-15.
+- **126 walkers awake, unless the tracker grows.** `reset-and-init-from-manager` puts traffic
+  types 0 to 16 (citizens, guards, Metal Heads, robotguards, spiders, flying turrets) on tracker 1
+  and the vehicles (17 to 28) on tracker 0, and a stock tracker lists 126 awake objects
+  (`active-object-list`, `active-object-type-list`, traffic-engine-h.gc; `add-active-process`
+  refuses past 126). Moving types 14 to 16 to tracker 0 (unused when no car drives) left them
+  asleep: one of each awoke in three minutes. The lists grow: declare them 224 long (a tracker is
+  16 bytes and 9 an entry, a handle and a traffic-type, rounded to 16: 2032 instead of 1152), move
+  the `traffic-engine` fields after its two inline trackers by the 1760 bytes they grew
+  (`inactive-object-array` :offset 7456 to 9216, `danger-sphere-count` 12656 to 14416,
+  `allow-spawning?` 12928 to 14688; the count fields are uint8, so stay under 256), and raise
+  `add-active-process`'s limit; the pools' `add-reserved-process` limits and the attack controller (256) with them. 100
+  units a side (200 walkers) then ran three minutes at 60 frames a second.
+Verified: jak3, `levels/city/traffic/traffic-engine.gc`, `traffic-engine-h.gc`, `traffic-manager.gc`, `levels/wascity/cty-attack-controller.gc`, `mission-squad-control.gc`; the battlefront mod's round 20 runs, 2026-11-09; its round 40 runs (63 a side held three minutes, the tracker move tried and reverted), 2026-11-15; its round 41 run (the 224 lists, 100 a side, time-adjust-ratio 1.0), 2026-11-15.
 - **Rebuilding the pools: respawn the player like a death.** A death in the game calls
   `initialize!` with `'life` (`target-death-reset`, `engine/target/target-death.gc`), whose
   `reset-actors` (`engine/entity/entity.gc`) kills every entity actor and every process of
