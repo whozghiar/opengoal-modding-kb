@@ -119,10 +119,12 @@ refill it: from a process, `(birth-pickup-at-point pos (pickup-type ammo-red) 1.
 (the-as fact-info #f))` spawns one `ammo-collectable`, worth 10 (5 for red, 1 for dark), and
 `(pickup-type health)` with 1.0 one health pickup worth 1. `verify-pickup-type` turns red, blue
 and dark into yellow when the player lacks that gun. A mod's own weapons can spend these counters
-and get the pickups for free. To keep a red or blue pickup whatever guns the save has, wrap the
+and get the pickups for free. To keep a red, blue or dark pickup whatever guns the save has, wrap the
 function in GAME: keep the stock one with `(define-perm *stock-verify* (function pickup-type
 pickup-type) verify-pickup-type)`, then `defun verify-pickup-type` again, returning its argument
-unchanged for those types while the mod runs and calling the stock one otherwise.
+unchanged for those types while the mod runs and calling the stock one otherwise. A counter the
+mod empties (at its start, then each frame once read) makes its pickup the mod's own item: any
+ammo seen there was just picked up, and the mod gives its own reward instead.
 
 **Pickups that vanish.** A collectable fades (1 s, its `fade` state) once `fadeout-timeout` has
 passed since its birth, but only while Jak is over 50 m away, unless it carries
@@ -138,7 +140,9 @@ Verified: jak3, `engine/game/game-info.gc`, `engine/common-obs/collectables.gc`
 states); the battlefront mod's in-game runs (up to 12 pickups left by dead units, counters spent by
 its class weapons, 2026-10-31; a blue ammo pickup born blue under the wrapper on a save without the
 blue gun, 2026-11-11; an ammo pickup 15 m from Jak there at 9 s and gone at 12.5 s with
-the fact and the timeout set, still there at 11 s with the fact alone, 2026-11-09).
+the fact and the timeout set, still there at 11 s with the fact alone, 2026-11-09; a dark ammo
+pickup born dark under the wrapper, taken as 5 jetpack rockets, Jak's dark ammo back to 0,
+2026-11-15).
 
 **Free aim through the camera.** The ray behind a fixed crosshair at screen point (x, y) of the
 512 x 416 screen: project the spot 1 m ahead of the camera and the spots 1 m to its right and
