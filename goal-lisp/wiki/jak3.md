@@ -316,6 +316,17 @@ Verified: jak3, `engine/anim/joint.gc`, `engine/process-drawable/process-drawabl
 
 ## 4.7 Start menu: adding a page
 
+**Opening it yourself.** `activate-progress` (progress.gc) opens nothing when `progress-allowed?`
+says no: a point-of-view camera (`*game-info*` `pov-camera-handle`, the sniper turret's `cam-pov`
+a mod drives), letterbox, blackout, a movie, the `allow-progress` setting (off 0.1 s after every
+menu closes, `deactivate`). A mod that must open it then spawns it as `activate-progress` does:
+`(process-spawn progress 'main :name "progress" :to *dproc* :stack (&-> *progress-stack*
+DPROCESS_STACK_SIZE))` into `*progress-process*`, then `(set-master-mode 'progress)`; a still
+copy for its background comes with it (`set-menu-mode`). Through `set-master-mode 'progress`
+alone, the refused menu left the game in 'game with nothing up. Verified: jak3,
+`engine/ui/progress/progress.gc`, `engine/game/main.gc`; the battlefront mod's scenario 122 (the
+game's menu behind its pause page's Options: refused, then opened), 2026-11-17.
+
 The ring's Load Game and Save Game are `menu-main-menu-option`s named `progress-load-save` and
 `progress-save-game` (`*main-options*`). A `define-perm` wrapper of their `respond-progress` that
 takes `confirm` first, while the ring stands still (`(= (-> progress ring-angle) (-> progress
@@ -449,7 +460,9 @@ down counts from there, not from the top.
   menu also pauses every sound (`set-master-mode 'progress`): `(sound-group-continue (the-as
   sound-group #xffffffff))` once it is open lets them go on. It shows a still copy of the screen
   (`blit-displays-work` `set-menu-mode`, `engine/gfx/blit-displays-h.gc`): wrap that method and pass
-  `#f` to show the live game. The world still reads pad 0 meanwhile; hide it with a process that
+  `#f` to show the live game. The ring's middle then still shows the last copy taken, after a
+  boot through the title the title's sea and sky (the battlefront mod's round 44: its author took
+  it for a broken background); keep the still copy for a menu that pauses. The world still reads pad 0 meanwhile; hide it with a process that
   runs before everything (4.20): copy `(-> *cpad-list* cpads 0)` aside, `cpad-invalid!` it, and
   copy it back from the per-frame hook, which runs before the menu reads it. Empty the PC port's
   high-fps button history too, `(-> *cpad-history-list* cpads 0)` (`button0-abs` and
@@ -1996,10 +2009,42 @@ Verified: jak3, `engine/gfx/font.gc`, `pc/pckernel-impl.gc`; the battlefront mod
   16 bytes and 9 an entry, a handle and a traffic-type, rounded to 16: 2032 instead of 1152), move
   the `traffic-engine` fields after its two inline trackers by the 1760 bytes they grew
   (`inactive-object-array` :offset 7456 to 9216, `danger-sphere-count` 12656 to 14416,
-  `allow-spawning?` 12928 to 14688; the count fields are uint8, so stay under 256), and raise
+  `allow-spawning?` 12928 to 14688), and raise
   `add-active-process`'s limit; the pools' `add-reserved-process` limits and the attack controller (256) with them. 100
-  units a side (200 walkers) then ran three minutes at 60 frames a second.
-Verified: jak3, `levels/city/traffic/traffic-engine.gc`, `traffic-engine-h.gc`, `traffic-manager.gc`, `levels/wascity/cty-attack-controller.gc`, `mission-squad-control.gc`; the battlefront mod's round 20 runs, 2026-11-09; its round 40 runs (63 a side held three minutes, the tracker move tried and reverted), 2026-11-15; its round 41 run (the 224 lists, 100 a side, time-adjust-ratio 1.0), 2026-11-15.
+  units a side (200 walkers) then ran three minutes at 60 frames a second. Past 255 the tracker's
+  `active-object-count` (uint8) must grow too: put `inactive-object-count` (int8) before it and
+  make it a uint16 (the header stays 16 bytes); 448 entries make a tracker 4048 bytes, the fields
+  after the two trackers at `inactive-object-array` 13248, `danger-sphere-count` 18448,
+  `allow-spawning?` 18720.
+- **A type's own counts are int8.** `traffic-object-type-info`'s `active-count`, `inactive-count`
+  and `want-count` are int8 (traffic-engine-h.gc): a pool past 127 (224 guards at 200 units a side)
+  wraps to negative, method 18 trims it and the guards stopped near 104 awake. Declare the three
+  uint8 (no layout change); three stock lines then need a cast for the type checker
+  (`target-count`, `set-object-target-level`: `(the int (-> x want-count))`;
+  `get-object-remaining-count` returns `(the int ...)`; `traffic-manager-event-handler`
+  'get-num-inactive).
+- **Keep few units asleep.** Every unit a pool spawns holds a nav-control of the default nav mesh
+  (255 at most, 4.44) until it is first woken. A pool sized to its cap at once (400 units) runs out;
+  sized to its units awake plus a spare (24), it grows as the units wake and never holds more than
+  the spares there.
+- **A level's nav mesh takes 64 units** unless its entity says otherwise: `init-from-entity`
+  (`engine/nav/nav-mesh.gc`) reads `nav-max-users` with a default of 64, and a unit dropped on a
+  full mesh gets no nav-control ("too many users for nav-mesh nav-mesh-460"). Raise it there for
+  the level being loaded (`(-> *level* loading-level name)` at that moment); each user is 288 bytes
+  of that level's heap.
+- **The matrix engine holds 384 animated processes a frame** (`*matrix-engine*`,
+  `engine/engine/engines.gc`): every animated process registers there each frame, drawn or not
+  (`process-drawable.gc` ja-post, `drawable.gc`). Past it the game prints "Matrix engine is too
+  small!" and `break!` ends it (integer divide by zero, 0xC0000094): 340 units did it. 1024 holds.
+- **The process heap.** The units come from `*default-dead-pool*`, the `*nk-dead-pool*` heap
+  (`PROCESS_HEAP_SIZE`, kernel/gkernel-h.gc: 4960 KB with the PC's `PROCESS_HEAP_MULT` 4). A city
+  unit takes about 9.4 KB of it (2.6 MB for 280 units, 1.4 MB for everything else); 400 units need
+  it larger. It is allocated before the level heap, which must end below 256 MB (4.6): 3 MB more
+  ended the level heap at #xfa2c2c0, 6 MB at #xfd2c2c0.
+- **Drawing a crowd.** Each drawn unit writes about 6.5 KB to the frame's global DMA buffer,
+  unchecked (4.6): hide the farthest units past a count from the camera (`no-draw-temp`, which the
+  units' code never touches and the draw skips) rather than grow the buffer again.
+Verified: jak3, `levels/city/traffic/traffic-engine.gc`, `traffic-engine-h.gc`, `traffic-manager.gc`, `levels/wascity/cty-attack-controller.gc`, `mission-squad-control.gc`; the battlefront mod's round 20 runs, 2026-11-09; its round 40 runs (63 a side held three minutes, the tracker move tried and reverted), 2026-11-15; its round 41 run (the 224 lists, 100 a side, time-adjust-ratio 1.0), 2026-11-15. The 448 lists, the unsigned counts, the spare-sized pools, `nav-max-users`, the matrix engine and the process heap: `engine/nav/nav-mesh.gc`, `engine/engine/engines.gc`, `kernel/gkernel-h.gc`; the battlefront mod's round 44 runs (200 and 199 units awake for five minutes at 59 frames a second, a redeploy's reset included), 2026-11-17.
 - **Rebuilding the pools: respawn the player like a death.** A death in the game calls
   `initialize!` with `'life` (`target-death-reset`, `engine/target/target-death.gc`), whose
   `reset-actors` (`engine/entity/entity.gc`) kills every entity actor and every process of
@@ -2265,6 +2310,17 @@ setting the level and spawning its model like `target-lightjak.gc` does:
 `(process-spawn lightjak-shield :init lightjak-shield-init :name "lightjak-shield" :to *target*)`
 stored in `(-> *target* lightjak shield)`, `'open` to raise it again, `'close` to fade it out (it
 dies at the end). Its `hit` state takes light eco from the player on each stopped hit.
+
+Its model is not always there: `skel-jchar-shield` draws element 548 of Jak's art group `jakb`
+(`jakb-shield-shield-lod0-jg`), and that element is `#f` unless a level that brings it is loaded.
+In a level without it (the battlefront mod's Jak 2 city) the shield goes straight to
+`process-drawable-art-error`: no draw (its `draw` field stays 0, and reading through it crashed the
+game), only the shield level stops the hits. Check `(-> (-> *target* draw art-group) data 548)`
+before spawning it, or draw another shield (the Dark Makers' sphere below). Verified: jak3,
+`engine/target/target-util.gc` (`skel-jchar-shield`), `engine/data/art-elts.gc`,
+`engine/process-drawable/process-drawable.gc` (`skeleton-group->draw-control`: texture level 10
+looks the art up in `level-default`); the battlefront mod's Baron, `jakb` of length 553 with
+element 548 `#f` in Jak 2's city, 2026-11-17.
 
 To stop some attacks only, wrap `target-attacked` (a GAME function: `define-perm` the stock one,
 [4.10](#410-wrapping-a-stock-method-from-a-game-file)) and set the level before calling it, from
@@ -3225,9 +3281,20 @@ A bike's engine is the `vehicle-engine` spec with `reg 0` 1 (the bike's `engine-
 (`sound-play-by-spec`), its pitch from the speed, as `levels/factory/car/hvehicle-effects.gc` does;
 `bike-thrust` while it thrusts.
 
+**128 sound commands a frame.** Every `sound-play-by-name` and `sound-play-by-spec` (a unit's
+steps, effect-control.gc; its engine loop, played again every frame) is a command of the sound
+player's buffer, 128 a frame (gsound.gc `*sound-player-rpc*`, the overlord's `kPlayerBufSize`).
+Past it `add-element` (`engine/ps2/rpc-h.gc`) flushes it at once and prints "too many sound commands
+queued" and its 128 commands (`"play" crimson-g-walk`...): 200 units filled the log with 400 000
+lines in a battle, and the game froze twice under it. Wrap both (4.10) and drop a sound of anything
+but the player beyond a distance from `(ear-trans 0)` (60 m), with a budget a frame between that and
+20 m: one overflow in a run, against 3000.
+
 Verified: jak3, the SBK files (searched for the names), `levels/city/traffic/citizen/guard.gc`,
 `engine/sound/speech.gc`, `engine/target/target.gc`, `levels/city/traffic/vehicle/bike.gc`; the
-battlefront mod's log of Jak's sounds and effects as he takes a hit and jumps, 2026-11-14. The speech
+battlefront mod's log of Jak's sounds and effects as he takes a hit and jumps, 2026-11-14. The
+command buffer: `engine/sound/gsound.gc`, `engine/ps2/rpc-h.gc`, `game/overlord/jak3/srpc.cpp`, the
+battlefront mod's round 44 runs, 2026-11-17. The speech
 request path, the guards' types and the banks' versions: jak3 `engine/sound/speech.gc`,
 `speech-h.gc`, jak2 `levels/city/ctywide-speech.gc`, the SBK headers and `VAGDIR.AYB` of both discs
 read, the battlefront mod's wrapper compiled (its effect not heard), 2026-11-15.
@@ -3282,3 +3349,55 @@ Verified: jak3, `levels/city/protect/flying-turret.gc`, `engine/ai/enemy.gc`,
 `engine/target/target-util.gc`; the battlefront mod's scenario 60 (a per-frame trap, then a
 temporary probe in `flying-turret.gc`): 32 units of 80 at NaN in 7 minutes before; with the
 three fixes no jetpack at NaN, the sides' reinforcements steady to the end, 2026-11-15.
+
+## 4.51 Particles: naming a new group, Jak 1 effects in Jak 3
+
+**A new group needs its own name.** `defpartgroup` fills `*part-group-id-table*` at its `:id` but
+defines no global of its name: a group is named by a constant over the table
+(`engine/data/part-groups.gc`). After a group of your own, add
+`(defconstant group-my-effect (-> *part-group-id-table* 1600))`, or every use fails "was looked
+up as a global variable, but it does not exist". Free ids: the table holds 1700 groups (the stock
+uses up to 1552) and `*part-id-table*` 5500 parts (`sparticle-launcher.gc`).
+
+**Blue eco's look is debug-only.** Jak 3 keeps Jak and Daxter's blue eco: the `eco-blue` pickup
+(`collectables.gc`, `birth-pickup-at-point` with `(pickup-type eco-blue)`) and the arcs on a body
+(`eco-blue-glow`, `powerups.gc`, parts 784 and 786, in GAME). The pickup's own particles,
+`group-eco-blue` (154) and `group-eco-blue-collect` (155) with parts 544 to 558, are in
+`engine/debug/debug-part.gc`, `(declare-file (debug))`: a retail boot has no look for the pickup.
+Copy them into a file of your own, same ids (a debug boot defines them twice, alike).
+
+**Porting a Jak 1 effect.** Jak 1's particle definitions read in Jak 3 with three changes: its
+`effects` page textures are Jak 3's `level-default-sprite` ones of the same names (`starflash`,
+`bigpuff`, `hotdot`); its `sp-cpuinfo-flag` bits `bitN` are Jak 3's `sp-cpuinfo-flag-N` (bit 7 is
+Jak 3's `distort`: leave it out); its group item flags `start-dead` and `launch-asap` are `sp2` and
+`sp3`, its group flag `use-local-clock` `sp0`. The yellow eco fireball (Jak 1's
+`engine/game/projectiles.gc`, groups 102 and 104) ported so, at free ids, flies on a projectile
+whose part launcher is spawned at its root each frame.
+
+Verified: jak3, `engine/gfx/sprite/particles/sparticle-launcher.gc`, `-launcher-h.gc`,
+`engine/common-obs/powerups.gc`, `collectables.gc`, `engine/debug/debug-part.gc`; jak1
+`engine/gfx/sprite/sparticle/sparticle-launcher-h.gc`, `engine/game/projectiles.gc`; the
+battlefront mod's round 44 (the blue eco pickup seen in a retail boot, scenario 124; the yellow eco
+ball compiled), 2026-11-17.
+
+## 4.52 A walking character of your own: move it on probes
+
+A process-drawable the player drives without being Jak (the battlefront mod's Baron Praxis: Jak
+hidden and moved onto it every frame) needs its own walk, gravity and walls. A
+`collide-shape-moving` of two spheres moved by `fill-cache-integrate-and-collide` on its `transv`
+rose and fell in a jump but did not move at all along the ground (transv 9 m/s across, its status
+on the surface, 0 m in 2 s); the cause was not found. Moving the root by hand on
+`fill-and-probe-using-line-sphere` probes (collide-with `backgnd obstacle`, the
+`noentity nojak probe noendlessfall board` ignore pattern) works:
+
+- **Across:** a sphere of the body's radius from chest height along the frame's move, stopped just
+  before the hit fraction; the rest of the move tried along x, then along z, to slide on a wall.
+  Steps lower than the chest pass under it.
+- **Down:** a 0.3 m sphere from 1 m above the feet to 1 m below them (or the fall's length): the
+  feet go to the hit point minus the sphere's radius when falling onto it, or when walking (steps
+  and slopes down).
+- **Gravity and the jump:** `transv y` less gravity times the frame's time; a jump of height H
+  sets it to the square root of 2 g H. A ceiling probe over the head stops it rising.
+
+Verified: jak3, the battlefront mod's `battlefront-baron.gc` (`bf-baron-step`), scenario 126: 17.6
+m run in 2 s, a 6.22 m jump, 2026-11-17.

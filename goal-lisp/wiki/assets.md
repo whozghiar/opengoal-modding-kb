@@ -359,6 +359,16 @@ Where the `.glb` must live depends on where the object needs to render:
   source `.glb` from `models/custom_levels/`, regardless of where the baked
   runtime copy lives.
 
+### 10.1b Extract every level, never a few
+`task extract` writes, besides each level's `.fr3`, the texture data every level shares
+(`out/jak[x]/fr3/GAME.fr3` and what comes with it). Run with a smaller `dgo_names` (a
+`--config-override` naming one level and GAME, to bake one custom model faster), it rewrote that
+shared data from those DGOs alone: the next boot stopped at once, "no texture named
+security-env-dest" (a texture of a level left out). A full `task extract` puts it back (74 s for
+Jak 3). In a worktree `out/jak[x]` is shared by every mod: run the whole extraction. Verified:
+jak3, the decompiler with `"dgo_names": ["CGO/GAME.CGO", "DGO/CTYPESC.DGO"]` then the boot, then
+`task extract`, the battlefront mod, 2026-11-17.
+
 ### 10.2 Texture reachability: two disjoint pipelines
 Before wiring a custom-baked texture to any 2D/UI element (`hud-sprite`,
 `def-tex`), confirm it can actually be reached — this is the single most
