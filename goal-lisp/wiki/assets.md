@@ -491,6 +491,24 @@ mesh and textures: the stock AI then drives the imported model unchanged.
   process belongs to: a Haven City traffic unit takes the level of its
   traffic type (`traffic-entity-hack`), e.g. CTYPESA for guards, CTYPESC
   for flying turrets.
+- **A loop's last key is its first.** `(ja :num! (loop!))` wraps from a clip's last frame to its
+  first, the two meant to be the same pose. Motion captures put on a model (the Jak Animation
+  Studio's `apply_mocap`, Mixamo files) end two or three keys short of their first pose: the
+  battlefront mod's Baron jumped 34 degrees at a thigh once a run cycle. Close such a loop by hand:
+  the gap between the pose one key after the last (the last step repeated) and the first, spread
+  over the keys, a share each, and the first pose added as the last key; the wrap then steps as the
+  other keys do (6.5 against 9.9 degrees at most).
+- **The upper body is not under the hips.** In Jak 2's character rigs (`baron-highres`) `hips` and
+  `chest` are siblings under `main`, which is turned 180 degrees about x. The Jak Animation Studio
+  puts a capture's root travel (Mixamo's Hips) on `hips` only: the legs rise and fall under a torso
+  that stays put, and a death's collapse folds the legs up under a torso left standing. Move it to
+  `main` instead: `main`'s translation = its rest one plus its rest rotation times (`hips`'
+  translation minus its rest one), `hips` at rest; the whole body then follows.
+- **Eyes.** Jak 2 draws a character's eyes at run time over 4 x 4 placeholders,
+  `programmer_eye_left` and `programmer_eye_right`, which the rips keep: a ported character has
+  blank eyes. Its eye texture is in its level's `-pris` texture page (`baron-eye` in
+  `ldjakbrn-pris`); the decompiler writes it with `save_texture_pngs`. Put it in the placeholder's
+  place: an iris centered on its white, looking ahead.
 - **Frame rate.** The rips sample the clips at 15 frames per second
   (`times[i] = i / framerate` in `fr3_to_gltf.cpp`): give `build-actor`
   `:framerate 15.0` to keep each clip's frame count. The art group still
@@ -507,7 +525,11 @@ clips, textures), `goalc/build_actor/jak3/build_actor.cpp`,
 `goalc/build_actor/common/build_actor.cpp`,
 `decompiler/level_extractor/fr3_to_gltf.cpp`, compiled and extracted in the
 battlefront mod (`scripts/battlefront/make_models.py` there), not yet seen
-in game, 2026-10-31.
+in game, 2026-10-31. Loops and eyes: the battlefront mod's round 45
+(`scripts/battlefront/make_baron_clips.py`, its clips measured key by key;
+the eye texture in `jak2/textures/ldjakbrn-pris`, Baron Praxis's one eye
+in game), 2026-11-18. The rig: the same script's root move, the clips
+drawn before and after it (the death's collapse lying down after it).
 
 ---
 

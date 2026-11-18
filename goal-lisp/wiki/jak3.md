@@ -175,6 +175,13 @@ pills take that time. An ammo pickup keeps a fixed 15 s (`initialize-ammo-by-oth
 `(-> (the-as collectable (-> pp 0)) fadeout-timeout)` on the `(pointer process)` the call returns
 (the last one born).
 
+**An eco pickup makes Jak hop.** Taken, an eco collectable (`eco-blue`, `eco-yellow`...) sends its
+picker `'powerup` (`collectables.gc`, the eco's `pickup` state), and Jak standing or walking goes to
+`target-eco-powerup`, a short hop (`target-handler.gc`). With `no-reaction` in the fact's options
+(a born pickup copies them, `initialize-eco-by-other`) it sends none: a mod that draws another model
+over a hidden Jak, or reads the eco as its own item, keeps him still. No other collectable reads
+that option.
+
 Verified: jak3, `engine/game/game-info.gc`, `engine/common-obs/collectables.gc`
 (`birth-pickup-at-point`, `verify-pickup-type`, `initialize-options`, the `wait` and `fade`
 states); the battlefront mod's in-game runs (up to 12 pickups left by dead units, counters spent by
@@ -182,7 +189,9 @@ its class weapons, 2026-10-31; a blue ammo pickup born blue under the wrapper on
 blue gun, 2026-11-11; an ammo pickup 15 m from Jak there at 9 s and gone at 12.5 s with
 the fact and the timeout set, still there at 11 s with the fact alone, 2026-11-09; a dark ammo
 pickup born dark under the wrapper, taken as 5 jetpack rockets, Jak's dark ammo back to 0,
-2026-11-15).
+2026-11-15). The eco's hop: `engine/target/target-handler.gc`; the battlefront mod's spider taking
+blue eco with `no-reaction`, Jak never in `target-eco-powerup` (round 45, scenario 129),
+2026-11-18.
 
 **Free aim through the camera.** The ray behind a fixed crosshair at screen point (x, y) of the
 512 x 416 screen: project the spot 1 m ahead of the camera and the spots 1 m to its right and
@@ -2979,7 +2988,14 @@ on screen, 2026-11-08; the ruins' and the nest's walls holding Jak running at th
   takes the unit out of the active list, sends `'traffic-off-force` (`'traffic-off` without the
   flag) and puts it back in its pool. The event alone puts the unit to sleep while the tracker
   still lists it awake: it is counted awake, never woken again, and the lists drift from the
-  units (the game crashed in 3 of 6 runs that way).
+  units (the game crashed in 3 of 6 runs that way). A robotguard falling from the sky in its
+  `exit-transport` stayed listed after `deactivate-object`, put to sleep again each frame (7368
+  times in a run): put such a unit on the ground instead (next entry).
+- **A fall ends on touching ground only.** A robotguard's or a spider's `exit-transport`
+  (`spydroid.gc`, `roboguard-city.gc`) leaves for `hostile` when its collide status says it
+  touched a surface; where the scenery has no collision under its nav mesh, it falls for ever,
+  kept awake and counted. Watch the fall and, past the floor's height, set its place there, its
+  `transv` to 0, and `go-process` it to its `active` state.
 - **A full nav mesh crashes a first activation.** A unit holds one nav-control on the mesh it last
   walked, asleep too (`change-to` frees the old one when it moves to another). A mesh holds
   `max-nav-control-count`; when none is free, `new-nav-control` prints "too many users", the
@@ -3007,7 +3023,9 @@ Verified: jak3, `levels/city/common/guard-states.gc` (`exit-transport`),
 `levels/city/traffic/citizen/citizen.gc` (`'traffic-activate`), `engine/nav/nav-mesh.gc`
 (`new-nav-control`, `change-to`); the battlefront mod's smoke runs: 10 of 12 units stuck in a
 ship at Freedom HQ, then 16 stuck units a run released and no crash in 3 runs with
-`deactivate-object`, against 3 crashes in 6 with the event alone, 2026-11-08.
+`deactivate-object`, against 3 crashes in 6 with the event alone, 2026-11-08; the fall that never
+ends, its sleep that does not take and the landing by hand: the battlefront mod's round 45 census
+(scenario 129, Jak 2's ported city), 2026-11-18.
 
 ## 4.44 Haven City traffic: routing a unit, the default nav mesh, clocks
 
@@ -3364,21 +3382,31 @@ uses up to 1552) and `*part-id-table*` 5500 parts (`sparticle-launcher.gc`).
 (`eco-blue-glow`, `powerups.gc`, parts 784 and 786, in GAME). The pickup's own particles,
 `group-eco-blue` (154) and `group-eco-blue-collect` (155) with parts 544 to 558, are in
 `engine/debug/debug-part.gc`, `(declare-file (debug))`: a retail boot has no look for the pickup.
-Copy them into a file of your own, same ids (a debug boot defines them twice, alike).
+Copy them into a file of your own, same ids (a debug boot defines them twice, alike). Jak 3's port
+draws the arcs with plain white strips (`common-white`, parts 546 to 548 and 555 to 557, and
+`eco-blue-glow`'s 786): Jak 1's are the zigzags of its `effects` page, `lightning`, `lightning2`
+and `lightning3`, which Jak 3 does not have. Its `level-default-sprite` page's `lightning-anim-01`
+to `-03` come closest, one for each.
 
 **Porting a Jak 1 effect.** Jak 1's particle definitions read in Jak 3 with three changes: its
 `effects` page textures are Jak 3's `level-default-sprite` ones of the same names (`starflash`,
-`bigpuff`, `hotdot`); its `sp-cpuinfo-flag` bits `bitN` are Jak 3's `sp-cpuinfo-flag-N` (bit 7 is
-Jak 3's `distort`: leave it out); its group item flags `start-dead` and `launch-asap` are `sp2` and
-`sp3`, its group flag `use-local-clock` `sp0`. The yellow eco fireball (Jak 1's
-`engine/game/projectiles.gc`, groups 102 and 104) ported so, at free ids, flies on a projectile
-whose part launcher is spawned at its root each frame.
+`bigpuff`, `hotdot`); its `sp-cpuinfo-flag` bits `bit2`, `bit3` and `bit14` are Jak 3's
+`sp-cpuinfo-flag-2`, `-3` and `-14`, and its `bit7` is Jak 3's `ready-to-launch` (bit 6; Jak 3's
+own port of Jak 1's blue eco, `debug-part.gc`, does so); its group item flags `bit1`, `start-dead`
+and `launch-asap` are `sp1`, `sp2` and `sp3`, its group flag `use-local-clock` `sp0`. Left out,
+`ready-to-launch` keeps a bound particle (the `:binding` of an item, its x and y its orbit) from
+ever launching: Jak 1's yellow eco fireball (`engine/game/projectiles.gc`, group 102) flew unseen
+until its parts 350 and 351 had it. Jak 1 also turns the fireball's orbit and its launch's sparks
+(group 103, parts 356 and 358) toward the shot before each one: set the first value of those init
+specs (`spt-x`, `spt-conerot-y`) to the shot's y angle, a signed 16-bit angle.
 
 Verified: jak3, `engine/gfx/sprite/particles/sparticle-launcher.gc`, `-launcher-h.gc`,
 `engine/common-obs/powerups.gc`, `collectables.gc`, `engine/debug/debug-part.gc`; jak1
 `engine/gfx/sprite/sparticle/sparticle-launcher-h.gc`, `engine/game/projectiles.gc`; the
-battlefront mod's round 44 (the blue eco pickup seen in a retail boot, scenario 124; the yellow eco
-ball compiled), 2026-11-17.
+battlefront mod's round 44 (the blue eco pickup seen in a retail boot, scenario 124), 2026-11-17;
+its round 45 (the yellow eco ball and its launch seen with `ready-to-launch`, none without,
+scenario 127 against round 44's 126; the lightning frames on the blue eco arcs), 2026-11-18. This
+entry said to leave bit 7 out until then.
 
 ## 4.52 A walking character of your own: move it on probes
 
