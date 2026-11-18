@@ -1987,6 +1987,17 @@ Verified: jak3, `engine/gfx/font.gc`, `pc/pckernel-impl.gc`; the battlefront mod
   the inactive ones above it (method 18). A unit that dies sends `'child-killed` and goes back to
   its pool (`go-inactive`, `citizen/citizen.gc`); it comes out again later and is never respawned.
   What its init picked (the skeleton of `init-enemy!`, its mesh masks) stays for its whole life.
+- **A unit killed out of view dies unreported.** A unit knocked to 0 hit points by another than
+  Jak, off screen or over 110 m from the camera, skips its death: enemy's `knocked` enter sends it
+  to `die-fast` at once (`engine/common-obs/enemy-states.gc`). enemy's `die-fast` code is `nothing`,
+  and a process whose state code returns is deactivated (`return-from-thread-dead`,
+  `kernel/gkernel.gc`): a `crimson-guard` vanishes there; `kg-squad-member`'s (`roboguard-city`,
+  `spydroid`, `flying-turret`) calls `go-inactive`. Neither sends `'child-killed`, so the traffic
+  engine never counts the death (`set-process-to-killed` and its `killed-count`), and the tracker
+  drops the guard's handle later as a stale one. Between units most deaths happen there: a mod
+  that counts them overrides `die-fast` on both types with `(cleanup-for-death self)` (citizen's:
+  `'child-killed` to the parent, then `go-inactive`), in a CWI file before CTYPESC loads, whose
+  types copy `kg-squad-member`'s state at their `deftype`.
   The pools still churn: the manager trims and spawns units as the wanted counts move (faction
   state, sections), so a mod that gives new units a look in turn drifts (a battlefront guard pool
   went from 7 blue of 14 to none); count the live units of each look and give the rarest. Rarest
@@ -2053,7 +2064,7 @@ Verified: jak3, `engine/gfx/font.gc`, `pc/pckernel-impl.gc`; the battlefront mod
 - **Drawing a crowd.** Each drawn unit writes about 6.5 KB to the frame's global DMA buffer,
   unchecked (4.6): hide the farthest units past a count from the camera (`no-draw-temp`, which the
   units' code never touches and the draw skips) rather than grow the buffer again.
-Verified: jak3, `levels/city/traffic/traffic-engine.gc`, `traffic-engine-h.gc`, `traffic-manager.gc`, `levels/wascity/cty-attack-controller.gc`, `mission-squad-control.gc`; the battlefront mod's round 20 runs, 2026-11-09; its round 40 runs (63 a side held three minutes, the tracker move tried and reverted), 2026-11-15; its round 41 run (the 224 lists, 100 a side, time-adjust-ratio 1.0), 2026-11-15. The 448 lists, the unsigned counts, the spare-sized pools, `nav-max-users`, the matrix engine and the process heap: `engine/nav/nav-mesh.gc`, `engine/engine/engines.gc`, `kernel/gkernel-h.gc`; the battlefront mod's round 44 runs (200 and 199 units awake for five minutes at 59 frames a second, a redeploy's reset included), 2026-11-17.
+Verified: jak3, `levels/city/traffic/traffic-engine.gc`, `traffic-engine-h.gc`, `traffic-manager.gc`, `levels/wascity/cty-attack-controller.gc`, `mission-squad-control.gc`; the battlefront mod's round 20 runs, 2026-11-09; its round 40 runs (63 a side held three minutes, the tracker move tried and reverted), 2026-11-15; its round 41 run (the 224 lists, 100 a side, time-adjust-ratio 1.0), 2026-11-15. The 448 lists, the unsigned counts, the spare-sized pools, `nav-max-users`, the matrix engine and the process heap: `engine/nav/nav-mesh.gc`, `engine/engine/engines.gc`, `kernel/gkernel-h.gc`; the battlefront mod's round 44 runs (200 and 199 units awake for five minutes at 59 frames a second, a redeploy's reset included), 2026-11-17. The deaths out of view: `engine/common-obs/enemy-states.gc` (`knocked`, `die-fast`), `levels/city/common/kg-squad-member.gc`, `levels/city/protect/assault-enemies.gc`, `kernel/gkernel.gc`; the battlefront mod's round 48 (150 s of battle: guard deaths counted 0 and 0 before, 15 and 21 after), 2026-11-18.
 - **Rebuilding the pools: respawn the player like a death.** A death in the game calls
   `initialize!` with `'life` (`target-death-reset`, `engine/target/target-death.gc`), whose
   `reset-actors` (`engine/entity/entity.gc`) kills every entity actor and every process of
