@@ -2714,6 +2714,26 @@ table as it is now.
 Verified: jak3, `levels/wascity/mission-squad-control.gc` (method 13); the battlefront mod's
 runs, a red guard and a red jetpack on a Krimzon Guard player, then none, 2026-11-06.
 
+**A unit's side is the type it registers with.** A unit joins the attack controller when it is put
+on the street (`citizen.gc`, the end of its reset, which calls `citizen-method-215`): `init!` on its
+`attacker-info` with its type (`city-target-type`, `levels/wascity/cty-attack-controller.gc`), the
+row and column the hatred table (`hatred-indices`) chooses its foes by. Each unit type writes its
+own in its `citizen-method-215`: `crimson-guard` its weapon's (`guard-type->city-target-type`: 3
+tazer, 4 rifle, 5 grenade, set again at each weapon change in `crimson-guard-method-267`),
+`roboguard-city` 9, `flying-turret` 10, `spydroid` 11, as constants. A mod that puts some units of a
+type on the other side changes the type in that type's own method (and in method 267 for a guard),
+or those units stay the other side's for the controller whatever their look: the battlefront mod's
+blue robotguards and spiders kept 9 and 11, took the blue guards as foes and were taken as theirs,
+and the two fought each other all battle (at no damage, the mod zeroing its sides' own hits): the
+blue guards never marched on, the red guards found no foe.
+
+Verified: jak3, `levels/city/traffic/citizen/citizen.gc`, `levels/city/traffic/citizen/guard.gc`,
+`levels/city/protect/roboguard-city.gc`, `levels/common/enemy/spydroid.gc`,
+`levels/city/protect/flying-turret.gc` (`citizen-method-215`); the battlefront mod's round 47
+(scenario 133, 150 s of battle: the red guards hostile in 0 of 16082 samples, the blue ones fighting
+blue robots; with the types changed, 0 units aiming at their own side, the guards of both sides
+hostile in about a fifth of their samples), 2026-11-18.
+
 The city's own alert end does not work either: `ff-squad-control-method-45` waits during its ending
 for `ff-squad-control-method-48`, the count of guards still in the alert, which is decompiled as
 returning `none`: the value is whatever its last expression left.
@@ -3079,6 +3099,18 @@ ends, its sleep that does not take and the landing by hand: the battlefront mod'
   clip blends walk and run on the speed); a large `wait-time` keeps it from its idle stops. A
   marching unit's lane callback can answer the stock random lane: the post asks for a lane each
   frame near its `dest-point`.
+- **Meshes that overlap where they link.** Jak 2's city meshes, ported into a Jak 3 level as they
+  are, overlap at their links: a link poly lies inside the other mesh's ground, and the other
+  mesh's own link poly back lies inside this one's. A unit coming from that side heads back toward
+  the link poly, stops 4 m short of its `dest-point` (a citizen's arrival distance, `citizen.gc`
+  `'active` post), and never steps on it: 63 units at one link stood until their stuck hop in 3
+  minutes. Move such a unit onto the next mesh yourself once it stands on that mesh's ground near
+  the link: a poly of it under its feet (`point-in-poly?` with the point minus the mesh's
+  `bounds`, the poly's `poly-centroid` within a few meters of its height), then
+  `(change-to next-mesh unit)`. Standing there on the new mesh's link poly back, the stock change of
+  meshes (`nav-enemy-method-188`, every frame of its move) sends it back at once: override that
+  method on `nav-enemy` (stock kept with `define-perm`) to pass over, for a second after such a
+  crossing, a link poly that leads back to the mesh the unit left.
 - **The city's nav meshes do not all join.** With the six street sections loaded (4.15) there are
   nine nav meshes, one or a few a section: ctysluma links ctyindb, ctyindb ctyinda, ctyinda the
   Port's east mesh, the Port's three linked meshes one to the nest; ctyslumb links ctyslumc and an
@@ -3202,6 +3234,7 @@ ends, its sleep that does not take and the landing by hand: the battlefront mod'
   `(send-event *target* 'change-state target-death 'my-mode)` (`target-handler.gc`), his state's
   code getting the mode as its argument.
 
+Round 47 of the battlefront mod, 2026-11-18 (Jak 2's city ported as one Jak 3 level): `engine/nav/nav-mesh-h.gc` (`point-in-poly?`), `engine/nav/nav-enemy.gc` (methods 187, 188), `levels/city/traffic/citizen/citizen.gc` (`'active` post); 150 s of battle: units at the seams 3.5 to 5 m from their waypoint before; with the crossing, 43632 crossings undone by the link poly back in 150 s; with the override, 459 crossings, 1 undone, stuck hops 26 in 150 s (175 in 3 minutes before).
 Round 26 of the battlefront mod, 2026-11-12: `engine/nav/nav-mesh.gc` (`debug-draw`, `nav-poly`), `engine/nav/nav-control.gc` (the rays' `ignore`), `levels/common/enemy/spydroid.gc` (exit-transport), `engine/ai/enemy.gc` (`enemy-falling-post`); the meshes dumped in game (islands, types, heights), 16 spiders and robotguards out of a ship watched as they fell, guards on the walkways (8 in 2 minutes once sent there), the music read back from `*setting-control*`.
 Verified: jak3, `levels/city/traffic/vehicle/vehicle-control.gc` (methods 14, 15),
 `levels/city/traffic/citizen/citizen.gc` (methods 199, init, active state),
