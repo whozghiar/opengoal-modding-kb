@@ -2789,6 +2789,30 @@ Verified: jak3, `levels/city/common/guard-grenade.gc` (`grenade-throw-post-reloa
 crashes in 7 runs of 3 minutes before, 0 in 3 after, the rule holding a reload 235 and 241 times a
 run, 2026-11-04.
 
+**Guards that reload most of the time.** The stock guards reload far more than they shoot, which
+shows once guards fight guards for long:
+
+- the rifle guard's `rifle-hostile` (`levels/city/common/guard-rifle.gc`) goes to `rifle-reload`
+  whenever its last shot is under its `rand-state-time` old (2.5 to 4.5 s), that is between every
+  two bursts of one to three shots, unless its `faction-mode` is 1; and it goes there as well while
+  its focus is gone or dead, where the reload's end sends it back to `rifle-hostile`: a reload loop
+  until it gets a new foe;
+- `rifle-reload` gives 3 rounds (`crimson-guard-method-285`) and its end test is always true after
+  one reload (it zeroes `last-fire-time` first), and a guard out of a mission starts with half its
+  magazine (`crimson-guard-method-286`: rifle 6, grenade 2);
+- the grenade guard's `grenade-hostile` (`guard-grenade.gc`) goes to
+  `grenade-throw-post-reloading` each time it stands within 2 m of its `move-position`, a grenade
+  left or not.
+
+A mod's hook in each `go-virtual` to a reload (keep the ground while rounds are left, walk on with a
+full magazine and no foe: `(go-virtual active)`, the focus cleared) and in `crimson-guard-method-285`
+(a reload fills the magazine) brings the guards' time in their reloads down.
+
+Verified: jak3, `levels/city/common/guard-rifle.gc` (`rifle-hostile`, `rifle-reload`),
+`levels/city/traffic/citizen/guard.gc` (`crimson-guard-method-285`, `-286`, `init-enemy!`); the
+battlefront mod's round 46 (scenario 130's census: guards in a reload in 3 % of its samples),
+2026-11-18.
+
 ## 4.41 A third-person shooter camera, and making Jak jump at a set velocity
 
 **The point-of-view camera on a rig.** The stock `cam-pov` mode (`engine/camera/cam-states.gc`, the
@@ -3367,6 +3391,69 @@ Verified: jak3, `levels/city/protect/flying-turret.gc`, `engine/ai/enemy.gc`,
 `engine/target/target-util.gc`; the battlefront mod's scenario 60 (a per-frame trap, then a
 temporary probe in `flying-turret.gc`): 32 units of 80 at NaN in 7 minutes before; with the
 three fixes no jetpack at NaN, the sides' reinforcements steady to the end, 2026-11-15.
+
+**A side's shots in its color.** `guard-shot`'s two draw methods (`projectile-method-24`, the
+muzzle flash, parts 854 and 855; `projectile-method-25`, the beam, glow and sparks, parts 850 to
+853; `engine/common-obs/guard-projectile.gc`) look their parts up in `*part-id-table*` at each call,
+and method 25 sets some init specs by index for the call. Copies of those parts at free ids, the
+same init specs in the same order with other colors, swapped into `*part-id-table*` around the stock
+call (the two entries exchanged, then exchanged back), draw a shot in other colors: decide by its
+shooter. `spawn-guard-projectile` (the guards' rifles) leaves the shot's `owner-handle` at #f: the
+shooter is in its `notify-handle` and `ignore-handle`, and the attack it sends has no attacker, so
+the hit unit finds the shooter up the shot's parent chain (`find-offending-process-focusable`,
+`engine/process-drawable/process-drawable.gc`). Override the two methods in GAME (`define-perm` the stock ones first): the types
+derived from `guard-shot` in level code (`flying-turret-shot`, `roboguard-shot`...) take the
+override at their creation unless they override the methods themselves. The beam's texture,
+`gun-yellow-beam`, is yellow itself (its texels hardly have blue): a blue beam takes
+`gun-blue-beam`; `gun-enemy-muzzleflash` is magenta and takes a blue tint.
+
+Verified: jak3, `engine/common-obs/guard-projectile.gc`, the textures in
+`decompiler_out/jak3/textures/level-default-sprite`; the battlefront mod's round 46 (the Freedom
+League's shots drawn blue, none with `owner-handle` alone, scenario 130), 2026-11-18.
+
+**A hit from one's own side still knocks.** An enemy's `'attack` (`engine/ai/enemy.gc`, its event
+handler) takes the damage (`damage-enemy-from-attack!`), then asks `msg-for-incoming-attack` for
+its reaction (`'hit`, `'hit-flinch`, `'hit-knocked`), whatever the damage was: a mod that zeroes
+the damage of a side's own hits still has its units flinch and fall, and a knocked
+`flying-turret` explodes and dies (`levels/city/protect/flying-turret.gc` 'knocked). Return #f
+from `msg-for-incoming-attack` for such a hit (the attacker is `incoming attacker-handle`, set by
+`handle-incoming-attack!` just before): override it on `nav-enemy` in GAME (stock kept with
+`define-perm`); `citizen` and `roboguard-city` override it in level code but call the parent's.
+
+Verified: jak3, `engine/ai/enemy.gc` (`'attack`, `msg-for-incoming-attack`),
+`levels/city/traffic/citizen/citizen.gc`, `levels/city/protect/roboguard-city.gc`; the battlefront
+mod's round 46: 74 of 74 Freedom League jetpack deaths in 90 s by its own side's hits before, none
+after (scenarios 132 and 131), 2026-11-18.
+
+**The player through the units of a side.** Jak moves against the units through the collide cache:
+`fill-using-bounding-box` and `fill-using-line-sphere` (`engine/collide/collide-cache.gc`, GOAL
+methods; the fills under them are mips2c) take a query whose `ignore-process0` is the mover
+(Jak's own moves: `logic-target.gc`, `collide-shape.gc` `fill-cache-for-shape`). A unit moves
+against Jak through the same fills and through `find-overlapping-shapes` (`enemy.gc`, its move with
+its `overlaps-others-params`), which both read Jak's root prim's `collide-as` (the player list's
+entries are tested on their root prim first). Override the three methods (stock ones kept with
+`define-perm`): after a fill for Jak, drop from the cache's `prims` the entries whose
+`prim cshape process` is a unit of his side (compact the array, lower `num-prims`); for a fill or an
+overlap test of such a unit, clear Jak's root prim `collide-as` for the call and put it back. Jak and
+those units then pass through each other; the others still collide.
+
+Verified: jak3, `engine/collide/collide-cache.gc`, `engine/collide/collide-shape.gc`
+(`find-overlapping-shapes`), `engine/ai/enemy.gc`, `engine/target/logic-target.gc`; the battlefront
+mod's round 46 (scenario 131: Jak 0.07 m from a unit of his side held in place, 2 m from a foe),
+2026-11-18.
+
+**A stock unit recolored, on the stock clips.** A `build-actor` model's art group has its joint
+geometry at 0, its mesh at 1 and its clips from 2, where a stock unit's has its shadow mesh at 2
+and its clips from 3 (`roboguard-city-ag`, `spydroid-ag`, `engine/data/art-elts.gc`): its own
+clips would sit one index off the stock code's. A model made from the unit's own rip (same
+skeleton) with one clip only can play the stock clips instead: set its draw's `art-group` to the
+stock art group once its skeleton is set up (the red guard's method, `crimson-guard`'s art group:
+the jgeo lengths must match), and give it an effect-control. Its look comes from its skeleton
+group's name in `init-enemy!`, picked per unit.
+
+Verified: jak3, `engine/data/art-elts.gc`, `levels/city/protect/roboguard-city.gc` and
+`levels/common/enemy/spydroid.gc` (`init-enemy!`); the battlefront mod's round 46 (its blue
+robotguard and spider robot, scenarios 130 and 131), 2026-11-18.
 
 ## 4.51 Particles: naming a new group, Jak 1 effects in Jak 3
 
