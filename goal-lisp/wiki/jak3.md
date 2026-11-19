@@ -2639,9 +2639,16 @@ A model recolored from a red unit to blue keeps an orange shine. Write another t
 into the loaded art: for each `merc-ctrl` of the skeleton group's art group (`mgeo` per level of
 detail), each effect's `extra-info`, its `mei-envmap-tint` at `envmap-tint-offset` times 16 bytes,
 field `tint`. Every process drawing that model takes it.
+
+The stock models' tints are far dimmer than build-actor's: `roboguard-city`'s art reads 55 55 55 in
+most of its effects (38 54 55 and 60 60 60 in a few), and `spydroid`'s has no envmap effect at all.
+A recolor given the dummy tint mirrored to blue (102, 161, 255) shone about three times as bright
+as the stock robot; take the tint from the stock model's own art instead (read it in game the same
+way, from `art-group-get-by-name` with the art group's name without `-ag`).
 Verified: jak3, `goalc/build_actor/jak3/build_actor.cpp`, `engine/gfx/foreground/foreground.gc`,
 `engine/gfx/foreground/merc/merc-h.gc`; the battlefront mod's round 49, its blue robotguard's tint
-read back as 80ffa166 and seen blue in a screenshot, 2026-11-19.
+read back as 80ffa166 and seen blue in a screenshot, 2026-11-19; round 52, the stock tints read in
+game (scenario 138) and the blue robotguard set to 80555555, 2026-11-19.
 
 ## 4.36 The Mods menu: a greyed-out flag
 
@@ -2869,10 +2876,28 @@ A mod's hook in each `go-virtual` to a reload (keep the ground while rounds are 
 full magazine and no foe: `(go-virtual active)`, the focus cleared) and in `crimson-guard-method-285`
 (a reload fills the magazine) brings the guards' time in their reloads down.
 
+**Where a guard or a robotguard deals a blow.** A unit that should keep to its gun needs a gate on
+each way into a blow; the guard has five, all to `close-attack` but the last:
+
+- `gun-shoot`'s trans (`guard-rifle.gc`), its foe within 4 m and 40 degrees;
+- the grenade guard's flight (`guard-grenade.gc`), its foe within 4 m;
+- the tazer guard's `attack` (`guard-tazer.gc`), within 4 m: else `attack-tazer`;
+- `crimson-guard-method-252` (`guard-states.gc`, the trans of `hostile` and `rifle-hostile`), when
+  `crimson-guard-method-269` agrees;
+- the `'bouncing-off` event (`traffic/citizen/guard.gc`) in `active` or `wait`, to
+  `close-attack-active`.
+
+`roboguard-city-method-236` (`levels/city/protect/roboguard-city.gc`) answers 4 (`close-attack`, its
+punch) for a foe within 6 m in front of it, 5 (`shoot-attack`) beyond; answering 5 there too keeps it
+shooting. The rifle guard's shot itself comes on the first frame of its fire clip
+(`anim-shoot 1`), right after a 0.1 s blend; out of its war mode (`faction-mode` 1) it waits its
+`rand-state-time` between bursts.
+
 Verified: jak3, `levels/city/common/guard-rifle.gc` (`rifle-hostile`, `rifle-reload`),
 `levels/city/traffic/citizen/guard.gc` (`crimson-guard-method-285`, `-286`, `init-enemy!`); the
 battlefront mod's round 46 (scenario 130's census: guards in a reload in 3 % of its samples),
-2026-11-18.
+2026-11-18; round 52, the six gates (`levels/city/common/guard-*.gc`, `roboguard-city.gc`): no unit
+in a blow in 3 runs of 2 minutes (scenario 138), 2026-11-19.
 
 ## 4.41 A third-person shooter camera, and making Jak jump at a set velocity
 
