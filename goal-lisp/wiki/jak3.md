@@ -986,6 +986,15 @@ renderer, not Merc2 (no per-model flags, [engine.md 7b](engine.md#7b-merc2-per-m
 
 Verified: jak3, the multiplayer mod's Appearance page preview (`skin` scenario), 2026-10-19.
 
+**A hard landing never ends while Jak is hidden.** `target-hit-ground-hard`
+(`engine/target/target2.gc`, a fall from high) waits for its painful-land clips to end on Jak's
+root channel. With Jak hidden under another model and his clips not played as usual, it never
+ended: the left stick did nothing until a jump left the state. Send him out after a moment:
+`(go-process *target* target-stance)` once he has been in it 0.8 s (its damage is taken as it
+starts).
+Verified: jak3, `engine/target/target2.gc`; the battlefront mod's round 49, a respawn's 30 m drop as
+the spider robot (stuck in 1 of 8 class changes before, 0 of 8 after), 2026-11-19.
+
 ## 4.13 Hooks for every effect, projectile, sound and story step
 
 - Every one-shot particle effect (`part-tracker-spawn`, `do-effect "group-..."`) goes through
@@ -2623,6 +2632,17 @@ battles, a vectored exception handler at `gk.exe` +#x383fe6, which disassembles 
 `mercneric_convert`'s `sh t1, 18(a3)` with `a3` 0; with the wrapper, smoke runs of 131 s and 184 s
 with 23 and 41 losses of that side and no crash, 2026-11-05.
 
+**A build-actor model shines orange.** Every merc effect build-actor writes gets the same dummy
+extra info (`goalc/build_actor/jak3/build_actor.cpp` `gen_dummy_extra_info`), whose envmap tint is
+(255, 161, 102); `foreground.gc` multiplies it by the time of day's env color for the envmap pass.
+A model recolored from a red unit to blue keeps an orange shine. Write another tint at run time
+into the loaded art: for each `merc-ctrl` of the skeleton group's art group (`mgeo` per level of
+detail), each effect's `extra-info`, its `mei-envmap-tint` at `envmap-tint-offset` times 16 bytes,
+field `tint`. Every process drawing that model takes it.
+Verified: jak3, `goalc/build_actor/jak3/build_actor.cpp`, `engine/gfx/foreground/foreground.gc`,
+`engine/gfx/foreground/merc/merc-h.gc`; the battlefront mod's round 49, its blue robotguard's tint
+read back as 80ffa166 and seen blue in a screenshot, 2026-11-19.
+
 ## 4.36 The Mods menu: a greyed-out flag
 
 Since master-dev `9c3fc0d4c`, the shared popup menu (`pc/util/popup-menu.gc`, Jak 2 and Jak 3) honors
@@ -3322,6 +3342,17 @@ while that focus lives unless it has `multi-focus` (`update-focus`, `engine/ai/e
 Verified: jak3, `engine/process-drawable/process-focusable.gc`, `engine/nav/nav-enemy.gc`,
 `engine/ai/enemy.gc`; the multiplayer mod's puppet, its ground point logged at its height after
 the override, 2026-11-10.
+
+**A focusable that is no drawn model needs a draw-control.** `get-trans` modes 2, 3 and 10 (the
+ones units aim with) read `(-> this draw status)` first. A process's own fields are zeroed when it
+starts (`activate`, `kernel/gkernel.gc`: `mem-set32!` over them), so a focusable built without a
+skeleton (a hit box, a body for another process's model) has `draw` 0, and the game crashed
+(access violation) as the first unit turned onto it. Give it `(new 'process 'draw-control self #f)`
+with status `uninited no-draw`: `get-trans` then returns its root's trans, so put that at the
+height the units should aim at. Point its `node-list` at the drawn model's if units read bones.
+Verified: jak3, `engine/process-drawable/process-focusable.gc` (`get-trans`), `kernel/gkernel.gc`
+(`activate`); the battlefront mod's round 49, Baron Praxis's body in the attack controller (a
+crash in 1 of 1 runs before, none in 2 after, 20 units on it), 2026-11-19.
 
 ## 4.48 A death that pins the camera: tf6, tf12, tf14
 
