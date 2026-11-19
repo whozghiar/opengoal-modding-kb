@@ -2790,6 +2790,14 @@ City: New Dawn's alert: with the callback cleared, 5 guards kept the player as e
   the Metal Heads) and which territories are at war (method 13). A hook at the top of method 14
   overrides a territory for every type of a faction; a test in `activate-by-type` itself, which
   knows the traffic type, tells types of one faction apart (a KG robot from a flying turret).
+- **A territory the faction manager doesn't know sends units to sleep.** Each frame
+  `enemy-common-post` (`city/traffic/citizen/citizen.gc`) sends a citizen off screen or farther
+  than 110 m from the camera to `go-inactive`, printing "Going inactive (citizen). Terr N", when the
+  faction manager refuses its lane's territory for its level (`cty-faction-manager-method-23` on the
+  lane's `clock-mask`, method 9 on its `clock-type`). Spargus's lanes (`wascitya`, `wascityb`) are
+  territory 128 with clock-mask 0: ported into a level running Haven City's city code, every unit
+  put on one went to sleep (534 lines in 4 minutes). Give such lanes a Haven City territory: the
+  `nav-branch` bytes 10 (`clock-type`) and 11 (`clock-mask`), 0 and 1 as most of Jak 2's city's.
 - **Which type comes out next.** `activate-one-vehicle` picks, on a street, the type furthest below
   its count (active / wanted) among those the faction check allows, then `activate-by-type` sends
   one. A type refused only in `activate-by-type` stays the pick: with none out it wins every time,
@@ -2808,7 +2816,9 @@ Verified: jak3, `levels/city/traffic/traffic-engine.gc` (`activate-by-type`,
 `activate-from-params`, `get-from-inactive-by-type`), `levels/wascity/cty-faction.gc` (methods 9,
 13, 14, 16, 20), `levels/city/common/cty-faction-h.gc`; Haven City: New Dawn's Praxis KG invasion
 (Krimzon Guards woken only on the port's streets, by side), and the crash reading the branch of a
-parking spot's spawn params, 2026-11-04.
+parking spot's spawn params, 2026-11-04. Spargus's territory 128: `levels/city/traffic/citizen/citizen.gc`
+(`enemy-common-post`), the battlefront mod's Spargus port (100 units a side awake once its lanes
+were territory 0, 3 before), 2026-11-19.
 
 ## 4.40 Guards fighting guards: the grenade guard's reload loop
 
@@ -3111,6 +3121,16 @@ ends, its sleep that does not take and the landing by hand: the battlefront mod'
   nav-branch)` (the stock one, `vehicle-controller-method-15`, a random lane `dest-node-id-at-max?`
   allows), and at a dead end `citizen-method-208` puts it on any lane 20 to 120 m behind it.
   `citizen-method-199` (a unit put on a segment) starts it over at the segment's first vertex.
+- **A unit on no lane.** A unit woken with no `nav-branch` in its spawn params (a transport's,
+  `'activate-object`) finds its lane itself, within 20 m only (`citizen-method-208`,
+  `flee-info-method-12`). Where lanes are few (Spargus: 233 segments, Jak 2's city 8955) it can
+  stay on none, its controller's `branch` 0, and code that reads the lane without testing it
+  crashes the game (an access violation, no message): `vehicle-controller-method-15`, a
+  `choose-branch-callback` reading `(-> ctrl branch dest-node)`, and a guard's flight
+  (`flee-info-method-13`, from the `flee` state's post in `guard-states.gc` and `guard-grenade.gc`).
+  Test the branch and its `dest-node` there, and put such a unit on the segment nearest it with a
+  wider sphere: `(find-segment unit sphere dir)` (the sphere's `w` its radius), then
+  `(citizen-method-199 unit seg)`.
 - **The lanes cannot route a unit across the city.** The walking lanes are loops within a section:
   ctyslumc has 138 lane nodes and no link to another section's graph, and 173 of ctyslumb's 177
   nodes have one lane out or none. Neither a callback searching the lanes breadth first (256
@@ -3265,6 +3285,7 @@ ends, its sleep that does not take and the landing by hand: the battlefront mod'
   `(send-event *target* 'change-state target-death 'my-mode)` (`target-handler.gc`), his state's
   code getting the mode as its argument.
 
+Round 50 of the battlefront mod, 2026-11-19 (Spargus ported as one level with Haven City's city code): `levels/city/traffic/vehicle/vehicle-control.gc` (method 15), `levels/wascity/flee-info.gc` (methods 12, 13), `levels/city/common/guard-states.gc` (`flee`); the two crashes named by a temporary vectored exception handler (the mod's lane callback, then flee-info method 13, 3 s into a battle), none in 4 minutes once tested and the units put on the nearest lane within 150 m.
 Round 47 of the battlefront mod, 2026-11-18 (Jak 2's city ported as one Jak 3 level): `engine/nav/nav-mesh-h.gc` (`point-in-poly?`), `engine/nav/nav-enemy.gc` (methods 187, 188), `levels/city/traffic/citizen/citizen.gc` (`'active` post); 150 s of battle: units at the seams 3.5 to 5 m from their waypoint before; with the crossing, 43632 crossings undone by the link poly back in 150 s; with the override, 459 crossings, 1 undone, stuck hops 26 in 150 s (175 in 3 minutes before).
 Round 26 of the battlefront mod, 2026-11-12: `engine/nav/nav-mesh.gc` (`debug-draw`, `nav-poly`), `engine/nav/nav-control.gc` (the rays' `ignore`), `levels/common/enemy/spydroid.gc` (exit-transport), `engine/ai/enemy.gc` (`enemy-falling-post`); the meshes dumped in game (islands, types, heights), 16 spiders and robotguards out of a ship watched as they fell, guards on the walkways (8 in 2 minutes once sent there), the music read back from `*setting-control*`.
 Verified: jak3, `levels/city/traffic/vehicle/vehicle-control.gc` (methods 14, 15),
