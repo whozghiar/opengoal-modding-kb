@@ -520,6 +520,26 @@ mesh and textures: the stock AI then drives the imported model unchanged.
   and its legs shook (the battlefront mod, measured 0.994 clip frame a game
   frame, then 0.249 at rate 0.25, 2026-11-05).
 
+- **New clips from the model's own.** A rip's clips can be cut, held on one pose, chained and
+  edited at install, so the repository keeps recipes, never keys taken from the game (the
+  battlefront mod's `mod_models.py` `made_clips`). Work on joint transforms in the model's space:
+  - *Mirror a clip* (a roll to the right into one to the left): each joint takes its partner's
+    skinning matrix mirrored across x, `S K S` with `K = G B^-1` and `S = diag(-1, 1, 1)`, so its
+    global `G' = S G_p B_p^-1 S B`; then each local from its parent's new global. It needs no
+    knowledge of the joints' own axes: Jak 3's Ashelin binds her two hands with frames that are
+    not mirror images (error 2.0), every other pair mirrored exactly, and mirroring twice gives the
+    clip back (2e-9). One limb can be mirrored from the other the same way, rotations only, its
+    bones' lengths kept (both arms held out from a one-armed firing clip).
+  - *Turn a joint* in the model's space by `P^T Q P R`, `P` its parent's global rotation, `R` its
+    local one: what hangs on it follows. In Jak 3's rigs (+y up, facing +z, the left side at +x) a
+    turn about +x by a negative angle swings a hanging limb forward.
+- **A prop on a joint of its own.** Jak 3's Ashelin (DESOASIS `ashelin-lod0`, 39 joints, 39 clips)
+  has one pistol, on a `gun` joint under `prejoint`, whose rest pose is in her right hip's holster:
+  every clip keys it into her right hand, its hold (`K_hand^-1 K_gun`) the same within 0.02 in
+  each but her death, where she drops it. A second pistol in the other hand: the prop's vertices
+  `S C v`, `C` that hold, bound to the other hand alone, its triangles turned back (a mirror flips
+  them). A made or mirrored clip puts `gun` back in the right hand from the hold.
+
 Verified: jak2/jak3 rips compared by script (joint names, bind poses,
 clips, textures), `goalc/build_actor/jak3/build_actor.cpp`,
 `goalc/build_actor/common/build_actor.cpp`,
@@ -529,7 +549,10 @@ in game, 2026-10-31. Loops and eyes: the battlefront mod's round 45
 (`scripts/battlefront/make_baron_clips.py`, its clips measured key by key;
 the eye texture in `jak2/textures/ldjakbrn-pris`, Baron Praxis's one eye
 in game), 2026-11-18. The rig: the same script's root move, the clips
-drawn before and after it (the death's collapse lying down after it).
+drawn before and after it (the death's collapse lying down after it). Made clips, mirrors and the
+second pistol: the battlefront mod's round 53 (Ashelin, `mod_models.py` `made_clips` and
+`mirror_props`; renders of each clip, then smoke scenario 139 in game: rolls 7.9 m each way, both
+pistols firing in turn), 2026-11-19.
 
 ---
 
