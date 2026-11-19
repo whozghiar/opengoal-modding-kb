@@ -3162,6 +3162,24 @@ ends, its sleep that does not take and the landing by hand: the battlefront mod'
   meshes (`nav-enemy-method-188`, every frame of its move) sends it back at once: override that
   method on `nav-enemy` (stock kept with `define-perm`) to pass over, for a second after such a
   crossing, a link poly that leads back to the mesh the unit left.
+- **How Jak 3 links two nav meshes, and adding a link.** The meshes overlap by two polys at a link
+  (ctyslumc and ctyslumb, `ctyslumc-nav.json`): each has a landing poly (`pat` 0) and, appended
+  after its other polys, a switch poly (`pat` 4, its `link` the link's index, its only neighbor the
+  landing poly) lying over the other mesh's landing poly. A unit entering a switch poly moves onto
+  the other mesh, where it stands on a landing poly and stays. A `nav-mesh-link` (16 bytes) holds
+  `id` (the same in both meshes), `dest-mesh-id` (the other's entity-nav-mesh aid),
+  `src-link-poly-id` (the landing poly), `src-switch-poly-id` (the switch poly), the `dest-` ids
+  255 and `dest-mesh` the symbol `#f` in the data: `link-to-other-mesh`, at the mesh's birth, finds
+  the other mesh by aid and its link by id, then fills them (`dest-link-poly-id` gets the other's
+  switch poly). A link can be added to extracted meshes offline: a poly is 64 bytes, its 4 vertices
+  relative to the mesh's `bounds`, their `w` words `id`, `pat`, `vertex-count`, `link` (bytes),
+  then `adj-poly` (4 bytes, edge k from vertex k to k + 1, 255 none), `min-y`, `max-y` (local); the
+  `route` table holds 2 bits per pair, at bit `(to + from * poly-count) * 2`, the `adj-poly` index
+  toward `to`; the `poly-hash` (a grid-hash) has `bucket-size` bytes a cell, cell (x, y, z) at
+  byte `x * size + z * dimx * size + y * dimx * dimz * size`, bit `id` set for each poly whose box
+  covers the cell (`setup-search-box`'s cell formula). A mesh holds 255 polys at most, and the new
+  ones must fit the buckets' bits (8 per byte of `bucket-size`). The level port's nav `links` does
+  it (`scripts/level_port/steps/nav.py`, `link_meshes`).
 - **The city's nav meshes do not all join.** With the six street sections loaded (4.15) there are
   nine nav meshes, one or a few a section: ctysluma links ctyindb, ctyindb ctyinda, ctyinda the
   Port's east mesh, the Port's three linked meshes one to the nest; ctyslumb links ctyslumc and an
@@ -3172,6 +3190,11 @@ ends, its sleep that does not take and the landing by hand: the battlefront mod'
   one mesh, `(change-to other-mesh unit)` and `move-to-point!` 1.5 m inside the other. A search
   breadth first from each goal point's mesh over every listed mesh (a field of the first link
   toward the point, kept per mesh) costs less than one per unit, and needs no bound.
+- **More than 16 Freedom League guards on one foe crash the game.** `ff-squad-control` method 16
+  (`city/common/ff-squad-control.gc`) lists the guards whose `target-status` is that foe in two
+  16-entry stack arrays, with no bound: in a battle with 100 guards, more than 16 aimed at one foe
+  and the 17th wrote past them (an access violation in that method as the fight began). Stop the
+  list at 16.
 - **80 units run out of touching records.** `*touching-prims-entry-pool*` holds 64
   (`engine/collide/collide-touch-h.gc`): units crowding at their ships and points printed
   `alloc-node() failed!` thousands of times (the touches dropped). 256 records, the pool's `nodes`
@@ -3285,6 +3308,7 @@ ends, its sleep that does not take and the landing by hand: the battlefront mod'
   `(send-event *target* 'change-state target-death 'my-mode)` (`target-handler.gc`), his state's
   code getting the mode as its argument.
 
+Round 51 of the battlefront mod, 2026-11-19 (Spargus's two districts linked across their 17 to 19 m gap at the pass): `engine/nav/nav-mesh.gc` (`link-to-other-mesh`, `get-route-portal`, `lookup-poly-on-route-to-target`), `engine/nav/nav-mesh-h.gc` (`nav-poly`, `nav-mesh-link`), `engine/spatial-hash/spatial-hash.gc` (`setup-search-box`, `search-for-point`), the extracted links of `ctyslumc` and `halfpipe`; every route of the four linked meshes checked offline; 100 units a side, units on the strip in 443 samples of 2 minutes; `levels/city/common/ff-squad-control.gc` (method 16), named by a vectored exception handler, no crash with the bound.
 Round 50 of the battlefront mod, 2026-11-19 (Spargus ported as one level with Haven City's city code): `levels/city/traffic/vehicle/vehicle-control.gc` (method 15), `levels/wascity/flee-info.gc` (methods 12, 13), `levels/city/common/guard-states.gc` (`flee`); the two crashes named by a temporary vectored exception handler (the mod's lane callback, then flee-info method 13, 3 s into a battle), none in 4 minutes once tested and the units put on the nearest lane within 150 m.
 Round 47 of the battlefront mod, 2026-11-18 (Jak 2's city ported as one Jak 3 level): `engine/nav/nav-mesh-h.gc` (`point-in-poly?`), `engine/nav/nav-enemy.gc` (methods 187, 188), `levels/city/traffic/citizen/citizen.gc` (`'active` post); 150 s of battle: units at the seams 3.5 to 5 m from their waypoint before; with the crossing, 43632 crossings undone by the link poly back in 150 s; with the override, 459 crossings, 1 undone, stuck hops 26 in 150 s (175 in 3 minutes before).
 Round 26 of the battlefront mod, 2026-11-12: `engine/nav/nav-mesh.gc` (`debug-draw`, `nav-poly`), `engine/nav/nav-control.gc` (the rays' `ignore`), `levels/common/enemy/spydroid.gc` (exit-transport), `engine/ai/enemy.gc` (`enemy-falling-post`); the meshes dumped in game (islands, types, heights), 16 spiders and robotguards out of a ship watched as they fell, guards on the walkways (8 in 2 minutes once sent there), the music read back from `*setting-control*`.
