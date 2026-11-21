@@ -154,7 +154,13 @@ the process keeps its identity, position and handlers.
 Multi-DGO trap: the lookup uses `(-> this level)`. If a parent in level A
 spawns a child whose art lives in level B, set `(-> this level)` **and**
 `(-> pp level)` to level B *before* calling `initialize-skeleton`, or the
-child crashes into `:state process-drawable-art-error "art-group"`.
+child crashes into `:state process-drawable-art-error "art-group"`. The same
+holds for a process that GAME code spawns into `*entity-pool*` with no entity:
+its `level` is not the one holding its art, and the art-group lookup by name
+finding the skeleton group is no proof (Jak 3: a stock art group put into a
+custom level's DGO, its process idle in `process-drawable-art-error` until
+its `level` was set to that level, the battlefront mod's round 54,
+2026-11-21).
 
 ```lisp
 ;; fix for a child whose art-group is in another level DGO

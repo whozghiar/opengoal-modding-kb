@@ -2029,6 +2029,15 @@ Verified: jak3, `engine/gfx/font.gc`, `pc/pckernel-impl.gc`; the battlefront mod
   to allocate new attacker for mission squad!", the units without one corrupt memory (invalid type
   pointers), and the game fell to 4 frames a second with 80 units. 128 ran at 60; 192 for 126
   units.
+- **A place of your own in the attack controller: fill its cache entry.** A process of a mod made
+  a unit of a side (`allocate-attacker`, then `(init! info proc type)`: type 4 a Freedom League
+  rifle guard, 9 a Krimzon Guard robotguard, so the other side hates it) gets its `attacker-cache`
+  entry (`proc`, `pos`, a pointer to its root's `trans`, `attackable?`) only at
+  `mission-squad-control-method-12`'s next pass. Code reading the cache the same frame (a loop over
+  the attackers taking each one's `pos`) read a stale pointer and crashed in
+  `vector-vector-xz-distance`. Set the three fields at allocation. Verified: Jak 3,
+  `levels/wascity/mission-squad-control.gc` (`init!`, method 12), the battlefront mod's round 54
+  (Spargus's artifact, the crash named by a vectored exception handler), 2026-11-21.
 - **126 walkers awake, unless the tracker grows.** `reset-and-init-from-manager` puts traffic
   types 0 to 16 (citizens, guards, Metal Heads, robotguards, spiders, flying turrets) on tracker 1
   and the vehicles (17 to 28) on tracker 0, and a stock tracker lists 126 awake objects
@@ -3205,6 +3214,12 @@ ends, its sleep that does not take and the landing by hand: the battlefront mod'
   covers the cell (`setup-search-box`'s cell formula). A mesh holds 255 polys at most, and the new
   ones must fit the buckets' bits (8 per byte of `bucket-size`). The level port's nav `links` does
   it (`scripts/level_port/steps/nav.py`, `link_meshes`).
+- **A unit chasing its foe stays on its nav mesh.** A city unit given a foe on another nav mesh
+  (its attacker's `enemy`) runs toward it with its stock moves and stops at the end of its own
+  mesh, a link or not: in Spargus every Krimzon Guard unit given a foe beyond the pass stood at the
+  pass's east end (x 1977 m) for 3 minutes. A march over the links (a waypoint, `change-to`) crosses
+  them; give such a foe only to units on its mesh. Verified: Jak 3, the battlefront mod's round 54
+  (scenario 140, the westmost unit of the side at 1977 m in every look), 2026-11-21.
 - **The city's nav meshes do not all join.** With the six street sections loaded (4.15) there are
   nine nav meshes, one or a few a section: ctysluma links ctyindb, ctyindb ctyinda, ctyinda the
   Port's east mesh, the Port's three linked meshes one to the nest; ctyslumb links ctyslumc and an

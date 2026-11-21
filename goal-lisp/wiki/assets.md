@@ -533,6 +533,16 @@ mesh and textures: the stock AI then drives the imported model unchanged.
   - *Turn a joint* in the model's space by `P^T Q P R`, `P` its parent's global rotation, `R` its
     local one: what hangs on it follows. In Jak 3's rigs (+y up, facing +z, the left side at +x) a
     turn about +x by a negative angle swings a hanging limb forward.
+- **Motion captures on a stock character with a prop.** Mixamo's captures put on Jak 3's Ashelin
+  with the Jak Animation Studio (`apply_mocap`): the capture's hips travel lands on her `hips`
+  joint, whose sibling under `main` is her upper body, so kneeling folded her legs under a torso
+  left standing: move it onto `main` (the battlefront mod's `make_baron_clips.py` `move_root`, the
+  Baron's rig the same). `in_place` drops the travel across only, not the height. The studio leaves
+  the fingers and her `gun` joint at rest: hold the right hand's fingers at her own firing clip's
+  pose, the left hand's as their mirror, and put the pistol back in her hand from its hold. A
+  capture's two-handed pistol grip brings her two pistols together in front of her. Verified:
+  Jak 3, the battlefront mod's round 54 (`make_ashelin_clips.py`, `mod_models.py` `made_from` and
+  `pose_from`; renders of each clip, smoke scenario 139 in game), 2026-11-21.
 - **A prop on a joint of its own.** Jak 3's Ashelin (DESOASIS `ashelin-lod0`, 39 joints, 39 clips)
   has one pistol, on a `gun` joint under `prejoint`, whose rest pose is in her right hip's holster:
   every clip keys it into her right hand, its hold (`K_hand^-1 K_gun`) the same within 0.02 in
