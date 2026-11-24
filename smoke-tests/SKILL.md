@@ -61,6 +61,13 @@ task compile-check
   circle drawn round in the window shows as an ellipse. Judge proportions in the window, not in
   the picture (the battlefront mod's radar, 2026-11-14: `Setting window size to 640 x 480` in the
   run's log, `FBO Setup: requested 1280x720` at each shot).
+- A motion shown as a GIF: a `pc-screen-shot` every N game frames (`pc-register-screen-shot-settings`
+  at 640 x 360 keeps up), then the frames joined. GIF delays are whole hundredths of a second, so
+  a frame of 4 game frames (66.7 ms) saved as 67 ms is stored as 60 ms and plays 11 % fast: give
+  the frames 70, 70 and 60 ms in turn, then check the sum of the delays against the game frames
+  recorded. A walk of several moves drifts the player away: put it back at the first move's place
+  before each one (the battlefront mod's round 56, scenario 141: 480 frames, 32.0 s for 1 920
+  game frames, 2026-11-24).
 - A page of the START menu takes its keys only once the menu's ring has opened
   (`menu-transition` 0): wait for that before pressing X, or the press is lost (the battlefront
   mod's result page, scenario 51, 2026-11-14).
