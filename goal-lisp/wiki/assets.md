@@ -543,6 +543,17 @@ mesh and textures: the stock AI then drives the imported model unchanged.
   capture's two-handed pistol grip brings her two pistols together in front of her. Verified:
   Jak 3, the battlefront mod's round 54 (`make_ashelin_clips.py`, `mod_models.py` `made_from` and
   `pose_from`; renders of each clip, smoke scenario 139 in game), 2026-11-21.
+- **Jak's own clips as the capture.** A rip of Jak (`jakb-lod0.glb`, 289 clips) with one animation
+  left in its glTF (the JSON chunk rewritten, the binary chunk kept) is a capture `apply_mocap`
+  takes: the studio maps Jak's joint names (`Larm`, `Lforarm`, `sk_lhand`, `neckA`...) on its own.
+  Jak runs and crouches on deeply bent legs: on Jak 3's Ashelin his run kept her hips at her own
+  height and her feet floated 0.4 m over the ground at their lowest, his hips bouncing 0.6 m. Lower
+  the body until the lowest foot joint touches the ground of the rest pose, and scale the run's
+  bounce down (halved there). Jak's own run plays at 10 m/s over a 6.25 m cycle (`target-util.gc`
+  `run-cycle-dist`, rate 1.6); on her body his run covers 4.98 m a second at rate 1, measured from
+  the planted foot. Verified: Jak 3, the battlefront mod's round 55 (`make_ashelin_clips.py`
+  `jk-*`, renders of each clip, smoke scenario 139: her run clip at the rate her feet ask),
+  2026-11-24.
 - **A prop on a joint of its own.** Jak 3's Ashelin (DESOASIS `ashelin-lod0`, 39 joints, 39 clips)
   has one pistol, on a `gun` joint under `prejoint`, whose rest pose is in her right hip's holster:
   every clip keys it into her right hand, its hold (`K_hand^-1 K_gun`) the same within 0.02 in

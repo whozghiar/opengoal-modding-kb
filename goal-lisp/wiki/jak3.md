@@ -1480,7 +1480,10 @@ there, `update` would make a channel of `#f`. `(-> top frame-targ)` turns #f whe
 ends: the moment to push the next one. The joint-control's `relocate` moves the top-anim with a
 heap that compacts. Crimson guard skeleton (`crimson-guard-lod0`): above the hips are swivelMe 3 to
 left_wrist 17, the fingers 25 to 27 and the head, ears and thumbs 29 to 40, `#x1ffee03fff8`; the
-hips 18 hold the legs (18 to 24, 28).
+hips 18 hold the legs (18 to 24, 28). The bit is the joint's node index (`joint-nodes.gc`
+`def-joint-node`) minus 1: Ashelin (`ashelin-lod0`) has her arms Lshoulder to Rhand on nodes 7 to
+12, `gun` on 22 and her fingers on 30 to 37, `#x1fe0200fc0` (the battlefront mod's round 55: her
+firing clip and its recoil on her arms over her walk, screenshots, 2026-11-24).
 
 Verified: jak3, `engine/process-drawable/process-drawable.gc` (`top-anim-joint-control` `update`),
 `engine/target/target-gun.gc`, `engine/entity/relocate.gc`; the battlefront mod's guard class
