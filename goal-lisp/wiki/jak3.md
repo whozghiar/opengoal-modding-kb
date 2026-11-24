@@ -103,10 +103,20 @@ not the rocket's, which would set up a second skeleton. The red gun 3's grenade
 (`skel-gun-red-3-grenade`, scale 2.5, its glow `group-gun-red3-shot-glow`) flies straight that way;
 its own `gun-red-3-grenade` bounces and falls.
 
+**A shot that falls in an arc.** Gravity taken off `transv` in `projectile-method-25` does nothing:
+`guard-shot`'s `init-proj-settings!` sets the projectile's `update-velocity` to
+`projectile-update-velocity-space-wars` (`engine/common-obs/projectile.gc`), which the `moving`
+state's `:trans` runs every frame before the move: it steers the velocity back and clamps it to
+`max-speed`, and the shot flies straight. Set `update-velocity` to a function of your own after
+`call-parent-method` in `init-proj-settings!`, one that only takes the fall off `transv y` each
+frame (`seconds-per-frame` times the gravity), and launch it with its rise in its velocity.
+
 Verified: jak3, `engine/common-obs/guard-projectile.gc`, `engine/target/gun/gun-red-shot.gc`,
 `engine/target/gun/gun-dark-shot.gc`; the battlefront mod's jetpack rocket (12 m in 0.2 s level,
 its burst and sphere, a guard 3 m from it killed), 2026-11-15; its robotguard grenade (12 m in 0.2 s,
-0.45 m rise, its burst, a guard killed), 2026-11-15.
+0.45 m rise, its burst, a guard killed), 2026-11-15; Ashelin's lobbed grenade: straight with the
+fall in method 25, then up 3.3 m and down 5.1 m with its own `update-velocity` (scenario 142),
+2026-11-24.
 
 **The dark gun's effects without the gun.** Every piece is in GAME (`gun-part.gc`,
 `gun-dark-shot.gc`, `target-part.gc`, gun-ag) and works from any process:
@@ -3058,8 +3068,15 @@ the leap 1.18 m along the ground with an upward speed set by hand, 3.80 m with `
   Jak (`obstacle blocking-plane camera-blocker`), drawn with ctywide's animated texture
   (`*security-texture-anim-array*`, ctywide's texture callback 6), so it shows wherever ctywide is
   loaded. Its color is one global (`set-security-color!`, `ctywide-texture.gc`): every wall on
-  screen takes the last color set, and the child sets red at its init and each frame. Code linked
-  before `ctywide-obs.o` in CWI declares it.
+  screen takes the last color set, and the child sets red at its init and each frame from its
+  `color` field: set that field after the spawn for another color. Code linked before
+  `ctywide-obs.o` in CWI declares it.
+- **The same wall in a level of your own.** Its DGO needs `ctywide-obs.o` and `ctywide-texture.o`,
+  the art group `security-wall-ag` (in CWI, COMBA and RUBB only, not GAME) with its textures, and
+  the level's callback `(6 . *security-texture-anim-array*)`. There its texture showed white
+  whatever `color` it was given, (1, 1, 1) or a blue: tint it through its model instead, its
+  `draw color-emissive` (the child sets `color-mult` to 0 and the emissive to 1 at its init), and
+  (0.3, 0.6, 1) shows blue.
 - **The ruins' own force field.** The game closes the street from Freedom HQ's district (ctyslumb)
   into the ruins of the old town (ctygenb) with `security-wall-12` until its first task: x 389.75 m,
   z -18.44 to -70.72 m, y 7.94 m, 40 m tall (`decompiler_out/jak3/entities/ctyslumb-actors.json`,
@@ -3093,7 +3110,10 @@ Verified: jak3, `levels/city/common/nav-graph-h.gc`, `levels/city/ctywide-obs.gc
 the four districts it fights in (the Port and the Industrial Zone found the same street between
 them, as did the Slums and Freedom HQ), a red wall on screen at the Port, white, blue and red beams
 on screen, 2026-11-08; the ruins' and the nest's walls holding Jak running at them, six doors
-`close` with Jak 3 m off, 2026-11-08.
+`close` with Jak 3 m off, 2026-11-08; a wall in the battlefront mod's Spargus level (made by
+`scripts/level_port`, the three pieces above in its port manifest): drawn white with either
+`color`, blue with the emissive color, and holding a character that moves on probes colliding
+with `backgnd obstacle`, 2026-11-24.
 
 ## 4.43 Haven City traffic: units out of a transport, and back to sleep
 
