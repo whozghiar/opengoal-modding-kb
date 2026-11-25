@@ -2509,17 +2509,29 @@ and `group-kg-small-explosion` (the flying turret's, with `fly-turret-die`), spa
 `part-tracker-spawn part-tracker :to self :group ...` after setting `(-> *launch-matrix* trans)`.
 Launch part 53 as the dissolve does, `(sp-launch-particles-death *sp-particle-system-2d* (-> *part-id-table* 53) pos)`
 (`merc-death-spawn`): through `launch-particles` it showed as a few pale discs, where the stock
-dissolve of a blue guard is a purple cloud; six to ten a frame from random joints, each up to 0.4 m
-off, for death-default's 75 frames, look like it. For a unit of the traffic, start the same look
-from the `do-effect` call of its death effect (a wrapper of `effect-control` `do-effect`): the
-guard's `'event-death` (`guard.gc`) runs `death-default` only with its `hit-points` at exactly 0,
-which `apply-incoming-hitpoint-mods` (`enemy.gc`) gives a killing blow (the damage capped at the
-hit points left). Hide the body after the sparks, and stop once the unit is no longer dead: its
-pool wakes it again with the same process, and its reset (`citizen-method-194`) clears `no-draw`.
+dissolve of a blue guard is a purple cloud; twenty a frame from random joints, each up to 0.4 m
+off, for 0.25 s, look like it. `death-default`'s timer, 75, is not frames: `do-effect` sets the
+draw's `death-timer` to 75 / `time-factor` and the renderer takes one off a frame, at 300 /
+`time-factor` frames a second (`effect-control.gc`, `foreground.gc`, `display.gc`
+`set-time-ratios`), so the dissolve lasts 0.25 s at any frame rate (1.25 s of sparks dissolved
+the mod's red guards five times as slowly as the blue ones). For a unit of the traffic, start the
+same look from the `do-effect` call of its death effect (a wrapper of `effect-control` `do-effect`):
+the guard's `'event-death` (`guard.gc`) runs `death-default` only with its `hit-points` at exactly
+0, which `apply-incoming-hitpoint-mods` (`enemy.gc`) gives a killing blow (the damage capped at the
+hit points left). Skipping the effect, still send the process `'death-start`, as `do-effect` does
+for a death effect: it sets `enemy-flag death-start`, and an enemy killed while knocked down ends
+its death where it lies only with that flag; without it, the `knocked` state goes to `die`, and the
+body stands up into its standing death clip (`enemy-states.gc`). Hide the body after the sparks, and
+stop once the unit is no longer dead: its pool wakes it again with the same process, and its reset
+(`citizen-method-194`) clears `no-draw`.
 Verified: the battlefront mod's player deaths (guard, robotguard, jetpack, screenshots), 2026-11-11;
 jak3 `levels/city/traffic/citizen/guard.gc`, `engine/ai/enemy.gc`, `citizen.gc`; the mod's red guards
 dissolving and its films, 2026-11-13; `engine/gfx/foreground/merc/merc-death.gc` (`death-default`:
 effect 53, vertex-skip 10, timer 75), the films of a blue guard's and a red guard's death, 2026-11-14.
+`death-default`'s length and `'death-start`: jak3 `engine/game/effect-control.gc`,
+`engine/gfx/foreground/foreground.gc`, `engine/gfx/hw/display.gc`, `engine/common-obs/enemy-states.gc`
+(`knocked`), `engine/ai/enemy.gc`; the battlefront mod's red guards killed in game, none of them
+through `die` after the fix, 2026-11-25.
 
 **Particles placed by the stock code.** A stock unit's code puts its particles at fixed offsets from
 its root: drawn as another model, they miss it. The flying turret draws its two thruster flames
