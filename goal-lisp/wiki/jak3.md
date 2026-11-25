@@ -3082,7 +3082,13 @@ the leap 1.18 m along the ground with an upward speed set by hand, 3.80 m with `
   loaded. Its color is one global (`set-security-color!`, `ctywide-texture.gc`): every wall on
   screen takes the last color set, and the child sets red at its init and each frame from its
   `color` field: set that field after the spawn for another color. Code linked before
-  `ctywide-obs.o` in CWI declares it.
+  `ctywide-obs.o` in CWI declares it. Its plane is its root's forward axis through its middle,
+  its length its scale across in meters (`init-wall`). It shocks Jak once his place crosses
+  that plane within 4 m of it (`security-wall-method-24`): `attack-invinc`, 2 points, mode
+  `grenade`, sent again every frame until his handler answers true. A character moved on its own
+  `fill-and-probe-using-line-sphere` probes (section 4.52) goes through its mesh: hold it off the
+  plane by code. Verified: jak3, `levels/city/ctywide-obs.gc`, the battlefront mod's round 61
+  (scenario 150: its shock sent from the wall, the character held at the plane), 2026-11-25.
 - **The same wall in a level of your own.** Its DGO needs `ctywide-obs.o` and `ctywide-texture.o`,
   the art group `security-wall-ag` (in CWI, COMBA and RUBB only, not GAME) with its textures, and
   the level's callback `(6 . *security-texture-anim-array*)`. There its texture showed white
@@ -3711,3 +3717,29 @@ on the surface, 0 m in 2 s); the cause was not found. Moving the root by hand on
 
 Verified: jak3, the battlefront mod's `battlefront-baron.gc` (`bf-baron-step`), scenario 126: 17.6
 m run in 2 s, a 6.22 m jump, 2026-11-17.
+
+These probes miss a `security-wall` (section 4.42): the character walked through one.
+
+## 4.53 Jak's blows: their hitboxes, lengths and lunge
+
+Jak's attacks are spheres that `target-danger-set!` (`engine/target/target-util.gc`) turns on,
+sized from `*TARGET-bank*`. A sphere's transform index -2 is the root; others are a node of
+`node-list` (joint index plus 1: `align` is node 1).
+
+| Mode | Spheres | State, length |
+|---|---|---|
+| `spin`, `spin-air` | 2.2 m (`spin-radius`) around 1.6 m above the feet (`spin-offset`) | `target-attack`, 0.38 s (`jakb-attack-from-stance`), no travel |
+| `punch` | 1.3 m (`punch-radius`) around 1.3 m above the feet (`punch-offset`), and 1.3 m on node 27, `Rforarm` | `target-running-attack`, 0.35 s (`jakb-attack-punch`) |
+| `uppercut` | 1 m around 0.8 m and 2.2 m above the feet, and 1 m on node 27 | `target-attack-uppercut` |
+| `flop` | 1.4 m (`flop-radius`) | the dive attack |
+
+The game strikes a foe when one of the foe's collision spheres overlaps one of Jak's (a crimson
+guard's body spheres are 1.5 m wide, 1.5 m and 2.4 m up). The danger mode lasts the whole state;
+the end clips (`attack-punch-end`, `attack-from-stance-end`) play in `target-stance`, where Jak is
+free. The punch lunges on its clip's `align`: 30 m/s at once, then slowing to 1/e every 0.075 s,
+3.0 m from a stand and 3.3 m at a run. A foe's spheres are its `root-prim`, or for a group (prim type 0)
+its `child` array, 80 bytes each.
+
+Verified: jak3, `engine/target/target-util.gc`, `engine/target/target.gc`; the battlefront mod's
+round 61, scenario 149 (Jak put in `target-running-attack` and `target-attack`, his travel and
+danger mode every other frame) and `bf-shape-touches?` (scenario 150), 2026-11-25.

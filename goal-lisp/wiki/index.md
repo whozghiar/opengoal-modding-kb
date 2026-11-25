@@ -97,6 +97,7 @@ subsystem differences, not restatements of the shared material.
   - [4.50 Units fighting units: NaN places that spread](jak3.md#450-units-fighting-units-nan-places-that-spread)
   - [4.51 Particles: naming a new group, Jak 1 effects in Jak 3](jak3.md#451-particles-naming-a-new-group-jak-1-effects-in-jak-3)
   - [4.52 A walking character of your own: move it on probes](jak3.md#452-a-walking-character-of-your-own-move-it-on-probes)
+  - [4.53 Jak's blows: their hitboxes, lengths and lunge](jak3.md#453-jaks-blows-their-hitboxes-lengths-and-lunge)
 - [How to contribute](../../kb/SKILL.md)
 
 

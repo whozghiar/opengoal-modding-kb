@@ -554,6 +554,18 @@ mesh and textures: the stock AI then drives the imported model unchanged.
   the planted foot. Verified: Jak 3, the battlefront mod's round 55 (`make_ashelin_clips.py`
   `jk-*`, renders of each clip, smoke scenario 139: her run clip at the rate her feet ask),
   2026-11-24.
+- **What a rip of Jak's clips lacks.** `fr3_to_gltf.cpp` writes a clip's channels from joint 2 on
+  (`for (int ji = 2; ...)`): `align` and `prejoint` have none, so the travel a move takes from its
+  clip's `align` (Jak's punch lunges about 3 m on it, `target-running-attack`'s
+  `compute-delta-align!`) is in no rip: measure it in the game and move the character by code. On
+  a body of other proportions, `apply_mocap`'s copy of Jak's punch kept his torso's swing but not
+  where it starts (his shoulders first turned back 90 degrees): the fist ended out to the side.
+  Turning the hips and chest about the up axis to the headings of Jak's thighs and shoulders at
+  each key, then a two-joint arm to where his wrist is from his shoulder (in the share of his arm's
+  length), gave his punch back. A hand's scale keys (Jak's punch grows his fist 2.58 times) also
+  scale whatever is skinned to that hand: Ashelin's pistol grew with it, her fingers' keys alone
+  did not. Verified: Jak 3, the battlefront mod's round 61 (`make_ashelin_clips.py` `match_jak`,
+  `fist_scale`; the clip's arm directions compared key by key with Jak's, renders), 2026-11-25.
 - **A prop on a joint of its own.** Jak 3's Ashelin (DESOASIS `ashelin-lod0`, 39 joints, 39 clips)
   has one pistol, on a `gun` joint under `prejoint`, whose rest pose is in her right hip's holster:
   every clip keys it into her right hand, its hold (`K_hand^-1 K_gun`) the same within 0.02 in
