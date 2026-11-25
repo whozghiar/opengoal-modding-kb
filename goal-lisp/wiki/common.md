@@ -995,6 +995,28 @@ Verified: jak3, `goalc/compiler/compilation/Math.cpp`; the Battlefront mod's goa
 17 points (a key two bits a point): each side's units on one or two points, then on 12 or 13
 once the key was kept under 65521, 2026-11-15.
 
+### 1.4.28 A process's new `symbol` field starts true, not `#f`
+
+`activate` zeroes a process's own fields when it starts (`kernel/gkernel.gc`, `mem-set32!` over
+`heap-base` bytes from `stack`, the same in the three games). Zero is a number, and `#f` is a
+symbol: a `symbol` field left to that zero reads as true in `if`, `and` and `when`. An `int32`
+field left at 0 can also name something that is not what the code expects, for example art group
+entry 0, a skeleton and not a clip. Set every new field in the process's init, flags to `#f`
+included:
+
+```lisp
+(defbehavior my-actor-init-by-other my-actor ()
+  (set! (-> self aloft?) #f)          ;; 0 would read as true
+  (set! (-> self land-clip) MY_CLIP_LAND) ;; 0 would be the skeleton, not a clip
+  ...
+  )
+```
+
+Verified: jak1, jak2, jak3, `kernel/gkernel.gc` (`activate`); the Battlefront mod's round 58: a
+landing flag added to its avatar without an init read true on its first frame, the landing
+played art group entry 0, and the game crashed (access violation) at a deployment, in 1 of 2
+runs; none in 2 runs after the init, 2026-11-25.
+
 ### 1.4.19 A state keeps the event handler it was defined with
 
 `defstate` evaluates `:event`, `:enter`, `:trans`... once, when the state is defined: a state holds
